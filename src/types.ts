@@ -1,6 +1,6 @@
-export type FixedPointNumber = {
+export type FixedPoint = {
   amount: bigint
-  decimals: number
+  decimals: bigint
 }
 
 export type Asset = {
@@ -15,7 +15,7 @@ export type FungibleAsset = Asset & {
   // the number of decimals needed to represent the smallest commonly
   // transferrable "quantum" of a fungible asset. Eg, 2 for USD ($0.01)
   // or 10 for BTC (0.0000000001)
-  decimals: number
+  decimals: bigint
 }
 
 export type Currency = FungibleAsset & {
