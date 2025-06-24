@@ -28,5 +28,7 @@ export type AnyAsset = ( Asset | FungibleAsset | Currency )
 
 export type AssetAmount = {
   asset: AnyAsset
-  amount: bigint
+  // the amount of an asset, using a fixed-point. this allows reasoning about
+  // sub-quantum amounts, eg $0.001 in USD, even though USD only has 2 decimals.
+  amount: FixedPoint
 }
