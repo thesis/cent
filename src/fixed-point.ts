@@ -15,6 +15,10 @@ export class FixedPointNumber implements FixedPoint {
     this.decimals = decimals ?? 0n
   }
 
+  static fromFixedPoint(fp: FixedPoint) {
+    return new FixedPointNumber(fp.amount, fp.decimals)
+  }
+
   /**
    * Add two fixed-point numbers together and return the result.
    *
@@ -115,11 +119,34 @@ export class FixedPointNumber implements FixedPoint {
     if (this.decimals === other.decimals) {
       return this.amount === other.amount
     }
+    else if (this.decimals > other.decimals) {
+      return FixedPointNumber.fromFixedPoint(other).normalize(this).equals(this)
+    }
+    else {
+      return this.normalize(other).equals(other)
+    }
+  }
 
-    let normalized1 = this.amount * (10n ** this.decimals)
-    let normalized2 = other.amount * (10n ** other.decimals)
+  /**
+   * Normalize this FixedPointNumber to match the decimal count of another FixedPoint
+   *
+   * @param other - The FixedPoint to match decimal count with
+   * @returns A new FixedPointNumber with the same decimal count as other
+   */
+  normalize(other: FixedPoint): FixedPointNumber {
+    if (this.decimals === other.decimals) {
+      return new FixedPointNumber(this.amount, this.decimals)
+    }
 
-    return normalized1 === normalized2
+    if (this.decimals < other.decimals) {
+      // Scale up: multiply by 10^(other.decimals - this.decimals)
+      const scaleFactor = 10n ** (other.decimals - this.decimals)
+      return new FixedPointNumber(this.amount * scaleFactor, other.decimals)
+    } else {
+      // Scale down: divide by 10^(this.decimals - other.decimals)
+      const scaleFactor = 10n ** (this.decimals - other.decimals)
+      return new FixedPointNumber(this.amount / scaleFactor, other.decimals)
+    }
   }
 
   /**
