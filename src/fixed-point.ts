@@ -24,16 +24,15 @@ export class FixedPointNumber implements FixedPoint {
    *
    * @param other - The other number to add
    * @returns A new FixedPointNumber instance with the sum
-   * @throws Error if the decimal places don't match
    */
   add(other: FixedPoint): FixedPointNumber {
-    if (this.decimals !== other.decimals) {
-      throw new Error('Cannot add FixedPoint numbers with different decimal places')
-    }
+    const maxDecimals = this.decimals > other.decimals ? this.decimals : other.decimals
+    const normalizedThis = this.decimals === maxDecimals ? this : this.normalize({ amount: 0n, decimals: maxDecimals })
+    const normalizedOther = other.decimals === maxDecimals ? other : FixedPointNumber.fromFixedPoint(other).normalize({ amount: 0n, decimals: maxDecimals })
 
     return new FixedPointNumber(
-      this.amount + other.amount,
-      this.decimals
+      normalizedThis.amount + normalizedOther.amount,
+      maxDecimals
     )
   }
 
@@ -42,16 +41,15 @@ export class FixedPointNumber implements FixedPoint {
    *
    * @param other - The number to subtract
    * @returns A new FixedPointNumber instance with the difference
-   * @throws Error if the decimal places don't match
    */
   subtract(other: FixedPoint): FixedPointNumber {
-    if (this.decimals !== other.decimals) {
-      throw new Error('Cannot subtract FixedPoint numbers with different decimal places')
-    }
+    const maxDecimals = this.decimals > other.decimals ? this.decimals : other.decimals
+    const normalizedThis = this.decimals === maxDecimals ? this : this.normalize({ amount: 0n, decimals: maxDecimals })
+    const normalizedOther = other.decimals === maxDecimals ? other : FixedPointNumber.fromFixedPoint(other).normalize({ amount: 0n, decimals: maxDecimals })
 
     return new FixedPointNumber(
-      this.amount - other.amount,
-      this.decimals
+      normalizedThis.amount - normalizedOther.amount,
+      maxDecimals
     )
   }
 
@@ -60,7 +58,6 @@ export class FixedPointNumber implements FixedPoint {
    *
    * @param other - The value to multiply by (either a FixedPoint or a bigint)
    * @returns A new FixedPointNumber instance with the product
-   * @throws Error if multiplying by a FixedPoint with different decimal places
    */
   multiply(other: FixedPoint | bigint): FixedPointNumber {
     if (typeof other === 'bigint') {
@@ -70,16 +67,16 @@ export class FixedPointNumber implements FixedPoint {
       )
     }
 
-    if (this.decimals !== other.decimals) {
-      throw new Error('Cannot multiply FixedPoint numbers with different decimal places')
-    }
+    const maxDecimals = this.decimals > other.decimals ? this.decimals : other.decimals
+    const normalizedThis = this.decimals === maxDecimals ? this : this.normalize({ amount: 0n, decimals: maxDecimals })
+    const normalizedOther = other.decimals === maxDecimals ? other : FixedPointNumber.fromFixedPoint(other).normalize({ amount: 0n, decimals: maxDecimals })
 
-    const factor = 10n ** this.decimals
-    const result = (this.amount * other.amount) / factor
+    const factor = 10n ** maxDecimals
+    const result = (normalizedThis.amount * normalizedOther.amount) / factor
 
     return new FixedPointNumber(
       result,
-      this.decimals
+      maxDecimals
     )
   }
 

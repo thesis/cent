@@ -25,11 +25,13 @@ describe('FixedPointNumber', () => {
       expect(result.decimals).toBe(2n)
     })
 
-    it('should throw an error when adding numbers with different decimals', () => {
-      const fp1 = new FixedPointNumber(123n, 2n)
-      const fp2 = new FixedPointNumber(456n, 3n)
+    it('should add numbers with different decimals by normalizing to higher precision', () => {
+      const fp1 = new FixedPointNumber(123n, 2n) // 1.23
+      const fp2 = new FixedPointNumber(456n, 3n) // 0.456
+      const result = fp1.add(fp2)
 
-      expect(() => fp1.add(fp2)).toThrow('Cannot add FixedPoint numbers with different decimal places')
+      expect(result.amount).toBe(1686n) // 1230 + 456 = 1686 (in 3 decimal places)
+      expect(result.decimals).toBe(3n)
     })
 
     it('should handle adding zero', () => {
@@ -61,11 +63,13 @@ describe('FixedPointNumber', () => {
       expect(result.decimals).toBe(2n)
     })
 
-    it('should throw an error when subtracting numbers with different decimals', () => {
-      const fp1 = new FixedPointNumber(456n, 2n)
-      const fp2 = new FixedPointNumber(123n, 3n)
+    it('should subtract numbers with different decimals by normalizing to higher precision', () => {
+      const fp1 = new FixedPointNumber(456n, 2n) // 4.56
+      const fp2 = new FixedPointNumber(123n, 3n) // 0.123
+      const result = fp1.subtract(fp2)
 
-      expect(() => fp1.subtract(fp2)).toThrow('Cannot subtract FixedPoint numbers with different decimal places')
+      expect(result.amount).toBe(4437n) // 4560 - 123 = 4437 (in 3 decimal places)
+      expect(result.decimals).toBe(3n)
     })
   })
 
@@ -88,11 +92,14 @@ describe('FixedPointNumber', () => {
       expect(result.decimals).toBe(2n)
     })
 
-    it('should throw an error when multiplying by a FixedPoint with different decimals', () => {
-      const fp1 = new FixedPointNumber(123n, 2n)
-      const fp2 = new FixedPointNumber(234n, 3n)
+    it('should multiply FixedPoints with different decimals by normalizing to higher precision', () => {
+      const fp1 = new FixedPointNumber(123n, 2n) // 1.23
+      const fp2 = new FixedPointNumber(234n, 3n) // 0.234
+      const result = fp1.multiply(fp2)
 
-      expect(() => fp1.multiply(fp2)).toThrow('Cannot multiply FixedPoint numbers with different decimal places')
+      // 1.23 * 0.234 = 0.28782, normalized to 3 decimals = 287n (truncated)
+      expect(result.amount).toBe(287n)
+      expect(result.decimals).toBe(3n)
     })
   })
 
