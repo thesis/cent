@@ -245,4 +245,60 @@ export class FixedPointNumber implements FixedPoint {
   greaterThanOrEqual(other: FixedPoint): boolean {
     return this.greaterThan(other) || this.equals(other)
   }
+
+  /**
+   * Check if this FixedPointNumber is positive (greater than zero)
+   *
+   * @returns true if the amount is positive, false otherwise
+   */
+  isPositive(): boolean {
+    return this.amount > 0n
+  }
+
+  /**
+   * Check if this FixedPointNumber is negative (less than zero)
+   *
+   * @returns true if the amount is negative, false otherwise
+   */
+  isNegative(): boolean {
+    return this.amount < 0n
+  }
+
+  /**
+   * Return the maximum of this FixedPointNumber and other(s)
+   *
+   * @param other - The other FixedPoint(s) to compare with
+   * @returns The FixedPointNumber with the largest value
+   */
+  max(other: FixedPoint | FixedPoint[]): FixedPointNumber {
+    const others = Array.isArray(other) ? other : [other]
+    let maxValue = this
+    
+    for (const fp of others) {
+      if (maxValue.lessThan(fp)) {
+        maxValue = FixedPointNumber.fromFixedPoint(fp)
+      }
+    }
+    
+    return maxValue
+  }
+
+  /**
+   * Return the minimum of this FixedPointNumber and other(s)
+   *
+   * @param other - The other FixedPoint(s) to compare with
+   * @returns The FixedPointNumber with the smallest value
+   */
+  min(other: FixedPoint | FixedPoint[]): FixedPointNumber {
+    const others = Array.isArray(other) ? other : [other]
+    let minValue = this
+    
+    for (const fp of others) {
+      if (minValue.greaterThan(fp)) {
+        minValue = FixedPointNumber.fromFixedPoint(fp)
+      }
+    }
+    
+    return minValue
+  }
 }

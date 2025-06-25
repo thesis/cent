@@ -225,4 +225,70 @@ export class Money {
     
     return thisFixedPoint.greaterThanOrEqual(otherFixedPoint)
   }
+
+  /**
+   * Check if this Money instance is positive (greater than zero)
+   *
+   * @returns true if the amount is positive, false otherwise
+   */
+  isPositive(): boolean {
+    return this.balance.amount.amount > 0n
+  }
+
+  /**
+   * Check if this Money instance is negative (less than zero)
+   *
+   * @returns true if the amount is negative, false otherwise
+   */
+  isNegative(): boolean {
+    return this.balance.amount.amount < 0n
+  }
+
+  /**
+   * Return the maximum of this Money and other(s)
+   *
+   * @param other - The other Money instance(s) to compare with
+   * @returns The Money instance with the largest value
+   * @throws Error if any assets are not the same type
+   */
+  max(other: Money | Money[]): Money {
+    const others = Array.isArray(other) ? other : [other]
+    let maxValue = this
+    
+    for (const money of others) {
+      if (!assetsEqual(this.balance.asset, money.balance.asset)) {
+        throw new Error('Cannot compare Money with different asset types')
+      }
+      
+      if (maxValue.lessThan(money)) {
+        maxValue = money
+      }
+    }
+    
+    return maxValue
+  }
+
+  /**
+   * Return the minimum of this Money and other(s)
+   *
+   * @param other - The other Money instance(s) to compare with
+   * @returns The Money instance with the smallest value
+   * @throws Error if any assets are not the same type
+   */
+  min(other: Money | Money[]): Money {
+    const others = Array.isArray(other) ? other : [other]
+    let minValue = this
+    
+    for (const money of others) {
+      if (!assetsEqual(this.balance.asset, money.balance.asset)) {
+        throw new Error('Cannot compare Money with different asset types')
+      }
+      
+      if (minValue.greaterThan(money)) {
+        minValue = money
+      }
+    }
+    
+    return minValue
+  }
 }

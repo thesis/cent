@@ -520,4 +520,184 @@ describe('Money', () => {
       expect(() => usdMoney.greaterThanOrEqual(eurMoney)).toThrow('Cannot compare Money with different asset types')
     })
   })
+
+  describe('isPositive', () => {
+    it('should return true for positive amounts', () => {
+      const positiveMoney = new Money(usdAmount) // $100.50
+      expect(positiveMoney.isPositive()).toBe(true)
+    })
+
+    it('should return false for zero amounts', () => {
+      const zeroMoney = new Money({
+        asset: usdCurrency,
+        amount: { amount: 0n, decimals: 2n }
+      })
+      expect(zeroMoney.isPositive()).toBe(false)
+    })
+
+    it('should return false for negative amounts', () => {
+      const negativeMoney = new Money({
+        asset: usdCurrency,
+        amount: { amount: -5000n, decimals: 2n } // -$50.00
+      })
+      expect(negativeMoney.isPositive()).toBe(false)
+    })
+  })
+
+  describe('isNegative', () => {
+    it('should return true for negative amounts', () => {
+      const negativeMoney = new Money({
+        asset: usdCurrency,
+        amount: { amount: -5000n, decimals: 2n } // -$50.00
+      })
+      expect(negativeMoney.isNegative()).toBe(true)
+    })
+
+    it('should return false for zero amounts', () => {
+      const zeroMoney = new Money({
+        asset: usdCurrency,
+        amount: { amount: 0n, decimals: 2n }
+      })
+      expect(zeroMoney.isNegative()).toBe(false)
+    })
+
+    it('should return false for positive amounts', () => {
+      const positiveMoney = new Money(usdAmount) // $100.50
+      expect(positiveMoney.isNegative()).toBe(false)
+    })
+  })
+
+  describe('max', () => {
+    it('should return the larger of two Money instances', () => {
+      const money1 = new Money({
+        asset: usdCurrency,
+        amount: { amount: 5000n, decimals: 2n } // $50.00
+      })
+      const money2 = new Money(usdAmount) // $100.50
+      
+      expect(money1.max(money2)).toBe(money2)
+      expect(money2.max(money1)).toBe(money2)
+    })
+
+    it('should return this when amounts are equal', () => {
+      const money1 = new Money(usdAmount)
+      const money2 = new Money(usdAmount)
+      
+      expect(money1.max(money2)).toBe(money1)
+    })
+
+    it('should handle multiple Money instances in array', () => {
+      const money1 = new Money({
+        asset: usdCurrency,
+        amount: { amount: 5000n, decimals: 2n } // $50.00
+      })
+      const money2 = new Money({
+        asset: usdCurrency,
+        amount: { amount: 15000n, decimals: 2n } // $150.00
+      })
+      const money3 = new Money(usdAmount) // $100.50
+      
+      const result = money1.max([money2, money3])
+      expect(result).toBe(money2)
+    })
+
+    it('should handle different decimal precision', () => {
+      const money1 = new Money({
+        asset: usdCurrency,
+        amount: { amount: 1000n, decimals: 2n } // $10.00
+      })
+      const money2 = new Money({
+        asset: usdCurrency,
+        amount: { amount: 10500n, decimals: 3n } // $10.500
+      })
+      
+      const result = money1.max(money2)
+      expect(result).toBe(money2)
+    })
+
+    it('should throw error when comparing different assets', () => {
+      const usdMoney = new Money(usdAmount)
+      const eurMoney = new Money(eurAmount)
+      
+      expect(() => usdMoney.max(eurMoney)).toThrow('Cannot compare Money with different asset types')
+    })
+
+    it('should throw error when array contains different assets', () => {
+      const usdMoney1 = new Money(usdAmount)
+      const usdMoney2 = new Money({
+        asset: usdCurrency,
+        amount: { amount: 5000n, decimals: 2n }
+      })
+      const eurMoney = new Money(eurAmount)
+      
+      expect(() => usdMoney1.max([usdMoney2, eurMoney])).toThrow('Cannot compare Money with different asset types')
+    })
+  })
+
+  describe('min', () => {
+    it('should return the smaller of two Money instances', () => {
+      const money1 = new Money({
+        asset: usdCurrency,
+        amount: { amount: 5000n, decimals: 2n } // $50.00
+      })
+      const money2 = new Money(usdAmount) // $100.50
+      
+      expect(money1.min(money2)).toBe(money1)
+      expect(money2.min(money1)).toBe(money1)
+    })
+
+    it('should return this when amounts are equal', () => {
+      const money1 = new Money(usdAmount)
+      const money2 = new Money(usdAmount)
+      
+      expect(money1.min(money2)).toBe(money1)
+    })
+
+    it('should handle multiple Money instances in array', () => {
+      const money1 = new Money({
+        asset: usdCurrency,
+        amount: { amount: 15000n, decimals: 2n } // $150.00
+      })
+      const money2 = new Money({
+        asset: usdCurrency,
+        amount: { amount: 5000n, decimals: 2n } // $50.00
+      })
+      const money3 = new Money(usdAmount) // $100.50
+      
+      const result = money1.min([money2, money3])
+      expect(result).toBe(money2)
+    })
+
+    it('should handle different decimal precision', () => {
+      const money1 = new Money({
+        asset: usdCurrency,
+        amount: { amount: 10500n, decimals: 3n } // $10.500
+      })
+      const money2 = new Money({
+        asset: usdCurrency,
+        amount: { amount: 1000n, decimals: 2n } // $10.00
+      })
+      
+      const result = money1.min(money2)
+      expect(result).toBe(money2)
+    })
+
+    it('should throw error when comparing different assets', () => {
+      const usdMoney = new Money(usdAmount)
+      const eurMoney = new Money(eurAmount)
+      
+      expect(() => usdMoney.min(eurMoney)).toThrow('Cannot compare Money with different asset types')
+    })
+
+    it('should throw error when array contains different assets', () => {
+      const usdMoney1 = new Money(usdAmount)
+      const usdMoney2 = new Money({
+        asset: usdCurrency,
+        amount: { amount: 5000n, decimals: 2n }
+      })
+      const eurMoney = new Money(eurAmount)
+      
+      expect(() => usdMoney1.min([usdMoney2, eurMoney])).toThrow('Cannot compare Money with different asset types')
+    })
+  })
 })

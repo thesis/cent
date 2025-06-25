@@ -382,4 +382,122 @@ describe('FixedPointNumber', () => {
       expect(fp2.greaterThanOrEqual(fp1)).toBe(true)
     })
   })
+
+  describe('isPositive', () => {
+    it('should return true for positive amounts', () => {
+      const positive = new FixedPointNumber(100n, 2n)
+      expect(positive.isPositive()).toBe(true)
+    })
+
+    it('should return false for zero amounts', () => {
+      const zero = new FixedPointNumber(0n, 2n)
+      expect(zero.isPositive()).toBe(false)
+    })
+
+    it('should return false for negative amounts', () => {
+      const negative = new FixedPointNumber(-100n, 2n)
+      expect(negative.isPositive()).toBe(false)
+    })
+  })
+
+  describe('isNegative', () => {
+    it('should return true for negative amounts', () => {
+      const negative = new FixedPointNumber(-100n, 2n)
+      expect(negative.isNegative()).toBe(true)
+    })
+
+    it('should return false for zero amounts', () => {
+      const zero = new FixedPointNumber(0n, 2n)
+      expect(zero.isNegative()).toBe(false)
+    })
+
+    it('should return false for positive amounts', () => {
+      const positive = new FixedPointNumber(100n, 2n)
+      expect(positive.isNegative()).toBe(false)
+    })
+  })
+
+  describe('max', () => {
+    it('should return the larger of two numbers', () => {
+      const fp1 = new FixedPointNumber(100n, 2n) // 1.00
+      const fp2 = new FixedPointNumber(200n, 2n) // 2.00
+      
+      expect(fp1.max(fp2).equals(fp2)).toBe(true)
+      expect(fp2.max(fp1).equals(fp2)).toBe(true)
+    })
+
+    it('should return this when equal', () => {
+      const fp1 = new FixedPointNumber(100n, 2n)
+      const fp2 = new FixedPointNumber(100n, 2n)
+      
+      expect(fp1.max(fp2)).toBe(fp1)
+    })
+
+    it('should handle multiple values in array', () => {
+      const fp1 = new FixedPointNumber(100n, 2n) // 1.00
+      const fp2 = new FixedPointNumber(300n, 2n) // 3.00
+      const fp3 = new FixedPointNumber(200n, 2n) // 2.00
+      
+      const result = fp1.max([fp2, fp3])
+      expect(result.equals(fp2)).toBe(true)
+    })
+
+    it('should handle different decimal places', () => {
+      const fp1 = new FixedPointNumber(100n, 2n)  // 1.00
+      const fp2 = new FixedPointNumber(1500n, 3n) // 1.500
+      
+      const result = fp1.max(fp2)
+      expect(result.equals(fp2)).toBe(true)
+    })
+
+    it('should work with FixedPoint-compatible objects', () => {
+      const fp = new FixedPointNumber(100n, 2n)
+      const result = fp.max({ amount: 200n, decimals: 2n })
+      
+      expect(result.amount).toBe(200n)
+      expect(result.decimals).toBe(2n)
+    })
+  })
+
+  describe('min', () => {
+    it('should return the smaller of two numbers', () => {
+      const fp1 = new FixedPointNumber(100n, 2n) // 1.00
+      const fp2 = new FixedPointNumber(200n, 2n) // 2.00
+      
+      expect(fp1.min(fp2).equals(fp1)).toBe(true)
+      expect(fp2.min(fp1).equals(fp1)).toBe(true)
+    })
+
+    it('should return this when equal', () => {
+      const fp1 = new FixedPointNumber(100n, 2n)
+      const fp2 = new FixedPointNumber(100n, 2n)
+      
+      expect(fp1.min(fp2)).toBe(fp1)
+    })
+
+    it('should handle multiple values in array', () => {
+      const fp1 = new FixedPointNumber(300n, 2n) // 3.00
+      const fp2 = new FixedPointNumber(100n, 2n) // 1.00
+      const fp3 = new FixedPointNumber(200n, 2n) // 2.00
+      
+      const result = fp1.min([fp2, fp3])
+      expect(result.equals(fp2)).toBe(true)
+    })
+
+    it('should handle different decimal places', () => {
+      const fp1 = new FixedPointNumber(1500n, 3n) // 1.500
+      const fp2 = new FixedPointNumber(100n, 2n)  // 1.00
+      
+      const result = fp1.min(fp2)
+      expect(result.equals(fp2)).toBe(true)
+    })
+
+    it('should work with FixedPoint-compatible objects', () => {
+      const fp = new FixedPointNumber(200n, 2n)
+      const result = fp.min({ amount: 100n, decimals: 2n })
+      
+      expect(result.amount).toBe(100n)
+      expect(result.decimals).toBe(2n)
+    })
+  })
 })
