@@ -3,6 +3,11 @@ export type FixedPoint = {
   decimals: bigint
 }
 
+export type Ratio = {
+  p: bigint
+  q: bigint
+}
+
 export type Asset = {
   name: string
 }
