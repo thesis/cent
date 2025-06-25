@@ -281,7 +281,7 @@ export class FixedPointNumber implements FixedPoint {
    */
   max(other: FixedPoint | FixedPoint[]): FixedPointNumber {
     const others = Array.isArray(other) ? other : [other]
-    let maxValue = this
+    let maxValue: FixedPointNumber = this
     
     for (const fp of others) {
       if (maxValue.lessThan(fp)) {
@@ -300,7 +300,7 @@ export class FixedPointNumber implements FixedPoint {
    */
   min(other: FixedPoint | FixedPoint[]): FixedPointNumber {
     const others = Array.isArray(other) ? other : [other]
-    let minValue = this
+    let minValue: FixedPointNumber = this
     
     for (const fp of others) {
       if (minValue.greaterThan(fp)) {
