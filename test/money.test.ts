@@ -700,4 +700,199 @@ describe('Money', () => {
       expect(() => usdMoney1.min([usdMoney2, eurMoney])).toThrow('Cannot compare Money with different asset types')
     })
   })
+
+  describe('hasSubUnits', () => {
+    it('should return false for amounts with no fractional part', () => {
+      const money = new Money({
+        asset: usdCurrency,
+        amount: { amount: 10000n, decimals: 2n } // $100.00
+      })
+      
+      expect(money.hasSubUnits()).toBe(false)
+    })
+
+    it('should return false for amounts with fractional part within asset precision', () => {
+      const money = new Money({
+        asset: usdCurrency,
+        amount: { amount: 10150n, decimals: 2n } // $101.50
+      })
+      
+      expect(money.hasSubUnits()).toBe(false)
+    })
+
+    it('should return true for amounts with fractional part beyond asset precision', () => {
+      const money = new Money({
+        asset: usdCurrency, // 2 decimals
+        amount: { amount: 101505n, decimals: 3n } // $101.505
+      })
+      
+      expect(money.hasSubUnits()).toBe(true)
+    })
+
+    it('should return false when amount precision equals asset precision', () => {
+      const money = new Money({
+        asset: usdCurrency, // 2 decimals
+        amount: { amount: 10150n, decimals: 2n } // $101.50
+      })
+      
+      expect(money.hasSubUnits()).toBe(false)
+    })
+
+    it('should return false when amount precision is less than asset precision', () => {
+      const money = new Money({
+        asset: usdCurrency, // 2 decimals
+        amount: { amount: 101n, decimals: 1n } // $10.1
+      })
+      
+      expect(money.hasSubUnits()).toBe(false)
+    })
+
+    it('should return false for zero sub-units beyond asset precision', () => {
+      const money = new Money({
+        asset: usdCurrency, // 2 decimals
+        amount: { amount: 101500n, decimals: 3n } // $101.500 (ends in zero)
+      })
+      
+      expect(money.hasSubUnits()).toBe(false)
+    })
+
+    it('should return true for non-zero sub-units beyond asset precision', () => {
+      const money = new Money({
+        asset: usdCurrency, // 2 decimals
+        amount: { amount: 101501n, decimals: 3n } // $101.501
+      })
+      
+      expect(money.hasSubUnits()).toBe(true)
+    })
+
+    it('should handle multiple extra decimal places', () => {
+      const money = new Money({
+        asset: usdCurrency, // 2 decimals
+        amount: { amount: 1015001n, decimals: 4n } // $101.5001
+      })
+      
+      expect(money.hasSubUnits()).toBe(true)
+    })
+
+    it('should return false for multiple extra decimal places that are all zero', () => {
+      const money = new Money({
+        asset: usdCurrency, // 2 decimals
+        amount: { amount: 1015000n, decimals: 4n } // $101.5000
+      })
+      
+      expect(money.hasSubUnits()).toBe(false)
+    })
+
+    it('should return false for non-fungible assets', () => {
+      const basicAsset = { name: 'Basic Asset' }
+      const money = new Money({
+        asset: basicAsset,
+        amount: { amount: 1000n, decimals: 2n }
+      })
+
+      expect(money.hasSubUnits()).toBe(false)
+    })
+  })
+
+  describe('hasChange', () => {
+    it('should return false for whole number amounts with no decimals', () => {
+      const money = new Money({
+        asset: usdCurrency,
+        amount: { amount: 100n, decimals: 0n } // 100
+      })
+      
+      expect(money.hasChange()).toBe(false)
+    })
+
+    it('should return false for amounts ending in zero with decimals', () => {
+      const money = new Money({
+        asset: usdCurrency,
+        amount: { amount: 10000n, decimals: 2n } // $100.00
+      })
+      
+      expect(money.hasChange()).toBe(false)
+    })
+
+    it('should return true for amounts with fractional part', () => {
+      const money = new Money({
+        asset: usdCurrency,
+        amount: { amount: 10150n, decimals: 2n } // $101.50
+      })
+      
+      expect(money.hasChange()).toBe(true)
+    })
+
+    it('should return true for amounts with single digit fractional part', () => {
+      const money = new Money({
+        asset: usdCurrency,
+        amount: { amount: 101n, decimals: 1n } // $10.1
+      })
+      
+      expect(money.hasChange()).toBe(true)
+    })
+
+    it('should return true for small fractional amounts', () => {
+      const money = new Money({
+        asset: usdCurrency,
+        amount: { amount: 10001n, decimals: 2n } // $100.01
+      })
+      
+      expect(money.hasChange()).toBe(true)
+    })
+
+    it('should return false for zero amounts', () => {
+      const money = new Money({
+        asset: usdCurrency,
+        amount: { amount: 0n, decimals: 2n } // $0.00
+      })
+      
+      expect(money.hasChange()).toBe(false)
+    })
+
+    it('should return true for fractional amounts with many decimal places', () => {
+      const money = new Money({
+        asset: usdCurrency,
+        amount: { amount: 1000001n, decimals: 4n } // $100.0001
+      })
+      
+      expect(money.hasChange()).toBe(true)
+    })
+
+    it('should return false for amounts with trailing zeros in many decimal places', () => {
+      const money = new Money({
+        asset: usdCurrency,
+        amount: { amount: 1000000n, decimals: 4n } // $100.0000
+      })
+      
+      expect(money.hasChange()).toBe(false)
+    })
+
+    it('should work with negative amounts - return true for fractional part', () => {
+      const money = new Money({
+        asset: usdCurrency,
+        amount: { amount: -10150n, decimals: 2n } // -$101.50
+      })
+      
+      expect(money.hasChange()).toBe(true)
+    })
+
+    it('should work with negative amounts - return false for whole numbers', () => {
+      const money = new Money({
+        asset: usdCurrency,
+        amount: { amount: -10100n, decimals: 2n } // -$101.00
+      })
+      
+      expect(money.hasChange()).toBe(false)
+    })
+
+    it('should return false for non-fungible assets', () => {
+      const basicAsset = { name: 'Basic Asset' }
+      const money = new Money({
+        asset: basicAsset,
+        amount: { amount: 1050n, decimals: 2n } // 10.50
+      })
+
+      expect(money.hasChange()).toBe(false)
+    })
+  })
 })

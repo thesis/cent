@@ -70,7 +70,7 @@ export class Money {
 
   /**
    * Concretize this Money instance to the asset's decimal precision
-   * 
+   *
    * @returns A tuple of [concrete, change] Money instances
    * @throws Error if the asset is not a FungibleAsset
    */
@@ -96,7 +96,7 @@ export class Money {
     }
 
     const thisFixedPoint = new FixedPointNumber(this.balance.amount.amount, this.balance.amount.decimals)
-    
+
     // Normalize to asset decimals (this will round down if we're going to fewer decimals)
     const concreteFixedPoint = thisFixedPoint.normalize({
       amount: 0n,
@@ -162,7 +162,7 @@ export class Money {
 
     const thisFixedPoint = new FixedPointNumber(this.balance.amount.amount, this.balance.amount.decimals)
     const otherFixedPoint = new FixedPointNumber(otherAmount.amount.amount, otherAmount.amount.decimals)
-    
+
     return thisFixedPoint.lessThan(otherFixedPoint)
   }
 
@@ -182,7 +182,7 @@ export class Money {
 
     const thisFixedPoint = new FixedPointNumber(this.balance.amount.amount, this.balance.amount.decimals)
     const otherFixedPoint = new FixedPointNumber(otherAmount.amount.amount, otherAmount.amount.decimals)
-    
+
     return thisFixedPoint.lessThanOrEqual(otherFixedPoint)
   }
 
@@ -202,7 +202,7 @@ export class Money {
 
     const thisFixedPoint = new FixedPointNumber(this.balance.amount.amount, this.balance.amount.decimals)
     const otherFixedPoint = new FixedPointNumber(otherAmount.amount.amount, otherAmount.amount.decimals)
-    
+
     return thisFixedPoint.greaterThan(otherFixedPoint)
   }
 
@@ -222,7 +222,7 @@ export class Money {
 
     const thisFixedPoint = new FixedPointNumber(this.balance.amount.amount, this.balance.amount.decimals)
     const otherFixedPoint = new FixedPointNumber(otherAmount.amount.amount, otherAmount.amount.decimals)
-    
+
     return thisFixedPoint.greaterThanOrEqual(otherFixedPoint)
   }
 
@@ -253,18 +253,18 @@ export class Money {
    */
   max(other: Money | Money[]): Money {
     const others = Array.isArray(other) ? other : [other]
-    let maxValue = this
-    
+    let maxValue: Money = this
+
     for (const money of others) {
       if (!assetsEqual(this.balance.asset, money.balance.asset)) {
         throw new Error('Cannot compare Money with different asset types')
       }
-      
+
       if (maxValue.lessThan(money)) {
         maxValue = money
       }
     }
-    
+
     return maxValue
   }
 
@@ -277,18 +277,72 @@ export class Money {
    */
   min(other: Money | Money[]): Money {
     const others = Array.isArray(other) ? other : [other]
-    let minValue = this
-    
+    let minValue: Money = this
+
     for (const money of others) {
       if (!assetsEqual(this.balance.asset, money.balance.asset)) {
         throw new Error('Cannot compare Money with different asset types')
       }
-      
+
       if (minValue.greaterThan(money)) {
         minValue = money
       }
     }
-    
+
     return minValue
+  }
+
+  /**
+   * Check if this Money instance has any fractional amount (change)
+   *
+   * @returns true if there are any non-zero digits to the right of the decimal point, false otherwise
+   */
+  hasChange(): boolean {
+    // Return false if the asset doesn't have a decimals property
+    if (!('decimals' in this.balance.asset)) {
+      return false
+    }
+
+    const currentDecimals = this.balance.amount.decimals
+
+    // If no decimal places, there can't be any fractional amount
+    if (currentDecimals === 0n) {
+      return false
+    }
+
+    // Check if there are any non-zero digits in the fractional part
+    const divisor = 10n ** currentDecimals
+    const remainder = this.balance.amount.amount % divisor
+
+    return remainder !== 0n
+  }
+
+  /**
+   * Check if this Money instance has sub-units beyond the commonly
+   * transferable fractional unit (eg $1.001 for USD, including a
+   * fraction of a cent)
+   *
+   * @returns true if there are fractional amounts beyond the asset's decimal precision, false otherwise
+   */
+  hasSubUnits(): boolean {
+    // Return false if the asset doesn't have a decimals property
+    if (!('decimals' in this.balance.asset)) {
+      return false
+    }
+
+    const assetDecimals = this.balance.asset.decimals
+    const currentDecimals = this.balance.amount.decimals
+
+    // If current precision is same or less than asset precision, no sub-units
+    if (currentDecimals <= assetDecimals) {
+      return false
+    }
+
+    // Check if there are any non-zero digits beyond the asset's decimal precision
+    const extraDecimals = currentDecimals - assetDecimals
+    const divisor = 10n ** extraDecimals
+    const remainder = this.balance.amount.amount % divisor
+
+    return remainder !== 0n
   }
 }
