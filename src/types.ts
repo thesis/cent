@@ -8,7 +8,9 @@ export type Asset = {
 }
 
 export type FungibleAsset = Asset & {
-  // the commonly used code of an asset, eg "USD" or "BTC"
+  // the commonly used code of an asset, defined for national currencies
+  // by ISO-4217, and for alternative currencies by convention. Eg "USD",
+  // "EUR", or "BTC"
   code: string
   // the number of decimals needed to represent the smallest commonly
   // transferrable fractional unit of a fungible asset. Eg, 2 for USD ($0.01)
