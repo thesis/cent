@@ -236,4 +236,24 @@ describe('FixedPointNumber', () => {
       expect(result.decimals).toBe(3n)
     })
   })
+
+  describe('isZero', () => {
+    it('should return true for zero amounts', () => {
+      const zero = new FixedPointNumber(0n, 2n)
+      expect(zero.isZero()).toBe(true)
+    })
+
+    it('should return false for non-zero amounts', () => {
+      const nonZero = new FixedPointNumber(100n, 2n)
+      expect(nonZero.isZero()).toBe(false)
+    })
+
+    it('should return true for zero regardless of decimals', () => {
+      const zeroNoDecimals = new FixedPointNumber(0n, 0n)
+      const zeroWithDecimals = new FixedPointNumber(0n, 5n)
+      
+      expect(zeroNoDecimals.isZero()).toBe(true)
+      expect(zeroWithDecimals.isZero()).toBe(true)
+    })
+  })
 })

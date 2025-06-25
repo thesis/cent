@@ -180,4 +180,13 @@ export class FixedPointNumber implements FixedPoint {
 
     return new FixedPointNumber(amount, decimals)
   }
+
+  /**
+   * Check if this FixedPointNumber represents zero
+   *
+   * @returns true if the amount is zero, false otherwise
+   */
+  isZero(): boolean {
+    return this.amount === 0n
+  }
 }

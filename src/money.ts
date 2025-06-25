@@ -1,4 +1,4 @@
-import { AssetAmount } from "./types"
+import { AssetAmount, FixedPoint } from "./types"
 import { FixedPointNumber } from "./fixed-point"
 import { assetsEqual } from "./assets"
 
@@ -66,5 +66,83 @@ export class Money {
         decimals: result.decimals
       }
     })
+  }
+
+  /**
+   * Concretize this Money instance to the asset's decimal precision
+   * 
+   * @returns A tuple of [concrete, change] Money instances
+   * @throws Error if the asset is not a FungibleAsset
+   */
+  concretize(): [Money, Money] {
+    // Check if the asset has a decimals property (is a FungibleAsset)
+    if (!('decimals' in this.balance.asset)) {
+      throw new Error('Cannot concretize Money with non-fungible asset')
+    }
+
+    const assetDecimals = this.balance.asset.decimals
+    const currentDecimals = this.balance.amount.decimals
+
+    // If already at the correct precision, return original and zero change
+    if (currentDecimals === assetDecimals) {
+      const zeroChange = new Money({
+        asset: this.balance.asset,
+        amount: {
+          amount: 0n,
+          decimals: assetDecimals
+        }
+      })
+      return [this, zeroChange]
+    }
+
+    const thisFixedPoint = new FixedPointNumber(this.balance.amount.amount, this.balance.amount.decimals)
+    
+    // Normalize to asset decimals (this will round down if we're going to fewer decimals)
+    const concreteFixedPoint = thisFixedPoint.normalize({
+      amount: 0n,
+      decimals: assetDecimals
+    })
+
+    // Create the concrete Money instance
+    const concrete = new Money({
+      asset: this.balance.asset,
+      amount: {
+        amount: concreteFixedPoint.amount,
+        decimals: assetDecimals
+      }
+    })
+
+    // Calculate the change by subtracting concrete from original
+    const change = this.subtract(concrete)
+
+    return [concrete, change]
+  }
+
+  /**
+   * Multiply this Money instance by a scalar or fixed-point number
+   *
+   * @param other - The value to multiply by (bigint or FixedPoint)
+   * @returns A new Money instance with the product
+   */
+  multiply(other: bigint | FixedPoint): Money {
+    const thisFixedPoint = new FixedPointNumber(this.balance.amount.amount, this.balance.amount.decimals)
+    const result = thisFixedPoint.multiply(other)
+
+    return new Money({
+      asset: this.balance.asset,
+      amount: {
+        amount: result.amount,
+        decimals: result.decimals
+      }
+    })
+  }
+
+  /**
+   * Check if this Money instance represents zero value
+   *
+   * @returns true if the amount is zero, false otherwise
+   */
+  isZero(): boolean {
+    return this.balance.amount.amount === 0n
   }
 }

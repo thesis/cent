@@ -186,4 +186,155 @@ describe('Money', () => {
       expect(() => usdMoney.subtract(eurAmount)).toThrow('Cannot subtract Money with different asset types')
     })
   })
+
+  describe('concretize', () => {
+    it('should split money with higher precision than asset decimals', () => {
+      // Create money with 3 decimals but USD only has 2 decimals
+      const money = new Money({
+        asset: usdCurrency,
+        amount: { amount: 12525n, decimals: 3n } // $12.525
+      })
+
+      const [concrete, change] = money.concretize()
+
+      // Concrete should be rounded down to asset precision
+      expect(concrete.balance.amount.amount).toBe(1252n) // $12.52
+      expect(concrete.balance.amount.decimals).toBe(2n)
+
+      // Change should be the remainder
+      expect(change.balance.amount.amount).toBe(5n) // $0.005
+      expect(change.balance.amount.decimals).toBe(3n)
+
+      // Adding them back should equal the original
+      const reconstructed = concrete.add(change)
+      expect(reconstructed.balance.amount.amount).toBe(12525n)
+      expect(reconstructed.balance.amount.decimals).toBe(3n)
+    })
+
+    it('should return original and zero change when already at correct precision', () => {
+      const money = new Money(usdAmount) // Already at 2 decimals for USD
+
+      const [concrete, change] = money.concretize()
+
+      expect(concrete).toBe(money) // Should be the same instance
+      expect(change.balance.amount.amount).toBe(0n)
+      expect(change.balance.amount.decimals).toBe(2n)
+    })
+
+    it('should handle scaling up precision', () => {
+      // Create money with 1 decimal but USD has 2 decimals
+      const money = new Money({
+        asset: usdCurrency,
+        amount: { amount: 125n, decimals: 1n } // $12.5
+      })
+
+      const [concrete, change] = money.concretize()
+
+      // Concrete should be scaled to asset precision
+      expect(concrete.balance.amount.amount).toBe(1250n) // $12.50
+      expect(concrete.balance.amount.decimals).toBe(2n)
+
+      // Change should be zero since no precision was lost
+      expect(change.balance.amount.amount).toBe(0n)
+      expect(change.balance.amount.decimals).toBe(2n)
+
+      // Adding them back should equal the original (but at higher precision)
+      const reconstructed = concrete.add(change)
+      expect(reconstructed.balance.amount.amount).toBe(1250n)
+      expect(reconstructed.balance.amount.decimals).toBe(2n)
+    })
+
+    it('should throw error for non-fungible assets', () => {
+      const basicAsset = { name: 'Basic Asset' }
+      const money = new Money({
+        asset: basicAsset,
+        amount: { amount: 1000n, decimals: 2n }
+      })
+
+      expect(() => money.concretize()).toThrow('Cannot concretize Money with non-fungible asset')
+    })
+  })
+
+  describe('multiply', () => {
+    it('should multiply Money by a bigint scalar', () => {
+      const money = new Money(usdAmount) // $100.50
+
+      const result = money.multiply(3n)
+
+      expect(result.balance.asset).toEqual(usdCurrency)
+      expect(result.balance.amount.amount).toBe(30150n) // $301.50
+      expect(result.balance.amount.decimals).toBe(2n)
+    })
+
+    it('should multiply Money by a FixedPoint', () => {
+      const money = new Money(usdAmount) // $100.50
+      const multiplier = { amount: 25n, decimals: 1n } // 2.5
+
+      const result = money.multiply(multiplier)
+
+      expect(result.balance.asset).toEqual(usdCurrency)
+      expect(result.balance.amount.amount).toBe(25125n) // $251.25
+      expect(result.balance.amount.decimals).toBe(2n)
+    })
+
+    it('should return a new Money instance (immutability)', () => {
+      const money = new Money(usdAmount)
+      
+      const result = money.multiply(2n)
+
+      expect(result).not.toBe(money)
+      expect(money.balance.amount.amount).toBe(10050n) // Original unchanged
+    })
+
+    it('should handle multiplication by zero', () => {
+      const money = new Money(usdAmount)
+
+      const result = money.multiply(0n)
+
+      expect(result.balance.amount.amount).toBe(0n)
+      expect(result.balance.amount.decimals).toBe(2n)
+    })
+
+    it('should handle fractional multiplication', () => {
+      const money = new Money({
+        asset: usdCurrency,
+        amount: { amount: 1000n, decimals: 2n } // $10.00
+      })
+      const multiplier = { amount: 5n, decimals: 1n } // 0.5
+
+      const result = money.multiply(multiplier)
+
+      expect(result.balance.amount.amount).toBe(500n) // $5.00
+      expect(result.balance.amount.decimals).toBe(2n)
+    })
+  })
+
+  describe('isZero', () => {
+    it('should return true for zero amounts', () => {
+      const zeroMoney = new Money({
+        asset: usdCurrency,
+        amount: { amount: 0n, decimals: 2n }
+      })
+      expect(zeroMoney.isZero()).toBe(true)
+    })
+
+    it('should return false for non-zero amounts', () => {
+      const nonZeroMoney = new Money(usdAmount)
+      expect(nonZeroMoney.isZero()).toBe(false)
+    })
+
+    it('should return true for zero regardless of decimals', () => {
+      const zeroNoDecimals = new Money({
+        asset: usdCurrency,
+        amount: { amount: 0n, decimals: 0n }
+      })
+      const zeroWithDecimals = new Money({
+        asset: usdCurrency,
+        amount: { amount: 0n, decimals: 5n }
+      })
+      
+      expect(zeroNoDecimals.isZero()).toBe(true)
+      expect(zeroWithDecimals.isZero()).toBe(true)
+    })
+  })
 })
