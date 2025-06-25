@@ -1,8 +1,11 @@
 import { FixedPoint } from "./types"
 import { z } from "zod"
 
+// Schema for bigint values serialized as strings (integers only)
+const BigIntStringSchema = z.string().regex(/^-?\d+$/, "Must be a valid integer string")
+
 export const FixedPointJSONSchema = z.object({
-  amount: z.string().regex(/^-?\d+$/, "Amount must be a valid integer string"),
+  amount: BigIntStringSchema,
   decimals: z.string().regex(/^\d+$/, "Decimals must be a valid non-negative integer string")
 })
 

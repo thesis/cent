@@ -1,6 +1,7 @@
 import { AssetAmount, FixedPoint } from "./types"
 import { FixedPointNumber, FixedPointJSONSchema } from "./fixed-point"
 import { assetsEqual } from "./assets"
+import { DecimalStringSchema } from "./decimal-strings"
 import { z } from "zod"
 
 // Schema for basic Asset
