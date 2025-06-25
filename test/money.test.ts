@@ -337,4 +337,187 @@ describe('Money', () => {
       expect(zeroWithDecimals.isZero()).toBe(true)
     })
   })
+
+  describe('lessThan', () => {
+    it('should return true when this money is less than other Money with same asset', () => {
+      const money1 = new Money({
+        asset: usdCurrency,
+        amount: { amount: 5000n, decimals: 2n } // $50.00
+      })
+      const money2 = new Money(usdAmount) // $100.50
+      
+      expect(money1.lessThan(money2)).toBe(true)
+      expect(money2.lessThan(money1)).toBe(false)
+    })
+
+    it('should return false when amounts are equal', () => {
+      const money1 = new Money(usdAmount)
+      const money2 = new Money(usdAmount)
+      
+      expect(money1.lessThan(money2)).toBe(false)
+    })
+
+    it('should work with AssetAmount', () => {
+      const money = new Money({
+        asset: usdCurrency,
+        amount: { amount: 5000n, decimals: 2n } // $50.00
+      })
+      
+      expect(money.lessThan(usdAmount)).toBe(true) // $50.00 < $100.50
+    })
+
+    it('should handle different decimal precision', () => {
+      const money1 = new Money({
+        asset: usdCurrency,
+        amount: { amount: 100n, decimals: 1n } // $10.0
+      })
+      const money2 = new Money({
+        asset: usdCurrency,
+        amount: { amount: 10500n, decimals: 3n } // $10.500
+      })
+      
+      expect(money1.lessThan(money2)).toBe(true)
+    })
+
+    it('should throw error when comparing different assets', () => {
+      const usdMoney = new Money(usdAmount)
+      const eurMoney = new Money(eurAmount)
+      
+      expect(() => usdMoney.lessThan(eurMoney)).toThrow('Cannot compare Money with different asset types')
+    })
+  })
+
+  describe('lessThanOrEqual', () => {
+    it('should return true when this money is less than other', () => {
+      const money1 = new Money({
+        asset: usdCurrency,
+        amount: { amount: 5000n, decimals: 2n }
+      })
+      const money2 = new Money(usdAmount)
+      
+      expect(money1.lessThanOrEqual(money2)).toBe(true)
+    })
+
+    it('should return true when amounts are equal', () => {
+      const money1 = new Money(usdAmount)
+      const money2 = new Money(usdAmount)
+      
+      expect(money1.lessThanOrEqual(money2)).toBe(true)
+    })
+
+    it('should return false when this money is greater than other', () => {
+      const money1 = new Money(usdAmount)
+      const money2 = new Money({
+        asset: usdCurrency,
+        amount: { amount: 5000n, decimals: 2n }
+      })
+      
+      expect(money1.lessThanOrEqual(money2)).toBe(false)
+    })
+
+    it('should work with AssetAmount', () => {
+      const money = new Money(usdAmount)
+      
+      expect(money.lessThanOrEqual(usdAmount)).toBe(true) // Equal amounts
+    })
+
+    it('should throw error when comparing different assets', () => {
+      const usdMoney = new Money(usdAmount)
+      const eurMoney = new Money(eurAmount)
+      
+      expect(() => usdMoney.lessThanOrEqual(eurMoney)).toThrow('Cannot compare Money with different asset types')
+    })
+  })
+
+  describe('greaterThan', () => {
+    it('should return true when this money is greater than other Money with same asset', () => {
+      const money1 = new Money(usdAmount) // $100.50
+      const money2 = new Money({
+        asset: usdCurrency,
+        amount: { amount: 5000n, decimals: 2n } // $50.00
+      })
+      
+      expect(money1.greaterThan(money2)).toBe(true)
+      expect(money2.greaterThan(money1)).toBe(false)
+    })
+
+    it('should return false when amounts are equal', () => {
+      const money1 = new Money(usdAmount)
+      const money2 = new Money(usdAmount)
+      
+      expect(money1.greaterThan(money2)).toBe(false)
+    })
+
+    it('should work with AssetAmount', () => {
+      const money = new Money(usdAmount) // $100.50
+      const smallerAmount = {
+        asset: usdCurrency,
+        amount: { amount: 5000n, decimals: 2n } // $50.00
+      }
+      
+      expect(money.greaterThan(smallerAmount)).toBe(true)
+    })
+
+    it('should handle different decimal precision', () => {
+      const money1 = new Money({
+        asset: usdCurrency,
+        amount: { amount: 10500n, decimals: 3n } // $10.500
+      })
+      const money2 = new Money({
+        asset: usdCurrency,
+        amount: { amount: 100n, decimals: 1n } // $10.0
+      })
+      
+      expect(money1.greaterThan(money2)).toBe(true)
+    })
+
+    it('should throw error when comparing different assets', () => {
+      const usdMoney = new Money(usdAmount)
+      const eurMoney = new Money(eurAmount)
+      
+      expect(() => usdMoney.greaterThan(eurMoney)).toThrow('Cannot compare Money with different asset types')
+    })
+  })
+
+  describe('greaterThanOrEqual', () => {
+    it('should return true when this money is greater than other', () => {
+      const money1 = new Money(usdAmount)
+      const money2 = new Money({
+        asset: usdCurrency,
+        amount: { amount: 5000n, decimals: 2n }
+      })
+      
+      expect(money1.greaterThanOrEqual(money2)).toBe(true)
+    })
+
+    it('should return true when amounts are equal', () => {
+      const money1 = new Money(usdAmount)
+      const money2 = new Money(usdAmount)
+      
+      expect(money1.greaterThanOrEqual(money2)).toBe(true)
+    })
+
+    it('should return false when this money is less than other', () => {
+      const money1 = new Money({
+        asset: usdCurrency,
+        amount: { amount: 5000n, decimals: 2n }
+      })
+      const money2 = new Money(usdAmount)
+      
+      expect(money1.greaterThanOrEqual(money2)).toBe(false)
+    })
+
+    it('should work with AssetAmount', () => {
+      const money = new Money(usdAmount)
+      
+      expect(money.greaterThanOrEqual(usdAmount)).toBe(true) // Equal amounts
+    })
+
+    it('should throw error when comparing different assets', () => {
+      const usdMoney = new Money(usdAmount)
+      const eurMoney = new Money(eurAmount)
+      
+      expect(() => usdMoney.greaterThanOrEqual(eurMoney)).toThrow('Cannot compare Money with different asset types')
+    })
+  })
 })

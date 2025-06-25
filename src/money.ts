@@ -145,4 +145,84 @@ export class Money {
   isZero(): boolean {
     return this.balance.amount.amount === 0n
   }
+
+  /**
+   * Check if this Money instance is less than another Money or AssetAmount
+   *
+   * @param other - The Money or AssetAmount to compare with
+   * @returns true if this money is less than other, false otherwise
+   * @throws Error if the assets are not the same type
+   */
+  lessThan(other: Money | AssetAmount): boolean {
+    const otherAmount = other instanceof Money ? other.balance : other
+
+    if (!assetsEqual(this.balance.asset, otherAmount.asset)) {
+      throw new Error('Cannot compare Money with different asset types')
+    }
+
+    const thisFixedPoint = new FixedPointNumber(this.balance.amount.amount, this.balance.amount.decimals)
+    const otherFixedPoint = new FixedPointNumber(otherAmount.amount.amount, otherAmount.amount.decimals)
+    
+    return thisFixedPoint.lessThan(otherFixedPoint)
+  }
+
+  /**
+   * Check if this Money instance is less than or equal to another Money or AssetAmount
+   *
+   * @param other - The Money or AssetAmount to compare with
+   * @returns true if this money is less than or equal to other, false otherwise
+   * @throws Error if the assets are not the same type
+   */
+  lessThanOrEqual(other: Money | AssetAmount): boolean {
+    const otherAmount = other instanceof Money ? other.balance : other
+
+    if (!assetsEqual(this.balance.asset, otherAmount.asset)) {
+      throw new Error('Cannot compare Money with different asset types')
+    }
+
+    const thisFixedPoint = new FixedPointNumber(this.balance.amount.amount, this.balance.amount.decimals)
+    const otherFixedPoint = new FixedPointNumber(otherAmount.amount.amount, otherAmount.amount.decimals)
+    
+    return thisFixedPoint.lessThanOrEqual(otherFixedPoint)
+  }
+
+  /**
+   * Check if this Money instance is greater than another Money or AssetAmount
+   *
+   * @param other - The Money or AssetAmount to compare with
+   * @returns true if this money is greater than other, false otherwise
+   * @throws Error if the assets are not the same type
+   */
+  greaterThan(other: Money | AssetAmount): boolean {
+    const otherAmount = other instanceof Money ? other.balance : other
+
+    if (!assetsEqual(this.balance.asset, otherAmount.asset)) {
+      throw new Error('Cannot compare Money with different asset types')
+    }
+
+    const thisFixedPoint = new FixedPointNumber(this.balance.amount.amount, this.balance.amount.decimals)
+    const otherFixedPoint = new FixedPointNumber(otherAmount.amount.amount, otherAmount.amount.decimals)
+    
+    return thisFixedPoint.greaterThan(otherFixedPoint)
+  }
+
+  /**
+   * Check if this Money instance is greater than or equal to another Money or AssetAmount
+   *
+   * @param other - The Money or AssetAmount to compare with
+   * @returns true if this money is greater than or equal to other, false otherwise
+   * @throws Error if the assets are not the same type
+   */
+  greaterThanOrEqual(other: Money | AssetAmount): boolean {
+    const otherAmount = other instanceof Money ? other.balance : other
+
+    if (!assetsEqual(this.balance.asset, otherAmount.asset)) {
+      throw new Error('Cannot compare Money with different asset types')
+    }
+
+    const thisFixedPoint = new FixedPointNumber(this.balance.amount.amount, this.balance.amount.decimals)
+    const otherFixedPoint = new FixedPointNumber(otherAmount.amount.amount, otherAmount.amount.decimals)
+    
+    return thisFixedPoint.greaterThanOrEqual(otherFixedPoint)
+  }
 }

@@ -189,4 +189,60 @@ export class FixedPointNumber implements FixedPoint {
   isZero(): boolean {
     return this.amount === 0n
   }
+
+  /**
+   * Check if this FixedPointNumber is less than another FixedPoint
+   *
+   * @param other - The other number to compare with
+   * @returns true if this number is less than other, false otherwise
+   */
+  lessThan(other: FixedPoint): boolean {
+    if (this.decimals === other.decimals) {
+      return this.amount < other.amount
+    }
+    
+    const maxDecimals = this.decimals > other.decimals ? this.decimals : other.decimals
+    const normalizedThis = this.decimals === maxDecimals ? this : this.normalize({ amount: 0n, decimals: maxDecimals })
+    const normalizedOther = other.decimals === maxDecimals ? other : FixedPointNumber.fromFixedPoint(other).normalize({ amount: 0n, decimals: maxDecimals })
+    
+    return normalizedThis.amount < normalizedOther.amount
+  }
+
+  /**
+   * Check if this FixedPointNumber is less than or equal to another FixedPoint
+   *
+   * @param other - The other number to compare with
+   * @returns true if this number is less than or equal to other, false otherwise
+   */
+  lessThanOrEqual(other: FixedPoint): boolean {
+    return this.lessThan(other) || this.equals(other)
+  }
+
+  /**
+   * Check if this FixedPointNumber is greater than another FixedPoint
+   *
+   * @param other - The other number to compare with
+   * @returns true if this number is greater than other, false otherwise
+   */
+  greaterThan(other: FixedPoint): boolean {
+    if (this.decimals === other.decimals) {
+      return this.amount > other.amount
+    }
+    
+    const maxDecimals = this.decimals > other.decimals ? this.decimals : other.decimals
+    const normalizedThis = this.decimals === maxDecimals ? this : this.normalize({ amount: 0n, decimals: maxDecimals })
+    const normalizedOther = other.decimals === maxDecimals ? other : FixedPointNumber.fromFixedPoint(other).normalize({ amount: 0n, decimals: maxDecimals })
+    
+    return normalizedThis.amount > normalizedOther.amount
+  }
+
+  /**
+   * Check if this FixedPointNumber is greater than or equal to another FixedPoint
+   *
+   * @param other - The other number to compare with
+   * @returns true if this number is greater than or equal to other, false otherwise
+   */
+  greaterThanOrEqual(other: FixedPoint): boolean {
+    return this.greaterThan(other) || this.equals(other)
+  }
 }

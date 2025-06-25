@@ -256,4 +256,130 @@ describe('FixedPointNumber', () => {
       expect(zeroWithDecimals.isZero()).toBe(true)
     })
   })
+
+  describe('lessThan', () => {
+    it('should return true when this number is less than other with same decimals', () => {
+      const fp1 = new FixedPointNumber(100n, 2n) // 1.00
+      const fp2 = new FixedPointNumber(200n, 2n) // 2.00
+      
+      expect(fp1.lessThan(fp2)).toBe(true)
+      expect(fp2.lessThan(fp1)).toBe(false)
+    })
+
+    it('should return false when numbers are equal', () => {
+      const fp1 = new FixedPointNumber(100n, 2n)
+      const fp2 = new FixedPointNumber(100n, 2n)
+      
+      expect(fp1.lessThan(fp2)).toBe(false)
+    })
+
+    it('should handle different decimal places', () => {
+      const fp1 = new FixedPointNumber(100n, 2n)  // 1.00
+      const fp2 = new FixedPointNumber(1500n, 3n) // 1.500
+      
+      expect(fp1.lessThan(fp2)).toBe(true)
+      expect(fp2.lessThan(fp1)).toBe(false)
+    })
+
+    it('should work with FixedPoint-compatible objects', () => {
+      const fp = new FixedPointNumber(100n, 2n)
+      
+      expect(fp.lessThan({ amount: 200n, decimals: 2n })).toBe(true)
+      expect(fp.lessThan({ amount: 50n, decimals: 2n })).toBe(false)
+    })
+  })
+
+  describe('lessThanOrEqual', () => {
+    it('should return true when this number is less than other', () => {
+      const fp1 = new FixedPointNumber(100n, 2n)
+      const fp2 = new FixedPointNumber(200n, 2n)
+      
+      expect(fp1.lessThanOrEqual(fp2)).toBe(true)
+    })
+
+    it('should return true when numbers are equal', () => {
+      const fp1 = new FixedPointNumber(100n, 2n)
+      const fp2 = new FixedPointNumber(100n, 2n)
+      
+      expect(fp1.lessThanOrEqual(fp2)).toBe(true)
+    })
+
+    it('should return false when this number is greater than other', () => {
+      const fp1 = new FixedPointNumber(200n, 2n)
+      const fp2 = new FixedPointNumber(100n, 2n)
+      
+      expect(fp1.lessThanOrEqual(fp2)).toBe(false)
+    })
+
+    it('should handle equivalent numbers with different decimal places', () => {
+      const fp1 = new FixedPointNumber(100n, 2n)  // 1.00
+      const fp2 = new FixedPointNumber(1000n, 3n) // 1.000
+      
+      expect(fp1.lessThanOrEqual(fp2)).toBe(true)
+      expect(fp2.lessThanOrEqual(fp1)).toBe(true)
+    })
+  })
+
+  describe('greaterThan', () => {
+    it('should return true when this number is greater than other with same decimals', () => {
+      const fp1 = new FixedPointNumber(200n, 2n) // 2.00
+      const fp2 = new FixedPointNumber(100n, 2n) // 1.00
+      
+      expect(fp1.greaterThan(fp2)).toBe(true)
+      expect(fp2.greaterThan(fp1)).toBe(false)
+    })
+
+    it('should return false when numbers are equal', () => {
+      const fp1 = new FixedPointNumber(100n, 2n)
+      const fp2 = new FixedPointNumber(100n, 2n)
+      
+      expect(fp1.greaterThan(fp2)).toBe(false)
+    })
+
+    it('should handle different decimal places', () => {
+      const fp1 = new FixedPointNumber(1500n, 3n) // 1.500
+      const fp2 = new FixedPointNumber(100n, 2n)  // 1.00
+      
+      expect(fp1.greaterThan(fp2)).toBe(true)
+      expect(fp2.greaterThan(fp1)).toBe(false)
+    })
+
+    it('should work with FixedPoint-compatible objects', () => {
+      const fp = new FixedPointNumber(200n, 2n)
+      
+      expect(fp.greaterThan({ amount: 100n, decimals: 2n })).toBe(true)
+      expect(fp.greaterThan({ amount: 300n, decimals: 2n })).toBe(false)
+    })
+  })
+
+  describe('greaterThanOrEqual', () => {
+    it('should return true when this number is greater than other', () => {
+      const fp1 = new FixedPointNumber(200n, 2n)
+      const fp2 = new FixedPointNumber(100n, 2n)
+      
+      expect(fp1.greaterThanOrEqual(fp2)).toBe(true)
+    })
+
+    it('should return true when numbers are equal', () => {
+      const fp1 = new FixedPointNumber(100n, 2n)
+      const fp2 = new FixedPointNumber(100n, 2n)
+      
+      expect(fp1.greaterThanOrEqual(fp2)).toBe(true)
+    })
+
+    it('should return false when this number is less than other', () => {
+      const fp1 = new FixedPointNumber(100n, 2n)
+      const fp2 = new FixedPointNumber(200n, 2n)
+      
+      expect(fp1.greaterThanOrEqual(fp2)).toBe(false)
+    })
+
+    it('should handle equivalent numbers with different decimal places', () => {
+      const fp1 = new FixedPointNumber(100n, 2n)  // 1.00
+      const fp2 = new FixedPointNumber(1000n, 3n) // 1.000
+      
+      expect(fp1.greaterThanOrEqual(fp2)).toBe(true)
+      expect(fp2.greaterThanOrEqual(fp1)).toBe(true)
+    })
+  })
 })
