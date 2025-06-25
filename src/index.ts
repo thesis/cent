@@ -10,10 +10,8 @@ export { Money } from './money'
 // * (Money, Money, time) // normal prices
 // * Optional "source" // what do we want here?
 //
-// parsing for...
-//   JSON
-// serialization for...
-//
 // tagged literal types
 //
 // Formatting
+//
+// Fixed-precision parsing of outside JSON

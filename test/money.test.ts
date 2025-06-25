@@ -1,4 +1,4 @@
-import { Money } from '../src/money'
+import { Money, MoneyJSONSchema } from '../src/money'
 import { Currency, AssetAmount } from '../src/types'
 
 describe('Money', () => {
@@ -1059,6 +1059,218 @@ describe('Money', () => {
       expect(parsed.asset.decimals).toBe('2')
       expect(parsed.amount.amount).toBe('100')
       expect(parsed.amount.decimals).toBe('2')
+    })
+  })
+
+  describe('equals', () => {
+    it('should return true for Money instances with same asset and amount', () => {
+      const money1 = new Money(usdAmount)
+      const money2 = new Money(usdAmount)
+      
+      expect(money1.equals(money2)).toBe(true)
+    })
+
+    it('should return false for Money instances with different assets', () => {
+      const usdMoney = new Money(usdAmount)
+      const eurMoney = new Money(eurAmount)
+      
+      expect(usdMoney.equals(eurMoney)).toBe(false)
+    })
+
+    it('should return false for Money instances with different amounts', () => {
+      const money1 = new Money(usdAmount) // $100.50
+      const money2 = new Money({
+        asset: usdCurrency,
+        amount: { amount: 5000n, decimals: 2n } // $50.00
+      })
+      
+      expect(money1.equals(money2)).toBe(false)
+    })
+
+    it('should return true for equivalent amounts with different precision', () => {
+      const money1 = new Money({
+        asset: usdCurrency,
+        amount: { amount: 1000n, decimals: 2n } // $10.00
+      })
+      const money2 = new Money({
+        asset: usdCurrency,
+        amount: { amount: 10000n, decimals: 3n } // $10.000
+      })
+      
+      expect(money1.equals(money2)).toBe(true)
+    })
+  })
+
+  describe('fromJSON', () => {
+    it('should round-trip correctly with Currency', () => {
+      const original = new Money(usdAmount) // $100.50
+      const json = original.toJSON()
+      const restored = Money.fromJSON(json)
+      
+      expect(restored.equals(original)).toBe(true)
+    })
+
+    it('should round-trip correctly with FungibleAsset', () => {
+      const btcAsset = {
+        name: 'Bitcoin',
+        code: 'BTC',
+        decimals: 8n,
+        fractionalUnit: 'satoshi'
+      }
+      const original = new Money({
+        asset: btcAsset,
+        amount: { amount: 100000000n, decimals: 8n } // 1.00000000 BTC
+      })
+      
+      const json = original.toJSON()
+      const restored = Money.fromJSON(json)
+      
+      expect(restored.equals(original)).toBe(true)
+    })
+
+    it('should round-trip correctly with basic Asset', () => {
+      const basicAsset = { name: 'Basic Asset' }
+      const original = new Money({
+        asset: basicAsset,
+        amount: { amount: 1000n, decimals: 0n }
+      })
+      
+      const json = original.toJSON()
+      const restored = Money.fromJSON(json)
+      
+      expect(restored.equals(original)).toBe(true)
+    })
+
+    it('should handle FungibleAsset with fractionalUnit array', () => {
+      const btcAsset = {
+        name: 'Bitcoin',
+        code: 'BTC',
+        decimals: 8n,
+        fractionalUnit: ['satoshi', 'sat']
+      }
+      const original = new Money({
+        asset: btcAsset,
+        amount: { amount: 50000000n, decimals: 8n }
+      })
+      
+      const json = original.toJSON()
+      const restored = Money.fromJSON(json)
+      
+      expect(restored.equals(original)).toBe(true)
+    })
+
+    it('should handle FungibleAsset with fractionalUnit Record', () => {
+      const btcAsset = {
+        name: 'Bitcoin',
+        code: 'BTC',
+        decimals: 8n,
+        fractionalUnit: { 8: ['satoshi', 'sat'], 12: ['millisatoshi', 'millisat'] }
+      }
+      const original = new Money({
+        asset: btcAsset,
+        amount: { amount: 21000000n, decimals: 8n }
+      })
+      
+      const json = original.toJSON()
+      const restored = Money.fromJSON(json)
+      
+      expect(restored.equals(original)).toBe(true)
+    })
+
+    it('should work with JSON.stringify/parse round-trip', () => {
+      const original = new Money(usdAmount)
+      const jsonString = JSON.stringify(original)
+      const parsed = JSON.parse(jsonString)
+      const restored = Money.fromJSON(parsed)
+      
+      expect(restored.equals(original)).toBe(true)
+    })
+
+    it('should handle zero amounts', () => {
+      const original = new Money({
+        asset: usdCurrency,
+        amount: { amount: 0n, decimals: 2n }
+      })
+      
+      const json = original.toJSON()
+      const restored = Money.fromJSON(json)
+      
+      expect(restored.equals(original)).toBe(true)
+    })
+
+    it('should handle negative amounts', () => {
+      const original = new Money({
+        asset: usdCurrency,
+        amount: { amount: -5000n, decimals: 2n }
+      })
+      
+      const json = original.toJSON()
+      const restored = Money.fromJSON(json)
+      
+      expect(restored.equals(original)).toBe(true)
+    })
+
+    it('should throw error for missing asset field', () => {
+      const json = {
+        amount: { amount: "100", decimals: "2" }
+      }
+      
+      expect(() => Money.fromJSON(json)).toThrow()
+    })
+
+    it('should throw error for missing amount field', () => {
+      const json = {
+        asset: { name: 'Test', code: 'TST', decimals: '2' }
+      }
+      
+      expect(() => Money.fromJSON(json)).toThrow()
+    })
+
+    it('should throw error for invalid asset structure', () => {
+      const json = {
+        asset: { code: 'TST', decimals: '2' }, // missing name
+        amount: { amount: "100", decimals: "2" }
+      }
+      
+      expect(() => Money.fromJSON(json)).toThrow()
+    })
+
+    it('should throw error for invalid amount structure', () => {
+      const json = {
+        asset: { name: 'Test', code: 'TST', decimals: '2' },
+        amount: { amount: 100, decimals: "2" } // amount should be string
+      }
+      
+      expect(() => Money.fromJSON(json)).toThrow()
+    })
+
+    it('should throw error for null input', () => {
+      expect(() => Money.fromJSON(null)).toThrow()
+    })
+
+    it('should throw error for undefined input', () => {
+      expect(() => Money.fromJSON(undefined)).toThrow()
+    })
+  })
+
+  describe('MoneyJSONSchema', () => {
+    it('should be exported and usable independently', () => {
+      const validData = {
+        asset: { name: 'Test', code: 'TST', decimals: '2' },
+        amount: { amount: "100", decimals: "2" }
+      }
+      const parsed = MoneyJSONSchema.parse(validData)
+      
+      expect(parsed).toEqual(validData)
+    })
+
+    it('should validate data independently of fromJSON', () => {
+      const invalidData = {
+        asset: { name: 'Test' },
+        amount: { amount: 100, decimals: "2" } // amount should be string
+      }
+      
+      expect(() => MoneyJSONSchema.parse(invalidData)).toThrow()
     })
   })
 })

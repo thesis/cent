@@ -1,6 +1,41 @@
 import { AssetAmount, FixedPoint } from "./types"
-import { FixedPointNumber } from "./fixed-point"
+import { FixedPointNumber, FixedPointJSONSchema } from "./fixed-point"
 import { assetsEqual } from "./assets"
+import { z } from "zod"
+
+// Schema for basic Asset
+const AssetJSONSchema = z.object({
+  name: z.string()
+})
+
+// Schema for FungibleAsset (extends Asset)
+const FungibleAssetJSONSchema = AssetJSONSchema.extend({
+  code: z.string(),
+  decimals: z.string().regex(/^\d+$/, "Decimals must be a valid non-negative integer string"),
+  fractionalUnit: z.union([
+    z.string(),
+    z.array(z.string()),
+    z.record(z.number(), z.union([z.string(), z.array(z.string())]))
+  ]).optional()
+})
+
+// Schema for Currency (extends FungibleAsset)
+const CurrencyJSONSchema = FungibleAssetJSONSchema.extend({
+  symbol: z.string()
+})
+
+// Union schema for any asset type
+const AnyAssetJSONSchema = z.union([
+  CurrencyJSONSchema,
+  FungibleAssetJSONSchema,
+  AssetJSONSchema
+])
+
+// Schema for the complete Money JSON structure
+export const MoneyJSONSchema = z.object({
+  asset: AnyAssetJSONSchema,
+  amount: FixedPointJSONSchema
+})
 
 export class Money {
   readonly balance: AssetAmount
@@ -374,5 +409,58 @@ export class Money {
       asset: serializeValue(this.balance.asset),
       amount: new FixedPointNumber(this.balance.amount.amount, this.balance.amount.decimals).toJSON()
     }
+  }
+
+  /**
+   * Check if this Money instance is equal to another Money instance
+   *
+   * @param other - The other Money instance to compare with
+   * @returns true if both Money instances have the same asset and amount, false otherwise
+   */
+  equals(other: Money): boolean {
+    // Check if assets are equal
+    if (!assetsEqual(this.balance.asset, other.balance.asset)) {
+      return false
+    }
+
+    // Check if amounts are equal
+    const thisFixedPoint = new FixedPointNumber(this.balance.amount.amount, this.balance.amount.decimals)
+    const otherFixedPoint = new FixedPointNumber(other.balance.amount.amount, other.balance.amount.decimals)
+    
+    return thisFixedPoint.equals(otherFixedPoint)
+  }
+
+  /**
+   * Create a Money instance from JSON data
+   *
+   * @param json - The JSON data to deserialize
+   * @returns A new Money instance
+   * @throws Error if the JSON data is invalid
+   */
+  static fromJSON(json: any): Money {
+    const parsed = MoneyJSONSchema.parse(json)
+    
+    // Helper function to deserialize asset, converting string bigints back to bigints
+    const deserializeAsset = (asset: any): any => {
+      const result: any = { ...asset }
+      
+      // Convert decimals back to bigint if present (FungibleAsset/Currency)
+      if ('decimals' in result) {
+        result.decimals = BigInt(result.decimals)
+      }
+      
+      return result
+    }
+
+    const asset = deserializeAsset(parsed.asset)
+    const amount = FixedPointNumber.fromJSON(parsed.amount)
+
+    return new Money({
+      asset,
+      amount: {
+        amount: amount.amount,
+        decimals: amount.decimals
+      }
+    })
   }
 }
