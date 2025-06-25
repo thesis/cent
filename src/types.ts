@@ -44,3 +44,20 @@ export type AssetAmount = {
   // sub-quantum amounts, eg $0.001 in USD, even though USD only has 2 decimals.
   amount: FixedPoint
 }
+
+// "tag" types that allow us to emulate nominal typing
+declare const OpaqueTagSymbol: unique symbol
+declare class OpaqueTag<S extends symbol> {
+  readonly [OpaqueTagSymbol]: S
+}
+
+export type Opaque<T, S extends symbol> = T & OpaqueTag<S>
+
+export type UnwrapOpaque<OpaqueType extends OpaqueTag<symbol>> =
+  OpaqueType extends Opaque<infer Type, OpaqueType[typeof OpaqueTagSymbol]>
+    ? Type
+    : OpaqueType
+
+// declare a "nominal" UNIX timestamp type the can only be used via casting
+declare const UNIXTimeSymbol: unique symbol
+export type UNIXTime = Opaque<string, typeof UNIXTimeSymbol>
