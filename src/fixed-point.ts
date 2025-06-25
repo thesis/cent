@@ -1,4 +1,4 @@
-import { FixedPoint } from "./types"
+import { FixedPoint, Ratio } from "./types"
 import { z } from "zod"
 
 // Schema for bigint values serialized as strings (integers only)
@@ -9,9 +9,25 @@ export const FixedPointJSONSchema = z.object({
   decimals: z.string().regex(/^\d+$/, "Decimals must be a valid non-negative integer string")
 })
 
-export class FixedPointNumber implements FixedPoint {
+export class FixedPointNumber implements FixedPoint, Ratio {
   readonly amount: bigint
   readonly decimals: bigint
+
+  /**
+   * Get the numerator of the rational representation
+   * @returns The amount as the numerator
+   */
+  get p(): bigint {
+    return this.amount
+  }
+
+  /**
+   * Get the denominator of the rational representation
+   * @returns 10^decimals as the denominator
+   */
+  get q(): bigint {
+    return 10n ** this.decimals
+  }
 
   /**
    * Create a new FixedPointNumber instance

@@ -689,4 +689,54 @@ describe('FixedPointNumber', () => {
       expect(() => FixedPointNumber.fromJSON(testData)).toThrow()
     })
   })
+
+  describe('Ratio interface', () => {
+    it('should implement Ratio interface with p and q getters', () => {
+      const fp = new FixedPointNumber(123n, 2n) // 1.23
+      
+      expect(fp.p).toBe(123n)
+      expect(fp.q).toBe(100n) // 10^2
+    })
+
+    it('should calculate q correctly for different decimal places', () => {
+      const fp0 = new FixedPointNumber(5n, 0n) // 5
+      const fp2 = new FixedPointNumber(123n, 2n) // 1.23
+      const fp3 = new FixedPointNumber(456n, 3n) // 0.456
+      const fp5 = new FixedPointNumber(78901n, 5n) // 0.78901
+
+      expect(fp0.q).toBe(1n) // 10^0
+      expect(fp2.q).toBe(100n) // 10^2
+      expect(fp3.q).toBe(1000n) // 10^3
+      expect(fp5.q).toBe(100000n) // 10^5
+    })
+
+    it('should work with RationalNumber operations', () => {
+      const fp = new FixedPointNumber(150n, 2n) // 1.50 = 150/100
+      const rational = new (require('../src/rationals').RationalNumber)(fp)
+      
+      expect(rational.p).toBe(150n)
+      expect(rational.q).toBe(100n)
+    })
+
+    it('should maintain ratio consistency for zero amounts', () => {
+      const fp = new FixedPointNumber(0n, 3n) // 0.000
+      
+      expect(fp.p).toBe(0n)
+      expect(fp.q).toBe(1000n) // 10^3
+    })
+
+    it('should maintain ratio consistency for negative amounts', () => {
+      const fp = new FixedPointNumber(-250n, 2n) // -2.50
+      
+      expect(fp.p).toBe(-250n)
+      expect(fp.q).toBe(100n) // 10^2
+    })
+
+    it('should represent proper fractions for amounts less than 1', () => {
+      const fp = new FixedPointNumber(75n, 2n) // 0.75
+      
+      expect(fp.p).toBe(75n)
+      expect(fp.q).toBe(100n) // represents 75/100 = 0.75
+    })
+  })
 })
