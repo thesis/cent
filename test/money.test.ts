@@ -895,4 +895,170 @@ describe('Money', () => {
       expect(money.hasChange()).toBe(false)
     })
   })
+
+  describe('toJSON', () => {
+    it('should serialize a simple Currency Money instance', () => {
+      const money = new Money(usdAmount) // $100.50
+      const json = money.toJSON()
+      
+      expect(json).toEqual({
+        asset: {
+          name: 'US Dollar',
+          code: 'USD',
+          decimals: '2',
+          symbol: '$'
+        },
+        amount: {
+          amount: '10050',
+          decimals: '2'
+        }
+      })
+    })
+
+    it('should serialize FungibleAsset with fractionalUnit string', () => {
+      const btcAsset = {
+        name: 'Bitcoin',
+        code: 'BTC',
+        decimals: 8n,
+        fractionalUnit: 'satoshi'
+      }
+      const money = new Money({
+        asset: btcAsset,
+        amount: { amount: 100000000n, decimals: 8n } // 1.00000000 BTC
+      })
+      
+      const json = money.toJSON()
+      
+      expect(json).toEqual({
+        asset: {
+          name: 'Bitcoin',
+          code: 'BTC',
+          decimals: '8',
+          fractionalUnit: 'satoshi'
+        },
+        amount: {
+          amount: '100000000',
+          decimals: '8'
+        }
+      })
+    })
+
+    it('should serialize FungibleAsset with fractionalUnit array', () => {
+      const btcAsset = {
+        name: 'Bitcoin',
+        code: 'BTC',
+        decimals: 8n,
+        fractionalUnit: ['satoshi', 'sat']
+      }
+      const money = new Money({
+        asset: btcAsset,
+        amount: { amount: 50000000n, decimals: 8n } // 0.50000000 BTC
+      })
+      
+      const json = money.toJSON()
+      
+      expect(json).toEqual({
+        asset: {
+          name: 'Bitcoin',
+          code: 'BTC',
+          decimals: '8',
+          fractionalUnit: ['satoshi', 'sat']
+        },
+        amount: {
+          amount: '50000000',
+          decimals: '8'
+        }
+      })
+    })
+
+    it('should serialize FungibleAsset with fractionalUnit Record', () => {
+      const btcAsset = {
+        name: 'Bitcoin',
+        code: 'BTC',
+        decimals: 8n,
+        fractionalUnit: { 8: ['satoshi', 'sat'], 12: ['millisatoshi', 'millisat'] }
+      }
+      const money = new Money({
+        asset: btcAsset,
+        amount: { amount: 21000000n, decimals: 8n } // 0.21000000 BTC
+      })
+      
+      const json = money.toJSON()
+      
+      expect(json).toEqual({
+        asset: {
+          name: 'Bitcoin',
+          code: 'BTC',
+          decimals: '8',
+          fractionalUnit: { 8: ['satoshi', 'sat'], 12: ['millisatoshi', 'millisat'] }
+        },
+        amount: {
+          amount: '21000000',
+          decimals: '8'
+        }
+      })
+    })
+
+    it('should serialize basic Asset (no decimals)', () => {
+      const basicAsset = { name: 'Basic Asset' }
+      const money = new Money({
+        asset: basicAsset,
+        amount: { amount: 1000n, decimals: 0n }
+      })
+      
+      const json = money.toJSON()
+      
+      expect(json).toEqual({
+        asset: {
+          name: 'Basic Asset'
+        },
+        amount: {
+          amount: '1000',
+          decimals: '0'
+        }
+      })
+    })
+
+    it('should handle zero amounts', () => {
+      const money = new Money({
+        asset: usdCurrency,
+        amount: { amount: 0n, decimals: 2n }
+      })
+      
+      const json = money.toJSON()
+      
+      expect(json.amount).toEqual({
+        amount: '0',
+        decimals: '2'
+      })
+    })
+
+    it('should handle negative amounts', () => {
+      const money = new Money({
+        asset: usdCurrency,
+        amount: { amount: -5000n, decimals: 2n } // -$50.00
+      })
+      
+      const json = money.toJSON()
+      
+      expect(json.amount).toEqual({
+        amount: '-5000',
+        decimals: '2'
+      })
+    })
+
+    it('should work with JSON.stringify', () => {
+      const money = new Money({
+        asset: { name: 'Test', code: 'TST', decimals: 2n },
+        amount: { amount: 100n, decimals: 2n }
+      })
+      
+      const jsonString = JSON.stringify(money)
+      const parsed = JSON.parse(jsonString)
+      
+      expect(parsed.asset.decimals).toBe('2')
+      expect(parsed.amount.amount).toBe('100')
+      expect(parsed.amount.decimals).toBe('2')
+    })
+  })
 })

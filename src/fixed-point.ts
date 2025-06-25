@@ -301,4 +301,16 @@ export class FixedPointNumber implements FixedPoint {
     
     return minValue
   }
+
+  /**
+   * Serialize this FixedPointNumber to JSON
+   *
+   * @returns A JSON-serializable object with amount and decimals as strings
+   */
+  toJSON(): { amount: string; decimals: string } {
+    return {
+      amount: this.amount.toString(),
+      decimals: this.decimals.toString()
+    }
+  }
 }

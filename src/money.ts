@@ -345,4 +345,34 @@ export class Money {
 
     return remainder !== 0n
   }
+
+  /**
+   * Serialize this Money instance to JSON
+   *
+   * @returns A JSON-serializable object representing the AssetAmount
+   */
+  toJSON(): any {
+    // Helper function to serialize any value, converting bigints to strings
+    const serializeValue = (value: any): any => {
+      if (typeof value === 'bigint') {
+        return value.toString()
+      } else if (value && typeof value === 'object') {
+        if (Array.isArray(value)) {
+          return value.map(serializeValue)
+        } else {
+          const result: any = {}
+          for (const [key, val] of Object.entries(value)) {
+            result[key] = serializeValue(val)
+          }
+          return result
+        }
+      }
+      return value
+    }
+
+    return {
+      asset: serializeValue(this.balance.asset),
+      amount: new FixedPointNumber(this.balance.amount.amount, this.balance.amount.decimals).toJSON()
+    }
+  }
 }

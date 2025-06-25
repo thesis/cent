@@ -500,4 +500,53 @@ describe('FixedPointNumber', () => {
       expect(result.decimals).toBe(2n)
     })
   })
+
+  describe('toJSON', () => {
+    it('should serialize amount and decimals as strings', () => {
+      const fp = new FixedPointNumber(10050n, 2n) // 100.50
+      const json = fp.toJSON()
+      
+      expect(json).toEqual({
+        amount: "10050",
+        decimals: "2"
+      })
+    })
+
+    it('should handle zero values', () => {
+      const fp = new FixedPointNumber(0n, 0n)
+      const json = fp.toJSON()
+      
+      expect(json).toEqual({
+        amount: "0",
+        decimals: "0"
+      })
+    })
+
+    it('should handle large numbers', () => {
+      const fp = new FixedPointNumber(12345678901234567890n, 8n)
+      const json = fp.toJSON()
+      
+      expect(json).toEqual({
+        amount: "12345678901234567890",
+        decimals: "8"
+      })
+    })
+
+    it('should handle negative amounts', () => {
+      const fp = new FixedPointNumber(-10050n, 2n) // -100.50
+      const json = fp.toJSON()
+      
+      expect(json).toEqual({
+        amount: "-10050",
+        decimals: "2"
+      })
+    })
+
+    it('should work with JSON.stringify', () => {
+      const fp = new FixedPointNumber(10050n, 2n)
+      const jsonString = JSON.stringify(fp)
+      
+      expect(jsonString).toBe('{"amount":"10050","decimals":"2"}')
+    })
+  })
 })

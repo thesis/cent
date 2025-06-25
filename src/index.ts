@@ -6,7 +6,8 @@ export { Money } from './money'
 // TODO: Implement the following functionality:
 //
 // Price
-// * (Money, Money, time) // this allows modeling of batch prices (eg dutch auctions)
+// * (Money | Basket, Money | Basket, time) // this allows modeling of batch prices (eg dutch auctions)
+// * (Money, Money, time) // normal prices
 // * Optional "source" // what do we want here?
 //
 // parsing for...
