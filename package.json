@@ -16,7 +16,9 @@
     "ts-jest": "^29.1.2",
     "typescript": "5.5.4"
   },
-  "dependencies": {},
+  "dependencies": {
+    "zod": "^3.25.67"
+  },
   "browserslist": {
     "production": [
       ">0.2%",

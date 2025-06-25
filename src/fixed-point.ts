@@ -1,4 +1,10 @@
 import { FixedPoint } from "./types"
+import { z } from "zod"
+
+export const FixedPointJSONSchema = z.object({
+  amount: z.string().regex(/^-?\d+$/, "Amount must be a valid integer string"),
+  decimals: z.string().regex(/^\d+$/, "Decimals must be a valid non-negative integer string")
+})
 
 export class FixedPointNumber implements FixedPoint {
   readonly amount: bigint
@@ -312,5 +318,18 @@ export class FixedPointNumber implements FixedPoint {
       amount: this.amount.toString(),
       decimals: this.decimals.toString()
     }
+  }
+
+  /**
+   * Create a FixedPointNumber from JSON data
+   *
+   * @param json - The JSON data to deserialize
+   * @returns A new FixedPointNumber instance
+   * @throws Error if the JSON data is invalid
+   */
+  static fromJSON(json: any): FixedPointNumber {
+    const parsed = FixedPointJSONSchema.parse(json)
+    
+    return new FixedPointNumber(BigInt(parsed.amount), BigInt(parsed.decimals))
   }
 }
