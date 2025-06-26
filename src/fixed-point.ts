@@ -1,4 +1,4 @@
-import { FixedPoint, Ratio } from "./types"
+import { FixedPoint, Ratio, DecimalString } from "./types"
 import { z } from "zod"
 
 // Schema for bigint values serialized as strings (integers only)
@@ -126,7 +126,7 @@ export class FixedPointNumber implements FixedPoint, Ratio {
    *
    * @returns A string representation of the number (e.g., "10234.25")
    */
-  toString(): string {
+  toString(): DecimalString {
     const factor = 10n ** this.decimals
     const wholePart = this.amount / factor
     const fractionPart = this.amount % factor
@@ -140,10 +140,10 @@ export class FixedPointNumber implements FixedPoint, Ratio {
 
     // if decimals is 0, just return the whole part
     if (this.decimals === 0n) {
-      return wholePart.toString()
+      return wholePart.toString() as DecimalString
     }
 
-    return `${wholePart.toString()}.${fractionStr}`
+    return `${wholePart.toString()}.${fractionStr}` as DecimalString
   }
 
   /**
