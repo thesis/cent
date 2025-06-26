@@ -10,15 +10,31 @@ export const FixedPointJSONSchema = z.object({
 })
 
 export class FixedPointNumber implements FixedPoint, Ratio {
-  readonly amount: bigint
-  readonly decimals: bigint
+  #amount: bigint
+  #decimals: bigint
+
+  /**
+   * Get the amount value
+   * @returns The amount as a bigint
+   */
+  get amount(): bigint {
+    return this.#amount
+  }
+
+  /**
+   * Get the decimals value
+   * @returns The decimals as a bigint
+   */
+  get decimals(): bigint {
+    return this.#decimals
+  }
 
   /**
    * Get the numerator of the rational representation
    * @returns The amount as the numerator
    */
   get p(): bigint {
-    return this.amount
+    return this.#amount
   }
 
   /**
@@ -26,7 +42,7 @@ export class FixedPointNumber implements FixedPoint, Ratio {
    * @returns 10^decimals as the denominator
    */
   get q(): bigint {
-    return 10n ** this.decimals
+    return 10n ** this.#decimals
   }
 
   /**
@@ -36,8 +52,8 @@ export class FixedPointNumber implements FixedPoint, Ratio {
    * @param decimals - The number of decimal places
    */
   constructor(amount?: bigint, decimals?: bigint) {
-    this.amount = amount ?? 0n
-    this.decimals = decimals ?? 0n
+    this.#amount = amount ?? 0n
+    this.#decimals = decimals ?? 0n
   }
 
   static fromFixedPoint(fp: FixedPoint) {
@@ -225,11 +241,11 @@ export class FixedPointNumber implements FixedPoint, Ratio {
     if (this.decimals === other.decimals) {
       return this.amount < other.amount
     }
-    
+
     const maxDecimals = this.decimals > other.decimals ? this.decimals : other.decimals
     const normalizedThis = this.decimals === maxDecimals ? this : this.normalize({ amount: 0n, decimals: maxDecimals })
     const normalizedOther = other.decimals === maxDecimals ? other : FixedPointNumber.fromFixedPoint(other).normalize({ amount: 0n, decimals: maxDecimals })
-    
+
     return normalizedThis.amount < normalizedOther.amount
   }
 
@@ -253,11 +269,11 @@ export class FixedPointNumber implements FixedPoint, Ratio {
     if (this.decimals === other.decimals) {
       return this.amount > other.amount
     }
-    
+
     const maxDecimals = this.decimals > other.decimals ? this.decimals : other.decimals
     const normalizedThis = this.decimals === maxDecimals ? this : this.normalize({ amount: 0n, decimals: maxDecimals })
     const normalizedOther = other.decimals === maxDecimals ? other : FixedPointNumber.fromFixedPoint(other).normalize({ amount: 0n, decimals: maxDecimals })
-    
+
     return normalizedThis.amount > normalizedOther.amount
   }
 
@@ -298,13 +314,13 @@ export class FixedPointNumber implements FixedPoint, Ratio {
   max(other: FixedPoint | FixedPoint[]): FixedPointNumber {
     const others = Array.isArray(other) ? other : [other]
     let maxValue: FixedPointNumber = this
-    
+
     for (const fp of others) {
       if (maxValue.lessThan(fp)) {
         maxValue = FixedPointNumber.fromFixedPoint(fp)
       }
     }
-    
+
     return maxValue
   }
 
@@ -317,13 +333,13 @@ export class FixedPointNumber implements FixedPoint, Ratio {
   min(other: FixedPoint | FixedPoint[]): FixedPointNumber {
     const others = Array.isArray(other) ? other : [other]
     let minValue: FixedPointNumber = this
-    
+
     for (const fp of others) {
       if (minValue.greaterThan(fp)) {
         minValue = FixedPointNumber.fromFixedPoint(fp)
       }
     }
-    
+
     return minValue
   }
 
@@ -348,7 +364,7 @@ export class FixedPointNumber implements FixedPoint, Ratio {
    */
   static fromJSON(json: any): FixedPointNumber {
     const parsed = FixedPointJSONSchema.parse(json)
-    
+
     return new FixedPointNumber(BigInt(parsed.amount), BigInt(parsed.decimals))
   }
 }
