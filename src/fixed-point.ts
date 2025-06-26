@@ -1,12 +1,10 @@
 import { FixedPoint, Ratio, DecimalString } from "./types"
+import { BigIntStringSchema, NonNegativeBigIntStringSchema } from "./validation-schemas"
 import { z } from "zod"
-
-// Schema for bigint values serialized as strings (integers only)
-const BigIntStringSchema = z.string().regex(/^-?\d+$/, "Must be a valid integer string")
 
 export const FixedPointJSONSchema = z.object({
   amount: BigIntStringSchema,
-  decimals: z.string().regex(/^\d+$/, "Decimals must be a valid non-negative integer string")
+  decimals: NonNegativeBigIntStringSchema
 })
 
 export class FixedPointNumber implements FixedPoint, Ratio {

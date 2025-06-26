@@ -1,4 +1,12 @@
 import { Ratio, FixedPoint } from "./types"
+import { gcd } from "./math-utils"
+import { BigIntStringSchema } from "./validation-schemas"
+import { z } from "zod"
+
+export const RationalNumberJSONSchema = z.object({
+  p: BigIntStringSchema,
+  q: BigIntStringSchema
+})
 
 export class RationalNumber implements Ratio {
   #p: bigint
@@ -171,6 +179,30 @@ export class RationalNumber implements Ratio {
   }
 
   /**
+   * Simplify this RationalNumber by reducing to lowest terms
+   * 
+   * @returns A new RationalNumber with numerator and denominator in lowest terms
+   */
+  simplify(): RationalNumber {
+    if (this.p === 0n) {
+      // 0/anything = 0/1
+      return new RationalNumber({ p: 0n, q: 1n })
+    }
+    
+    const gcdValue = gcd(this.p, this.q)
+    let newP = this.p / gcdValue
+    let newQ = this.q / gcdValue
+    
+    // Ensure denominator is positive (move negative sign to numerator if needed)
+    if (newQ < 0n) {
+      newP = -newP
+      newQ = -newQ
+    }
+    
+    return new RationalNumber({ p: newP, q: newQ })
+  }
+
+  /**
    * Convert this RationalNumber to a FixedPoint
    * 
    * @returns A FixedPoint object with amount and decimals
@@ -203,5 +235,33 @@ export class RationalNumber implements Ratio {
       amount: this.q < 0n ? -this.p : this.p,
       decimals
     }
+  }
+
+  /**
+   * Serialize this RationalNumber to JSON
+   *
+   * @returns A JSON-serializable object with p and q as strings
+   */
+  toJSON(): { p: string; q: string } {
+    return {
+      p: this.p.toString(),
+      q: this.q.toString()
+    }
+  }
+
+  /**
+   * Create a RationalNumber from JSON data
+   *
+   * @param json - The JSON data to deserialize
+   * @returns A new RationalNumber instance
+   * @throws Error if the JSON data is invalid
+   */
+  static fromJSON(json: any): RationalNumber {
+    const parsed = RationalNumberJSONSchema.parse(json)
+    
+    return new RationalNumber({
+      p: BigInt(parsed.p),
+      q: BigInt(parsed.q)
+    })
   }
 }

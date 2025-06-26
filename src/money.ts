@@ -2,6 +2,7 @@ import { AssetAmount, FixedPoint } from "./types"
 import { FixedPointNumber, FixedPointJSONSchema } from "./fixed-point"
 import { assetsEqual } from "./assets"
 import { DecimalStringSchema } from "./decimal-strings"
+import { NonNegativeBigIntStringSchema } from "./validation-schemas"
 import { z } from "zod"
 
 // Schema for basic Asset
@@ -12,7 +13,7 @@ const AssetJSONSchema = z.object({
 // Schema for FungibleAsset (extends Asset)
 const FungibleAssetJSONSchema = AssetJSONSchema.extend({
   code: z.string(),
-  decimals: z.string().regex(/^\d+$/, "Decimals must be a valid non-negative integer string"),
+  decimals: NonNegativeBigIntStringSchema,
   fractionalUnit: z.union([
     z.string(),
     z.array(z.string()),
