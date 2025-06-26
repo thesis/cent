@@ -137,7 +137,7 @@ export class Money {
     const concreteFixedPoint = thisFixedPoint.normalize({
       amount: 0n,
       decimals: assetDecimals
-    })
+    }, true)
 
     // Create the concrete Money instance
     const concrete = new Money({

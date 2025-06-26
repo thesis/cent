@@ -169,9 +169,10 @@ export class FixedPointNumber implements FixedPoint, Ratio {
    * Normalize this FixedPointNumber to match the decimal count of another FixedPoint
    *
    * @param other - The FixedPoint to match decimal count with
-   * @returns A new FixedPointNumber with the same decimal count as other
+   * @param unsafe - If true, allows precision loss when scaling down (default: false)
+   * @returns A new FixedPointNumber with the same decimal count as other (or original if unsafe=false and precision would be lost)
    */
-  normalize(other: FixedPoint): FixedPointNumber {
+  normalize(other: FixedPoint, unsafe: boolean = false): FixedPointNumber {
     if (this.decimals === other.decimals) {
       return new FixedPointNumber(this.amount, this.decimals)
     }
@@ -183,7 +184,20 @@ export class FixedPointNumber implements FixedPoint, Ratio {
     } else {
       // Scale down: divide by 10^(this.decimals - other.decimals)
       const scaleFactor = 10n ** (this.decimals - other.decimals)
-      return new FixedPointNumber(this.amount / scaleFactor, other.decimals)
+      
+      if (unsafe) {
+        // Allow precision loss
+        return new FixedPointNumber(this.amount / scaleFactor, other.decimals)
+      } else {
+        // Only scale down if no precision is lost
+        if (this.amount % scaleFactor === 0n) {
+          // No precision lost, can scale down
+          return new FixedPointNumber(this.amount / scaleFactor, other.decimals)
+        } else {
+          // Would lose precision, keep original precision
+          return new FixedPointNumber(this.amount, this.decimals)
+        }
+      }
     }
   }
 
