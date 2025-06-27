@@ -1,4 +1,16 @@
-import { Money, MoneyJSONSchema } from '../src/money'
+import { 
+  Money, 
+  MoneyJSONSchema, 
+  formatMoney,
+  shouldUseIsoFormatting,
+  formatWithIntlCurrency,
+  formatWithCustomFormatting,
+  convertToPreferredUnit,
+  findFractionalUnitInfo,
+  getCurrencyDisplayPart,
+  normalizeLocale,
+  pluralizeFractionalUnit
+} from '../src/money'
 import { Currency, AssetAmount } from '../src/types'
 
 describe('Money', () => {
@@ -1271,6 +1283,302 @@ describe('Money', () => {
       }
       
       expect(() => MoneyJSONSchema.parse(invalidData)).toThrow()
+    })
+  })
+
+  describe('toString', () => {
+    // Test currencies
+    const usd: Currency = {
+      name: 'US Dollar',
+      code: 'USD',
+      decimals: 2n,
+      symbol: '$',
+      fractionalUnit: 'cent',
+      iso4217Support: true
+    }
+
+    const btc: Currency = {
+      name: 'Bitcoin',
+      code: 'BTC',
+      decimals: 8n,
+      symbol: '₿',
+      fractionalUnit: {
+        8: ['satoshi', 'sat'],
+        11: ['millisatoshi', 'msat']
+      },
+      iso4217Support: false
+    }
+
+    describe('basic functionality', () => {
+      it('should format USD using ISO 4217 by default', () => {
+        const money = new Money({
+          asset: usd,
+          amount: { amount: 100n, decimals: 1n } // $10.0
+        })
+        
+        const result = money.toString()
+        expect(result).toBe('$10.00') // Should default to asset decimals (2) and en-US locale
+      })
+
+      it('should format BTC using custom formatting by default', () => {
+        const money = new Money({
+          asset: btc,
+          amount: { amount: 10n, decimals: 1n } // 1.0 BTC
+        })
+        
+        const result = money.toString()
+        expect(result).toBe('1 BTC') // Should use custom formatting
+      })
+    })
+
+    describe('locale options', () => {
+      it('should handle different locales for ISO currencies', () => {
+        const money = new Money({
+          asset: usd,
+          amount: { amount: 123456n, decimals: 2n } // $1234.56
+        })
+        
+        expect(money.toString({ locale: 'en-US' })).toBe('$1,234.56')
+        expect(money.toString({ locale: 'de-DE' })).toBe('1.234,56\u00A0$')
+      })
+
+      it('should handle underscore locale format', () => {
+        const money = new Money({
+          asset: usd,
+          amount: { amount: 123456n, decimals: 2n }
+        })
+        
+        // Should convert en_US to en-US internally
+        expect(money.toString({ locale: 'en_US' })).toBe('$1,234.56')
+      })
+    })
+
+    describe('compact notation', () => {
+      it('should format large amounts compactly for ISO currencies', () => {
+        const money = new Money({
+          asset: usd,
+          amount: { amount: 100000000n, decimals: 2n } // $1,000,000.00
+        })
+        
+        expect(money.toString({ compact: true })).toBe('$1M')
+      })
+
+      it('should format large amounts compactly for non-ISO currencies', () => {
+        const money = new Money({
+          asset: btc,
+          amount: { amount: 100000000n, decimals: 8n } // 1.0 BTC
+        })
+        
+        expect(money.toString({ compact: true })).toBe('1 BTC')
+      })
+    })
+
+    describe('maxDecimals option', () => {
+      it('should limit decimal places for ISO currencies', () => {
+        const money = new Money({
+          asset: usd,
+          amount: { amount: 12345n, decimals: 2n } // $123.45
+        })
+        
+        expect(money.toString({ maxDecimals: 1 })).toBe('$123.5')
+        expect(money.toString({ maxDecimals: 0 })).toBe('$123')
+      })
+
+      it('should limit decimal places for non-ISO currencies', () => {
+        const money = new Money({
+          asset: btc,
+          amount: { amount: 12345678n, decimals: 8n } // 0.12345678 BTC
+        })
+        
+        expect(money.toString({ maxDecimals: 4 })).toBe('0.1235 BTC')
+        expect(money.toString({ maxDecimals: 2 })).toBe('0.12 BTC')
+      })
+    })
+
+    describe('preferredUnit option', () => {
+      it('should convert to satoshis when requested', () => {
+        const money = new Money({
+          asset: btc,
+          amount: { amount: 100000000n, decimals: 8n } // 1.0 BTC
+        })
+        
+        expect(money.toString({ preferredUnit: 'satoshi' })).toBe('100,000,000 satoshis')
+        expect(money.toString({ preferredUnit: 'sat' })).toBe('100,000,000 sats')
+      })
+
+      it('should convert to millisatoshis when requested', () => {
+        const money = new Money({
+          asset: btc,
+          amount: { amount: 100000000n, decimals: 8n } // 1.0 BTC
+        })
+        
+        expect(money.toString({ preferredUnit: 'msat' })).toBe('100,000,000,000 msats')
+      })
+
+      it('should use singular unit name when amount is exactly 1', () => {
+        const money = new Money({
+          asset: btc,
+          amount: { amount: 1n, decimals: 8n } // 1 satoshi
+        })
+        
+        expect(money.toString({ preferredUnit: 'satoshi' })).toBe('1 satoshi')
+      })
+
+      it('should ignore preferredUnit for ISO currencies', () => {
+        const money = new Money({
+          asset: usd,
+          amount: { amount: 10050n, decimals: 2n } // $100.50
+        })
+        
+        // preferredUnit should be ignored for ISO currencies
+        expect(money.toString({ preferredUnit: 'cent' })).toBe('$100.50')
+      })
+    })
+
+    describe('preferSymbol option', () => {
+      it('should not affect ISO currencies', () => {
+        const money = new Money({
+          asset: usd,
+          amount: { amount: 10050n, decimals: 2n } // $100.50
+        })
+        
+        // ISO currencies already use proper symbol formatting
+        expect(money.toString({ preferSymbol: true })).toBe('$100.50')
+        expect(money.toString({ preferSymbol: false })).toBe('$100.50')
+      })
+
+      it('should prefer symbol over code for non-ISO currencies', () => {
+        const money = new Money({
+          asset: btc,
+          amount: { amount: 10n, decimals: 1n } // 1.0 BTC
+        })
+        
+        expect(money.toString({ preferSymbol: true })).toBe('₿1')
+        expect(money.toString({ preferSymbol: false })).toBe('1 BTC')
+      })
+
+      it('should not use symbol when preferredUnit is specified', () => {
+        const money = new Money({
+          asset: btc,
+          amount: { amount: 100000000n, decimals: 8n } // 1.0 BTC
+        })
+        
+        // When using preferredUnit, symbol should not be used
+        expect(money.toString({ preferSymbol: true, preferredUnit: 'sat' })).toBe('100,000,000 sats')
+      })
+    })
+  })
+
+  describe('formatting utility functions', () => {
+    describe('shouldUseIsoFormatting', () => {
+      it('should return true for currencies with iso4217Support: true', () => {
+        expect(shouldUseIsoFormatting({ iso4217Support: true })).toBe(true)
+      })
+
+      it('should return false for currencies with iso4217Support: false', () => {
+        expect(shouldUseIsoFormatting({ iso4217Support: false })).toBe(false)
+      })
+
+      it('should return false for currencies without iso4217Support', () => {
+        expect(shouldUseIsoFormatting({})).toBe(false)
+        expect(shouldUseIsoFormatting({ code: 'XYZ' })).toBe(false)
+      })
+    })
+
+    describe('normalizeLocale', () => {
+      it('should convert underscore to hyphen', () => {
+        expect(normalizeLocale('en_US')).toBe('en-US')
+        expect(normalizeLocale('de_DE')).toBe('de-DE')
+      })
+
+      it('should leave valid locales unchanged', () => {
+        expect(normalizeLocale('en-US')).toBe('en-US')
+        expect(normalizeLocale('fr-FR')).toBe('fr-FR')
+      })
+    })
+
+    describe('findFractionalUnitInfo', () => {
+      it('should find unit in string format', () => {
+        const result = findFractionalUnitInfo('satoshi', 'satoshi', 8)
+        expect(result).toEqual({ decimals: 8, name: 'satoshi' })
+      })
+
+      it('should find unit in array format', () => {
+        const result = findFractionalUnitInfo(['satoshi', 'sat'], 'sat', 8)
+        expect(result).toEqual({ decimals: 8, name: 'satoshi' })
+      })
+
+      it('should find unit in record format', () => {
+        const fractionalUnit = {
+          8: ['satoshi', 'sat'],
+          11: ['millisatoshi', 'msat']
+        }
+        
+        const result1 = findFractionalUnitInfo(fractionalUnit, 'sat', 8)
+        expect(result1).toEqual({ decimals: 8, name: 'satoshi' })
+        
+        const result2 = findFractionalUnitInfo(fractionalUnit, 'msat', 8)
+        expect(result2).toEqual({ decimals: 11, name: 'millisatoshi' })
+      })
+
+      it('should return null for unknown units', () => {
+        expect(findFractionalUnitInfo('satoshi', 'unknown', 8)).toBeNull()
+        expect(findFractionalUnitInfo(['satoshi', 'sat'], 'unknown', 8)).toBeNull()
+      })
+    })
+
+    describe('getCurrencyDisplayPart', () => {
+      it('should return unit suffix when provided', () => {
+        expect(getCurrencyDisplayPart({ code: 'BTC' }, false, 'sat')).toBe(' sat')
+      })
+
+      it('should return empty string for preferSymbol when no unitSuffix', () => {
+        expect(getCurrencyDisplayPart({ symbol: '₿' }, true)).toBe('')
+      })
+
+      it('should return currency code when available', () => {
+        expect(getCurrencyDisplayPart({ code: 'BTC' }, false)).toBe(' BTC')
+      })
+
+      it('should return empty string when no code available', () => {
+        expect(getCurrencyDisplayPart({}, false)).toBe('')
+      })
+    })
+
+    describe('pluralizeFractionalUnit', () => {
+      it('should return singular for amount of 1', () => {
+        // This is handled in convertToPreferredUnit, but let's test the pluralize function directly
+        expect(pluralizeFractionalUnit('satoshi')).toBe('satoshis')
+        expect(pluralizeFractionalUnit('cent')).toBe('cents')
+      })
+
+      it('should handle irregular plurals', () => {
+        expect(pluralizeFractionalUnit('penny')).toBe('pence')
+        expect(pluralizeFractionalUnit('kopek')).toBe('kopeks')
+        expect(pluralizeFractionalUnit('grosz')).toBe('groszy')
+        expect(pluralizeFractionalUnit('fils')).toBe('fils') // Already plural
+        expect(pluralizeFractionalUnit('sen')).toBe('sen') // Already plural
+      })
+
+      it('should handle words ending in y', () => {
+        expect(pluralizeFractionalUnit('penny')).toBe('pence') // Irregular, handled above
+        expect(pluralizeFractionalUnit('currency')).toBe('currencies')
+      })
+
+      it('should handle words ending in s, sh, ch, x, z', () => {
+        expect(pluralizeFractionalUnit('piastres')).toBe('piastreses')
+        expect(pluralizeFractionalUnit('bash')).toBe('bashes')
+        expect(pluralizeFractionalUnit('inch')).toBe('inches')
+        expect(pluralizeFractionalUnit('box')).toBe('boxes')
+        expect(pluralizeFractionalUnit('quiz')).toBe('quizzes')
+      })
+
+      it('should handle regular plurals', () => {
+        expect(pluralizeFractionalUnit('satoshi')).toBe('satoshis')
+        expect(pluralizeFractionalUnit('cent')).toBe('cents')
+        expect(pluralizeFractionalUnit('dollar')).toBe('dollars')
+        expect(pluralizeFractionalUnit('euro')).toBe('euros')
+      })
     })
   })
 })
