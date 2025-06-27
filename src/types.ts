@@ -53,6 +53,41 @@ export type AssetAmount = {
   amount: FixedPoint
 }
 
+/**
+ * Rounding modes for number formatting, corresponding to Intl.NumberFormat roundingMode options
+ */
+export enum RoundingMode {
+  /** Round toward positive infinity */
+  CEIL = "ceil",
+  /** Round toward negative infinity */
+  FLOOR = "floor", 
+  /** Round away from zero */
+  EXPAND = "expand",
+  /** Round toward zero */
+  TRUNC = "trunc",
+  /** Round to nearest, ties toward positive infinity */
+  HALF_CEIL = "halfCeil",
+  /** Round to nearest, ties toward negative infinity */
+  HALF_FLOOR = "halfFloor",
+  /** Round to nearest, ties away from zero */
+  HALF_EXPAND = "halfExpand",
+  /** Round to nearest, ties toward zero */
+  HALF_TRUNC = "halfTrunc",
+  /** Round to nearest, ties toward even */
+  HALF_EVEN = "halfEven"
+}
+
+// Export individual rounding mode constants
+export const CEIL = RoundingMode.CEIL
+export const FLOOR = RoundingMode.FLOOR
+export const EXPAND = RoundingMode.EXPAND
+export const TRUNC = RoundingMode.TRUNC
+export const HALF_CEIL = RoundingMode.HALF_CEIL
+export const HALF_FLOOR = RoundingMode.HALF_FLOOR
+export const HALF_EXPAND = RoundingMode.HALF_EXPAND
+export const HALF_TRUNC = RoundingMode.HALF_TRUNC
+export const HALF_EVEN = RoundingMode.HALF_EVEN
+
 // "tag" types that allow us to emulate nominal typing
 declare const OpaqueTagSymbol: unique symbol
 declare class OpaqueTag<S extends symbol> {

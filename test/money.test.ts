@@ -11,7 +11,7 @@ import {
   normalizeLocale,
   pluralizeFractionalUnit
 } from '../src/money'
-import { Currency, AssetAmount } from '../src/types'
+import { Currency, AssetAmount, RoundingMode, HALF_EXPAND, HALF_EVEN, CEIL, FLOOR } from '../src/types'
 
 describe('Money', () => {
   const usdCurrency: Currency = {
@@ -1465,6 +1465,54 @@ describe('Money', () => {
         
         // When using preferredUnit, symbol should not be used
         expect(money.toString({ preferSymbol: true, preferredUnit: 'sat' })).toBe('100,000,000 sats')
+      })
+    })
+
+    describe('roundingMode option', () => {
+      it('should use different rounding modes for ISO currencies', () => {
+        const money = new Money({
+          asset: usd,
+          amount: { amount: 12567n, decimals: 2n } // $125.67
+        })
+        
+        // Test with maxDecimals to force rounding
+        expect(money.toString({ maxDecimals: 1, roundingMode: HALF_EXPAND })).toBe('$125.7')
+        expect(money.toString({ maxDecimals: 1, roundingMode: HALF_EVEN })).toBe('$125.7')
+        expect(money.toString({ maxDecimals: 1, roundingMode: CEIL })).toBe('$125.7')
+        expect(money.toString({ maxDecimals: 1, roundingMode: FLOOR })).toBe('$125.6')
+      })
+
+      it('should use different rounding modes for non-ISO currencies', () => {
+        const money = new Money({
+          asset: btc,
+          amount: { amount: 12567n, decimals: 4n } // 1.2567 BTC (using 4 decimals for easier testing)
+        })
+        
+        // Test with maxDecimals to force rounding
+        expect(money.toString({ maxDecimals: 3, roundingMode: HALF_EXPAND })).toBe('1.257 BTC')
+        expect(money.toString({ maxDecimals: 3, roundingMode: HALF_EVEN })).toBe('1.257 BTC')  
+        expect(money.toString({ maxDecimals: 3, roundingMode: CEIL })).toBe('1.257 BTC')
+        expect(money.toString({ maxDecimals: 3, roundingMode: FLOOR })).toBe('1.256 BTC')
+      })
+
+      it('should work with enum values', () => {
+        const money = new Money({
+          asset: usd,
+          amount: { amount: 12565n, decimals: 2n } // $125.65
+        })
+        
+        expect(money.toString({ maxDecimals: 1, roundingMode: RoundingMode.HALF_EXPAND })).toBe('$125.7')
+        expect(money.toString({ maxDecimals: 1, roundingMode: RoundingMode.HALF_EVEN })).toBe('$125.6')
+      })
+
+      it('should work without roundingMode (using default)', () => {
+        const money = new Money({
+          asset: usd,
+          amount: { amount: 12565n, decimals: 2n } // $125.65
+        })
+        
+        // Should work without specifying roundingMode
+        expect(money.toString({ maxDecimals: 1 })).toBe('$125.7') // Default behavior
       })
     })
   })

@@ -1,9 +1,14 @@
 import { z } from "zod"
-import { AssetAmount, FixedPoint } from "./types"
+import { AssetAmount, FixedPoint, RoundingMode } from "./types"
 import { FixedPointNumber, FixedPointJSONSchema } from "./fixed-point"
 import { assetsEqual } from "./assets"
 import { DecimalStringSchema } from "./decimal-strings"
 import { NonNegativeBigIntStringSchema } from "./validation-schemas"
+
+// Extend Intl.NumberFormatOptions to include roundingMode for older TypeScript versions
+interface NumberFormatOptionsWithRounding extends Intl.NumberFormatOptions {
+  roundingMode?: RoundingMode
+}
 
 // Schema for basic Asset
 const AssetJSONSchema = z.object({
@@ -547,6 +552,8 @@ export interface MoneyToStringOptions {
   preferredUnit?: string
   /** Prefer symbol formatting over code for non-ISO currencies */
   preferSymbol?: boolean
+  /** Rounding mode for number formatting */
+  roundingMode?: RoundingMode
 }
 
 /**
@@ -566,13 +573,14 @@ export function formatMoney(
     maxDecimals,
     preferredUnit,
     preferSymbol = false,
+    roundingMode,
   } = options
 
   // Determine if we should use ISO 4217 formatting
   const useIsoFormatting = shouldUseIsoFormatting(money.balance.asset)
 
   if (useIsoFormatting) {
-    return formatWithIntlCurrency(money, locale, compact, maxDecimals)
+    return formatWithIntlCurrency(money, locale, compact, maxDecimals, roundingMode)
   }
   return formatWithCustomFormatting(
     money,
@@ -581,6 +589,7 @@ export function formatMoney(
     maxDecimals,
     preferredUnit,
     preferSymbol,
+    roundingMode,
   )
 }
 
@@ -601,6 +610,7 @@ export function shouldUseIsoFormatting(asset: any): boolean {
  * @param locale - The locale to use for formatting
  * @param compact - Whether to use compact notation
  * @param maxDecimals - Maximum decimal places
+ * @param roundingMode - Rounding mode for number formatting
  * @returns Formatted string using ISO 4217 currency formatting
  */
 export function formatWithIntlCurrency(
@@ -608,6 +618,7 @@ export function formatWithIntlCurrency(
   locale: string,
   compact: boolean,
   maxDecimals?: number | bigint,
+  roundingMode?: RoundingMode,
 ): string {
   const fp = new FixedPointNumber(
     money.balance.amount.amount,
@@ -630,14 +641,20 @@ export function formatWithIntlCurrency(
     ? 0
     : Math.min(assetDecimals, finalMaxDecimals)
 
-  const formatter = new Intl.NumberFormat(normalizeLocale(locale), {
+  const formatterOptions: NumberFormatOptionsWithRounding = {
     style: "currency",
     currency: currencyCode,
     notation: compact ? "compact" : "standard",
     compactDisplay: compact ? "short" : undefined,
     minimumFractionDigits: finalMinDecimals,
     maximumFractionDigits: finalMaxDecimals,
-  })
+  }
+
+  if (roundingMode) {
+    formatterOptions.roundingMode = roundingMode
+  }
+
+  const formatter = new Intl.NumberFormat(normalizeLocale(locale), formatterOptions)
 
   return formatter.format(numericValue)
 }
@@ -651,6 +668,7 @@ export function formatWithIntlCurrency(
  * @param maxDecimals - Maximum decimal places
  * @param preferredUnit - Preferred fractional unit
  * @param preferSymbol - Whether to prefer symbol over code
+ * @param roundingMode - Rounding mode for number formatting
  * @returns Formatted string using custom formatting
  */
 export function formatWithCustomFormatting(
@@ -660,6 +678,7 @@ export function formatWithCustomFormatting(
   maxDecimals?: number | bigint,
   preferredUnit?: string,
   preferSymbol: boolean = false,
+  roundingMode?: RoundingMode,
 ): string {
   // Handle fractional unit conversion if specified
   const { numericValue, unitSuffix } = convertToPreferredUnit(
@@ -674,13 +693,19 @@ export function formatWithCustomFormatting(
     maxDecimals !== undefined ? Number(maxDecimals) : assetDecimals
 
   // Format the number part using Intl.NumberFormat
-  const formatter = new Intl.NumberFormat(normalizeLocale(locale), {
+  const formatterOptions: NumberFormatOptionsWithRounding = {
     style: "decimal",
     notation: compact ? "compact" : "standard",
     compactDisplay: compact ? "short" : undefined,
     minimumFractionDigits: 0,
     maximumFractionDigits: finalMaxDecimals,
-  })
+  }
+
+  if (roundingMode) {
+    formatterOptions.roundingMode = roundingMode
+  }
+
+  const formatter = new Intl.NumberFormat(normalizeLocale(locale), formatterOptions)
 
   const formattedNumber = formatter.format(numericValue)
 
@@ -736,7 +761,7 @@ export function convertToPreferredUnit(
       // Convert to the fractional unit
       const multiplier = 10 ** unitInfo.decimals
       numericValue *= multiplier
-      
+
       // Pluralize the unit name if amount is not exactly 1
       if (numericValue === 1) {
         unitSuffix = preferredUnit
