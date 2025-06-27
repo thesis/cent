@@ -67,6 +67,10 @@ export type UnwrapOpaque<OpaqueType extends OpaqueTag<symbol>> =
 declare const UNIXTimeSymbol: unique symbol
 export type UNIXTime = Opaque<string, typeof UNIXTimeSymbol>
 
+// declare a "nominal" UTC timestamp type that can only be used via casting
+declare const UTCTimeSymbol: unique symbol
+export type UTCTime = Opaque<string, typeof UTCTimeSymbol>
+
 // declare a "nominal" decimal string type that can only be used via casting
 declare const DecimalStringSymbol: unique symbol
 export type DecimalString = Opaque<string, typeof DecimalStringSymbol>
