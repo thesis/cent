@@ -6,7 +6,8 @@ export const AFN: Currency = {
   code: 'AFN',
   decimals: 2n,
   symbol: '؋',
-  fractionalUnit: 'pul'
+  fractionalUnit: 'pul',
+  iso4217Support: true
 }
 
 export const ALL: Currency = {
@@ -14,7 +15,8 @@ export const ALL: Currency = {
   code: 'ALL',
   decimals: 2n,
   symbol: 'L',
-  fractionalUnit: 'qintar'
+  fractionalUnit: 'qintar',
+  iso4217Support: true
 }
 
 export const DZD: Currency = {
@@ -22,7 +24,8 @@ export const DZD: Currency = {
   code: 'DZD',
   decimals: 2n,
   symbol: 'DA',
-  fractionalUnit: 'centime'
+  fractionalUnit: 'centime',
+  iso4217Support: true
 }
 
 export const AOA: Currency = {
@@ -30,7 +33,8 @@ export const AOA: Currency = {
   code: 'AOA',
   decimals: 2n,
   symbol: 'Kz',
-  fractionalUnit: 'cêntimo'
+  fractionalUnit: 'cêntimo',
+  iso4217Support: true
 }
 
 export const ARS: Currency = {
@@ -38,7 +42,8 @@ export const ARS: Currency = {
   code: 'ARS',
   decimals: 2n,
   symbol: '$',
-  fractionalUnit: 'centavo'
+  fractionalUnit: 'centavo',
+  iso4217Support: true
 }
 
 export const AMD: Currency = {
@@ -46,7 +51,8 @@ export const AMD: Currency = {
   code: 'AMD',
   decimals: 2n,
   symbol: '֏',
-  fractionalUnit: 'luma'
+  fractionalUnit: 'luma',
+  iso4217Support: true
 }
 
 export const AWG: Currency = {
@@ -54,7 +60,8 @@ export const AWG: Currency = {
   code: 'AWG',
   decimals: 2n,
   symbol: 'ƒ',
-  fractionalUnit: 'cent'
+  fractionalUnit: 'cent',
+  iso4217Support: true
 }
 
 export const AUD: Currency = {
@@ -62,7 +69,8 @@ export const AUD: Currency = {
   code: 'AUD',
   decimals: 2n,
   symbol: '$',
-  fractionalUnit: 'cent'
+  fractionalUnit: 'cent',
+  iso4217Support: true
 }
 
 export const AZN: Currency = {
@@ -70,7 +78,8 @@ export const AZN: Currency = {
   code: 'AZN',
   decimals: 2n,
   symbol: '₼',
-  fractionalUnit: 'qəpik'
+  fractionalUnit: 'qəpik',
+  iso4217Support: true
 }
 
 export const BHD: Currency = {
@@ -78,7 +87,8 @@ export const BHD: Currency = {
   code: 'BHD',
   decimals: 3n,
   symbol: 'BD',
-  fractionalUnit: 'fils'
+  fractionalUnit: 'fils',
+  iso4217Support: true
 }
 
 export const BDT: Currency = {
@@ -86,7 +96,8 @@ export const BDT: Currency = {
   code: 'BDT',
   decimals: 2n,
   symbol: '৳',
-  fractionalUnit: 'poisha'
+  fractionalUnit: 'poisha',
+  iso4217Support: true
 }
 
 export const BBD: Currency = {
@@ -94,7 +105,8 @@ export const BBD: Currency = {
   code: 'BBD',
   decimals: 2n,
   symbol: '$',
-  fractionalUnit: 'cent'
+  fractionalUnit: 'cent',
+  iso4217Support: true
 }
 
 export const BYN: Currency = {
@@ -102,7 +114,8 @@ export const BYN: Currency = {
   code: 'BYN',
   decimals: 2n,
   symbol: 'Br',
-  fractionalUnit: 'kapiejka'
+  fractionalUnit: 'kapiejka',
+  iso4217Support: true
 }
 
 export const BZD: Currency = {
@@ -110,7 +123,8 @@ export const BZD: Currency = {
   code: 'BZD',
   decimals: 2n,
   symbol: '$',
-  fractionalUnit: 'cent'
+  fractionalUnit: 'cent',
+  iso4217Support: true
 }
 
 export const BMD: Currency = {
@@ -118,7 +132,8 @@ export const BMD: Currency = {
   code: 'BMD',
   decimals: 2n,
   symbol: '$',
-  fractionalUnit: 'cent'
+  fractionalUnit: 'cent',
+  iso4217Support: true
 }
 
 export const BTN: Currency = {
@@ -126,7 +141,8 @@ export const BTN: Currency = {
   code: 'BTN',
   decimals: 2n,
   symbol: 'Nu',
-  fractionalUnit: 'chetrum'
+  fractionalUnit: 'chetrum',
+  iso4217Support: true
 }
 
 export const BOB: Currency = {
@@ -134,7 +150,8 @@ export const BOB: Currency = {
   code: 'BOB',
   decimals: 2n,
   symbol: 'Bs',
-  fractionalUnit: 'centavo'
+  fractionalUnit: 'centavo',
+  iso4217Support: true
 }
 
 export const BAM: Currency = {
@@ -142,7 +159,8 @@ export const BAM: Currency = {
   code: 'BAM',
   decimals: 2n,
   symbol: 'KM',
-  fractionalUnit: 'fening'
+  fractionalUnit: 'fening',
+  iso4217Support: true
 }
 
 export const BWP: Currency = {
@@ -150,7 +168,8 @@ export const BWP: Currency = {
   code: 'BWP',
   decimals: 2n,
   symbol: 'P',
-  fractionalUnit: 'thebe'
+  fractionalUnit: 'thebe',
+  iso4217Support: true
 }
 
 export const BRL: Currency = {
@@ -158,7 +177,8 @@ export const BRL: Currency = {
   code: 'BRL',
   decimals: 2n,
   symbol: 'R$',
-  fractionalUnit: 'centavo'
+  fractionalUnit: 'centavo',
+  iso4217Support: true
 }
 
 export const BND: Currency = {
@@ -166,7 +186,8 @@ export const BND: Currency = {
   code: 'BND',
   decimals: 2n,
   symbol: '$',
-  fractionalUnit: 'sen'
+  fractionalUnit: 'sen',
+  iso4217Support: true
 }
 
 export const BGN: Currency = {
@@ -174,7 +195,8 @@ export const BGN: Currency = {
   code: 'BGN',
   decimals: 2n,
   symbol: 'лв',
-  fractionalUnit: 'stotinka'
+  fractionalUnit: 'stotinka',
+  iso4217Support: true
 }
 
 export const BIF: Currency = {
@@ -182,7 +204,8 @@ export const BIF: Currency = {
   code: 'BIF',
   decimals: 0n,
   symbol: 'Fr',
-  fractionalUnit: 'centime'
+  fractionalUnit: 'centime',
+  iso4217Support: true
 }
 
 export const CVE: Currency = {
@@ -190,7 +213,8 @@ export const CVE: Currency = {
   code: 'CVE',
   decimals: 2n,
   symbol: '$',
-  fractionalUnit: 'centavo'
+  fractionalUnit: 'centavo',
+  iso4217Support: true
 }
 
 export const KHR: Currency = {
@@ -198,7 +222,8 @@ export const KHR: Currency = {
   code: 'KHR',
   decimals: 2n,
   symbol: '៛',
-  fractionalUnit: 'sen'
+  fractionalUnit: 'sen',
+  iso4217Support: true
 }
 
 export const CAD: Currency = {
@@ -206,7 +231,8 @@ export const CAD: Currency = {
   code: 'CAD',
   decimals: 2n,
   symbol: '$',
-  fractionalUnit: 'cent'
+  fractionalUnit: 'cent',
+  iso4217Support: true
 }
 
 export const KYD: Currency = {
@@ -214,7 +240,8 @@ export const KYD: Currency = {
   code: 'KYD',
   decimals: 2n,
   symbol: '$',
-  fractionalUnit: 'cent'
+  fractionalUnit: 'cent',
+  iso4217Support: true
 }
 
 export const XAF: Currency = {
@@ -222,7 +249,8 @@ export const XAF: Currency = {
   code: 'XAF',
   decimals: 0n,
   symbol: 'Fr',
-  fractionalUnit: 'centime'
+  fractionalUnit: 'centime',
+  iso4217Support: true
 }
 
 export const XPF: Currency = {
@@ -230,7 +258,8 @@ export const XPF: Currency = {
   code: 'XPF',
   decimals: 0n,
   symbol: 'Fr',
-  fractionalUnit: 'centime'
+  fractionalUnit: 'centime',
+  iso4217Support: true
 }
 
 export const CLP: Currency = {
@@ -238,7 +267,8 @@ export const CLP: Currency = {
   code: 'CLP',
   decimals: 0n,
   symbol: '$',
-  fractionalUnit: 'centavo'
+  fractionalUnit: 'centavo',
+  iso4217Support: true
 }
 
 export const CNY: Currency = {
@@ -246,7 +276,8 @@ export const CNY: Currency = {
   code: 'CNY',
   decimals: 2n,
   symbol: '¥',
-  fractionalUnit: 'fen'
+  fractionalUnit: 'fen',
+  iso4217Support: true
 }
 
 export const COP: Currency = {
@@ -254,7 +285,8 @@ export const COP: Currency = {
   code: 'COP',
   decimals: 2n,
   symbol: '$',
-  fractionalUnit: 'centavo'
+  fractionalUnit: 'centavo',
+  iso4217Support: true
 }
 
 export const KMF: Currency = {
@@ -262,7 +294,8 @@ export const KMF: Currency = {
   code: 'KMF',
   decimals: 0n,
   symbol: 'Fr',
-  fractionalUnit: 'centime'
+  fractionalUnit: 'centime',
+  iso4217Support: true
 }
 
 export const CDF: Currency = {
@@ -270,7 +303,8 @@ export const CDF: Currency = {
   code: 'CDF',
   decimals: 2n,
   symbol: 'Fr',
-  fractionalUnit: 'centime'
+  fractionalUnit: 'centime',
+  iso4217Support: true
 }
 
 export const CRC: Currency = {
@@ -278,7 +312,8 @@ export const CRC: Currency = {
   code: 'CRC',
   decimals: 2n,
   symbol: '₡',
-  fractionalUnit: 'céntimo'
+  fractionalUnit: 'céntimo',
+  iso4217Support: true
 }
 
 export const HRK: Currency = {
@@ -286,7 +321,8 @@ export const HRK: Currency = {
   code: 'HRK',
   decimals: 2n,
   symbol: 'kn',
-  fractionalUnit: 'lipa'
+  fractionalUnit: 'lipa',
+  iso4217Support: true
 }
 
 export const CUP: Currency = {
@@ -294,7 +330,8 @@ export const CUP: Currency = {
   code: 'CUP',
   decimals: 2n,
   symbol: '$',
-  fractionalUnit: 'centavo'
+  fractionalUnit: 'centavo',
+  iso4217Support: true
 }
 
 export const CZK: Currency = {
@@ -318,7 +355,8 @@ export const DJF: Currency = {
   code: 'DJF',
   decimals: 0n,
   symbol: 'Fr',
-  fractionalUnit: 'centime'
+  fractionalUnit: 'centime',
+  iso4217Support: true
 }
 
 export const DOP: Currency = {
@@ -326,7 +364,8 @@ export const DOP: Currency = {
   code: 'DOP',
   decimals: 2n,
   symbol: '$',
-  fractionalUnit: 'centavo'
+  fractionalUnit: 'centavo',
+  iso4217Support: true
 }
 
 export const XCD: Currency = {
@@ -334,7 +373,8 @@ export const XCD: Currency = {
   code: 'XCD',
   decimals: 2n,
   symbol: '$',
-  fractionalUnit: 'cent'
+  fractionalUnit: 'cent',
+  iso4217Support: true
 }
 
 export const EGP: Currency = {
@@ -342,7 +382,8 @@ export const EGP: Currency = {
   code: 'EGP',
   decimals: 2n,
   symbol: '£',
-  fractionalUnit: 'piastre'
+  fractionalUnit: 'piastre',
+  iso4217Support: true
 }
 
 export const ERN: Currency = {
@@ -350,7 +391,8 @@ export const ERN: Currency = {
   code: 'ERN',
   decimals: 2n,
   symbol: 'Nfk',
-  fractionalUnit: 'cent'
+  fractionalUnit: 'cent',
+  iso4217Support: true
 }
 
 export const SZL: Currency = {
@@ -358,7 +400,8 @@ export const SZL: Currency = {
   code: 'SZL',
   decimals: 2n,
   symbol: 'E',
-  fractionalUnit: 'cent'
+  fractionalUnit: 'cent',
+  iso4217Support: true
 }
 
 export const ETB: Currency = {
@@ -366,7 +409,8 @@ export const ETB: Currency = {
   code: 'ETB',
   decimals: 2n,
   symbol: 'Br',
-  fractionalUnit: 'santim'
+  fractionalUnit: 'santim',
+  iso4217Support: true
 }
 
 export const EUR: Currency = {
@@ -374,7 +418,8 @@ export const EUR: Currency = {
   code: 'EUR',
   decimals: 2n,
   symbol: '€',
-  fractionalUnit: 'cent'
+  fractionalUnit: 'cent',
+  iso4217Support: true
 }
 
 export const FKP: Currency = {
@@ -382,7 +427,8 @@ export const FKP: Currency = {
   code: 'FKP',
   decimals: 2n,
   symbol: '£',
-  fractionalUnit: 'penny'
+  fractionalUnit: 'penny',
+  iso4217Support: true
 }
 
 export const FJD: Currency = {
@@ -390,7 +436,8 @@ export const FJD: Currency = {
   code: 'FJD',
   decimals: 2n,
   symbol: '$',
-  fractionalUnit: 'cent'
+  fractionalUnit: 'cent',
+  iso4217Support: true
 }
 
 export const GMD: Currency = {
@@ -398,7 +445,8 @@ export const GMD: Currency = {
   code: 'GMD',
   decimals: 2n,
   symbol: 'D',
-  fractionalUnit: 'butut'
+  fractionalUnit: 'butut',
+  iso4217Support: true
 }
 
 export const GEL: Currency = {
@@ -406,7 +454,8 @@ export const GEL: Currency = {
   code: 'GEL',
   decimals: 2n,
   symbol: '₾',
-  fractionalUnit: 'tetri'
+  fractionalUnit: 'tetri',
+  iso4217Support: true
 }
 
 export const GHS: Currency = {
@@ -414,7 +463,8 @@ export const GHS: Currency = {
   code: 'GHS',
   decimals: 2n,
   symbol: '₵',
-  fractionalUnit: 'pesewa'
+  fractionalUnit: 'pesewa',
+  iso4217Support: true
 }
 
 export const GIP: Currency = {
@@ -422,7 +472,8 @@ export const GIP: Currency = {
   code: 'GIP',
   decimals: 2n,
   symbol: '£',
-  fractionalUnit: 'penny'
+  fractionalUnit: 'penny',
+  iso4217Support: true
 }
 
 export const GTQ: Currency = {
@@ -430,7 +481,8 @@ export const GTQ: Currency = {
   code: 'GTQ',
   decimals: 2n,
   symbol: 'Q',
-  fractionalUnit: 'centavo'
+  fractionalUnit: 'centavo',
+  iso4217Support: true
 }
 
 export const GNF: Currency = {
@@ -438,7 +490,8 @@ export const GNF: Currency = {
   code: 'GNF',
   decimals: 0n,
   symbol: 'Fr',
-  fractionalUnit: 'centime'
+  fractionalUnit: 'centime',
+  iso4217Support: true
 }
 
 export const GYD: Currency = {
@@ -446,7 +499,8 @@ export const GYD: Currency = {
   code: 'GYD',
   decimals: 2n,
   symbol: '$',
-  fractionalUnit: 'cent'
+  fractionalUnit: 'cent',
+  iso4217Support: true
 }
 
 export const HTG: Currency = {
@@ -454,7 +508,8 @@ export const HTG: Currency = {
   code: 'HTG',
   decimals: 2n,
   symbol: 'G',
-  fractionalUnit: 'centime'
+  fractionalUnit: 'centime',
+  iso4217Support: true
 }
 
 export const HNL: Currency = {
@@ -462,7 +517,8 @@ export const HNL: Currency = {
   code: 'HNL',
   decimals: 2n,
   symbol: 'L',
-  fractionalUnit: 'centavo'
+  fractionalUnit: 'centavo',
+  iso4217Support: true
 }
 
 export const HKD: Currency = {
@@ -470,7 +526,8 @@ export const HKD: Currency = {
   code: 'HKD',
   decimals: 2n,
   symbol: '$',
-  fractionalUnit: 'cent'
+  fractionalUnit: 'cent',
+  iso4217Support: true
 }
 
 export const HUF: Currency = {
@@ -478,7 +535,8 @@ export const HUF: Currency = {
   code: 'HUF',
   decimals: 2n,
   symbol: 'Ft',
-  fractionalUnit: 'fillér'
+  fractionalUnit: 'fillér',
+  iso4217Support: true
 }
 
 export const ISK: Currency = {
@@ -486,7 +544,8 @@ export const ISK: Currency = {
   code: 'ISK',
   decimals: 0n,
   symbol: 'kr',
-  fractionalUnit: 'eyrir'
+  fractionalUnit: 'eyrir',
+  iso4217Support: true
 }
 
 export const INR: Currency = {
@@ -494,7 +553,8 @@ export const INR: Currency = {
   code: 'INR',
   decimals: 2n,
   symbol: '₹',
-  fractionalUnit: 'paisa'
+  fractionalUnit: 'paisa',
+  iso4217Support: true
 }
 
 export const IDR: Currency = {
@@ -502,7 +562,8 @@ export const IDR: Currency = {
   code: 'IDR',
   decimals: 2n,
   symbol: 'Rp',
-  fractionalUnit: 'sen'
+  fractionalUnit: 'sen',
+  iso4217Support: true
 }
 
 export const IRR: Currency = {
@@ -510,7 +571,8 @@ export const IRR: Currency = {
   code: 'IRR',
   decimals: 2n,
   symbol: '﷼',
-  fractionalUnit: 'dinar'
+  fractionalUnit: 'dinar',
+  iso4217Support: true
 }
 
 export const IQD: Currency = {
@@ -518,7 +580,8 @@ export const IQD: Currency = {
   code: 'IQD',
   decimals: 3n,
   symbol: 'د.ع',
-  fractionalUnit: 'fils'
+  fractionalUnit: 'fils',
+  iso4217Support: true
 }
 
 export const ILS: Currency = {
@@ -526,7 +589,8 @@ export const ILS: Currency = {
   code: 'ILS',
   decimals: 2n,
   symbol: '₪',
-  fractionalUnit: 'agora'
+  fractionalUnit: 'agora',
+  iso4217Support: true
 }
 
 export const JMD: Currency = {
@@ -534,7 +598,8 @@ export const JMD: Currency = {
   code: 'JMD',
   decimals: 2n,
   symbol: '$',
-  fractionalUnit: 'cent'
+  fractionalUnit: 'cent',
+  iso4217Support: true
 }
 
 export const JPY: Currency = {
@@ -542,7 +607,8 @@ export const JPY: Currency = {
   code: 'JPY',
   decimals: 0n,
   symbol: '¥',
-  fractionalUnit: 'sen'
+  fractionalUnit: 'sen',
+  iso4217Support: true
 }
 
 export const JOD: Currency = {
@@ -550,7 +616,8 @@ export const JOD: Currency = {
   code: 'JOD',
   decimals: 3n,
   symbol: 'د.أ',
-  fractionalUnit: 'fils'
+  fractionalUnit: 'fils',
+  iso4217Support: true
 }
 
 export const KZT: Currency = {
@@ -558,7 +625,8 @@ export const KZT: Currency = {
   code: 'KZT',
   decimals: 2n,
   symbol: '₸',
-  fractionalUnit: 'tiyn'
+  fractionalUnit: 'tiyn',
+  iso4217Support: true
 }
 
 export const KES: Currency = {
@@ -566,7 +634,8 @@ export const KES: Currency = {
   code: 'KES',
   decimals: 2n,
   symbol: 'Sh',
-  fractionalUnit: 'cent'
+  fractionalUnit: 'cent',
+  iso4217Support: true
 }
 
 export const KPW: Currency = {
@@ -574,7 +643,8 @@ export const KPW: Currency = {
   code: 'KPW',
   decimals: 2n,
   symbol: '₩',
-  fractionalUnit: 'chon'
+  fractionalUnit: 'chon',
+  iso4217Support: true
 }
 
 export const KRW: Currency = {
@@ -582,7 +652,8 @@ export const KRW: Currency = {
   code: 'KRW',
   decimals: 0n,
   symbol: '₩',
-  fractionalUnit: 'jeon'
+  fractionalUnit: 'jeon',
+  iso4217Support: true
 }
 
 export const KWD: Currency = {
@@ -590,7 +661,8 @@ export const KWD: Currency = {
   code: 'KWD',
   decimals: 3n,
   symbol: 'د.ك',
-  fractionalUnit: 'fils'
+  fractionalUnit: 'fils',
+  iso4217Support: true
 }
 
 export const KGS: Currency = {
@@ -598,7 +670,8 @@ export const KGS: Currency = {
   code: 'KGS',
   decimals: 2n,
   symbol: 'с',
-  fractionalUnit: 'tyiyn'
+  fractionalUnit: 'tyiyn',
+  iso4217Support: true
 }
 
 export const LAK: Currency = {
@@ -606,7 +679,8 @@ export const LAK: Currency = {
   code: 'LAK',
   decimals: 2n,
   symbol: '₭',
-  fractionalUnit: 'att'
+  fractionalUnit: 'att',
+  iso4217Support: true
 }
 
 export const LBP: Currency = {
@@ -614,7 +688,8 @@ export const LBP: Currency = {
   code: 'LBP',
   decimals: 2n,
   symbol: 'ل.ل',
-  fractionalUnit: 'piastre'
+  fractionalUnit: 'piastre',
+  iso4217Support: true
 }
 
 export const LSL: Currency = {
@@ -622,7 +697,8 @@ export const LSL: Currency = {
   code: 'LSL',
   decimals: 2n,
   symbol: 'L',
-  fractionalUnit: 'sente'
+  fractionalUnit: 'sente',
+  iso4217Support: true
 }
 
 export const LRD: Currency = {
@@ -630,7 +706,8 @@ export const LRD: Currency = {
   code: 'LRD',
   decimals: 2n,
   symbol: '$',
-  fractionalUnit: 'cent'
+  fractionalUnit: 'cent',
+  iso4217Support: true
 }
 
 export const LYD: Currency = {
@@ -638,7 +715,8 @@ export const LYD: Currency = {
   code: 'LYD',
   decimals: 3n,
   symbol: 'ل.د',
-  fractionalUnit: 'dirham'
+  fractionalUnit: 'dirham',
+  iso4217Support: true
 }
 
 export const MOP: Currency = {
@@ -646,7 +724,8 @@ export const MOP: Currency = {
   code: 'MOP',
   decimals: 2n,
   symbol: 'P',
-  fractionalUnit: 'avo'
+  fractionalUnit: 'avo',
+  iso4217Support: true
 }
 
 export const MKD: Currency = {
@@ -654,7 +733,8 @@ export const MKD: Currency = {
   code: 'MKD',
   decimals: 2n,
   symbol: 'ден',
-  fractionalUnit: 'deni'
+  fractionalUnit: 'deni',
+  iso4217Support: true
 }
 
 export const MGA: Currency = {
@@ -662,7 +742,8 @@ export const MGA: Currency = {
   code: 'MGA',
   decimals: 2n,
   symbol: 'Ar',
-  fractionalUnit: 'iraimbilanja'
+  fractionalUnit: 'iraimbilanja',
+  iso4217Support: true
 }
 
 export const MWK: Currency = {
@@ -670,7 +751,8 @@ export const MWK: Currency = {
   code: 'MWK',
   decimals: 2n,
   symbol: 'MK',
-  fractionalUnit: 'tambala'
+  fractionalUnit: 'tambala',
+  iso4217Support: true
 }
 
 export const MYR: Currency = {
@@ -678,7 +760,8 @@ export const MYR: Currency = {
   code: 'MYR',
   decimals: 2n,
   symbol: 'RM',
-  fractionalUnit: 'sen'
+  fractionalUnit: 'sen',
+  iso4217Support: true
 }
 
 export const MVR: Currency = {
@@ -686,7 +769,8 @@ export const MVR: Currency = {
   code: 'MVR',
   decimals: 2n,
   symbol: 'ރ',
-  fractionalUnit: 'laari'
+  fractionalUnit: 'laari',
+  iso4217Support: true
 }
 
 export const MRU: Currency = {
@@ -694,7 +778,8 @@ export const MRU: Currency = {
   code: 'MRU',
   decimals: 2n,
   symbol: 'UM',
-  fractionalUnit: 'khoums'
+  fractionalUnit: 'khoums',
+  iso4217Support: true
 }
 
 export const MUR: Currency = {
@@ -702,7 +787,8 @@ export const MUR: Currency = {
   code: 'MUR',
   decimals: 2n,
   symbol: '₨',
-  fractionalUnit: 'cent'
+  fractionalUnit: 'cent',
+  iso4217Support: true
 }
 
 export const MXN: Currency = {
@@ -710,7 +796,8 @@ export const MXN: Currency = {
   code: 'MXN',
   decimals: 2n,
   symbol: '$',
-  fractionalUnit: 'centavo'
+  fractionalUnit: 'centavo',
+  iso4217Support: true
 }
 
 export const MDL: Currency = {
@@ -718,7 +805,8 @@ export const MDL: Currency = {
   code: 'MDL',
   decimals: 2n,
   symbol: 'L',
-  fractionalUnit: 'ban'
+  fractionalUnit: 'ban',
+  iso4217Support: true
 }
 
 export const MNT: Currency = {
@@ -726,7 +814,8 @@ export const MNT: Currency = {
   code: 'MNT',
   decimals: 2n,
   symbol: '₮',
-  fractionalUnit: 'möngö'
+  fractionalUnit: 'möngö',
+  iso4217Support: true
 }
 
 export const MAD: Currency = {
@@ -734,7 +823,8 @@ export const MAD: Currency = {
   code: 'MAD',
   decimals: 2n,
   symbol: 'د.م.',
-  fractionalUnit: 'centime'
+  fractionalUnit: 'centime',
+  iso4217Support: true
 }
 
 export const MZN: Currency = {
@@ -742,7 +832,8 @@ export const MZN: Currency = {
   code: 'MZN',
   decimals: 2n,
   symbol: 'MT',
-  fractionalUnit: 'centavo'
+  fractionalUnit: 'centavo',
+  iso4217Support: true
 }
 
 export const MMK: Currency = {
@@ -750,7 +841,8 @@ export const MMK: Currency = {
   code: 'MMK',
   decimals: 2n,
   symbol: 'Ks',
-  fractionalUnit: 'pya'
+  fractionalUnit: 'pya',
+  iso4217Support: true
 }
 
 export const NAD: Currency = {
@@ -758,7 +850,8 @@ export const NAD: Currency = {
   code: 'NAD',
   decimals: 2n,
   symbol: '$',
-  fractionalUnit: 'cent'
+  fractionalUnit: 'cent',
+  iso4217Support: true
 }
 
 export const NPR: Currency = {
@@ -766,7 +859,8 @@ export const NPR: Currency = {
   code: 'NPR',
   decimals: 2n,
   symbol: '₨',
-  fractionalUnit: 'paisa'
+  fractionalUnit: 'paisa',
+  iso4217Support: true
 }
 
 export const ANG: Currency = {
@@ -774,7 +868,8 @@ export const ANG: Currency = {
   code: 'ANG',
   decimals: 2n,
   symbol: 'ƒ',
-  fractionalUnit: 'cent'
+  fractionalUnit: 'cent',
+  iso4217Support: true
 }
 
 export const NZD: Currency = {
@@ -782,7 +877,8 @@ export const NZD: Currency = {
   code: 'NZD',
   decimals: 2n,
   symbol: '$',
-  fractionalUnit: 'cent'
+  fractionalUnit: 'cent',
+  iso4217Support: true
 }
 
 export const NIO: Currency = {
@@ -790,7 +886,8 @@ export const NIO: Currency = {
   code: 'NIO',
   decimals: 2n,
   symbol: 'C$',
-  fractionalUnit: 'centavo'
+  fractionalUnit: 'centavo',
+  iso4217Support: true
 }
 
 export const NGN: Currency = {
@@ -798,7 +895,8 @@ export const NGN: Currency = {
   code: 'NGN',
   decimals: 2n,
   symbol: '₦',
-  fractionalUnit: 'kobo'
+  fractionalUnit: 'kobo',
+  iso4217Support: true
 }
 
 export const NOK: Currency = {
@@ -806,7 +904,8 @@ export const NOK: Currency = {
   code: 'NOK',
   decimals: 2n,
   symbol: 'kr',
-  fractionalUnit: 'øre'
+  fractionalUnit: 'øre',
+  iso4217Support: true
 }
 
 export const OMR: Currency = {
@@ -814,7 +913,8 @@ export const OMR: Currency = {
   code: 'OMR',
   decimals: 3n,
   symbol: 'ر.ع.',
-  fractionalUnit: 'baisa'
+  fractionalUnit: 'baisa',
+  iso4217Support: true
 }
 
 export const PKR: Currency = {
@@ -822,7 +922,8 @@ export const PKR: Currency = {
   code: 'PKR',
   decimals: 2n,
   symbol: '₨',
-  fractionalUnit: 'paisa'
+  fractionalUnit: 'paisa',
+  iso4217Support: true
 }
 
 export const PAB: Currency = {
@@ -830,7 +931,8 @@ export const PAB: Currency = {
   code: 'PAB',
   decimals: 2n,
   symbol: 'B/.',
-  fractionalUnit: 'centésimo'
+  fractionalUnit: 'centésimo',
+  iso4217Support: true
 }
 
 export const PGK: Currency = {
@@ -838,7 +940,8 @@ export const PGK: Currency = {
   code: 'PGK',
   decimals: 2n,
   symbol: 'K',
-  fractionalUnit: 'toea'
+  fractionalUnit: 'toea',
+  iso4217Support: true
 }
 
 export const PYG: Currency = {
@@ -846,7 +949,8 @@ export const PYG: Currency = {
   code: 'PYG',
   decimals: 0n,
   symbol: '₲',
-  fractionalUnit: 'céntimo'
+  fractionalUnit: 'céntimo',
+  iso4217Support: true
 }
 
 export const PEN: Currency = {
@@ -862,7 +966,8 @@ export const PHP: Currency = {
   code: 'PHP',
   decimals: 2n,
   symbol: '₱',
-  fractionalUnit: 'sentimo'
+  fractionalUnit: 'sentimo',
+  iso4217Support: true
 }
 
 export const PLN: Currency = {
@@ -870,7 +975,8 @@ export const PLN: Currency = {
   code: 'PLN',
   decimals: 2n,
   symbol: 'zł',
-  fractionalUnit: 'grosz'
+  fractionalUnit: 'grosz',
+  iso4217Support: true
 }
 
 export const QAR: Currency = {
@@ -878,7 +984,8 @@ export const QAR: Currency = {
   code: 'QAR',
   decimals: 2n,
   symbol: 'ر.ق',
-  fractionalUnit: 'dirham'
+  fractionalUnit: 'dirham',
+  iso4217Support: true
 }
 
 export const RON: Currency = {
@@ -886,7 +993,8 @@ export const RON: Currency = {
   code: 'RON',
   decimals: 2n,
   symbol: 'lei',
-  fractionalUnit: 'ban'
+  fractionalUnit: 'ban',
+  iso4217Support: true
 }
 
 export const RUB: Currency = {
@@ -894,7 +1002,8 @@ export const RUB: Currency = {
   code: 'RUB',
   decimals: 2n,
   symbol: '₽',
-  fractionalUnit: 'kopek'
+  fractionalUnit: 'kopek',
+  iso4217Support: true
 }
 
 export const RWF: Currency = {
@@ -902,7 +1011,8 @@ export const RWF: Currency = {
   code: 'RWF',
   decimals: 0n,
   symbol: 'Fr',
-  fractionalUnit: 'centime'
+  fractionalUnit: 'centime',
+  iso4217Support: true
 }
 
 export const SHP: Currency = {
@@ -910,7 +1020,8 @@ export const SHP: Currency = {
   code: 'SHP',
   decimals: 2n,
   symbol: '£',
-  fractionalUnit: 'penny'
+  fractionalUnit: 'penny',
+  iso4217Support: true
 }
 
 export const WST: Currency = {
@@ -918,7 +1029,8 @@ export const WST: Currency = {
   code: 'WST',
   decimals: 2n,
   symbol: 'T',
-  fractionalUnit: 'sene'
+  fractionalUnit: 'sene',
+  iso4217Support: true
 }
 
 export const STN: Currency = {
@@ -934,7 +1046,8 @@ export const SAR: Currency = {
   code: 'SAR',
   decimals: 2n,
   symbol: 'ر.س',
-  fractionalUnit: 'halala'
+  fractionalUnit: 'halala',
+  iso4217Support: true
 }
 
 export const RSD: Currency = {
@@ -942,7 +1055,8 @@ export const RSD: Currency = {
   code: 'RSD',
   decimals: 2n,
   symbol: 'дин',
-  fractionalUnit: 'para'
+  fractionalUnit: 'para',
+  iso4217Support: true
 }
 
 export const SCR: Currency = {
@@ -950,7 +1064,8 @@ export const SCR: Currency = {
   code: 'SCR',
   decimals: 2n,
   symbol: '₨',
-  fractionalUnit: 'cent'
+  fractionalUnit: 'cent',
+  iso4217Support: true
 }
 
 export const SLE: Currency = {
@@ -958,7 +1073,8 @@ export const SLE: Currency = {
   code: 'SLE',
   decimals: 2n,
   symbol: 'Le',
-  fractionalUnit: 'cent'
+  fractionalUnit: 'cent',
+  iso4217Support: true
 }
 
 export const SGD: Currency = {
@@ -966,7 +1082,8 @@ export const SGD: Currency = {
   code: 'SGD',
   decimals: 2n,
   symbol: '$',
-  fractionalUnit: 'cent'
+  fractionalUnit: 'cent',
+  iso4217Support: true
 }
 
 export const SBD: Currency = {
@@ -974,7 +1091,8 @@ export const SBD: Currency = {
   code: 'SBD',
   decimals: 2n,
   symbol: '$',
-  fractionalUnit: 'cent'
+  fractionalUnit: 'cent',
+  iso4217Support: true
 }
 
 export const SOS: Currency = {
@@ -982,7 +1100,8 @@ export const SOS: Currency = {
   code: 'SOS',
   decimals: 2n,
   symbol: 'Sh',
-  fractionalUnit: 'cent'
+  fractionalUnit: 'cent',
+  iso4217Support: true
 }
 
 export const ZAR: Currency = {
@@ -990,7 +1109,8 @@ export const ZAR: Currency = {
   code: 'ZAR',
   decimals: 2n,
   symbol: 'R',
-  fractionalUnit: 'cent'
+  fractionalUnit: 'cent',
+  iso4217Support: true
 }
 
 export const SSP: Currency = {
@@ -998,7 +1118,8 @@ export const SSP: Currency = {
   code: 'SSP',
   decimals: 2n,
   symbol: '£',
-  fractionalUnit: 'piaster'
+  fractionalUnit: 'piaster',
+  iso4217Support: true
 }
 
 export const LKR: Currency = {
@@ -1006,7 +1127,8 @@ export const LKR: Currency = {
   code: 'LKR',
   decimals: 2n,
   symbol: '₨',
-  fractionalUnit: 'cent'
+  fractionalUnit: 'cent',
+  iso4217Support: true
 }
 
 export const SDG: Currency = {
@@ -1014,7 +1136,8 @@ export const SDG: Currency = {
   code: 'SDG',
   decimals: 2n,
   symbol: 'ج.س.',
-  fractionalUnit: 'qirsh'
+  fractionalUnit: 'qirsh',
+  iso4217Support: true
 }
 
 export const SRD: Currency = {
@@ -1022,7 +1145,8 @@ export const SRD: Currency = {
   code: 'SRD',
   decimals: 2n,
   symbol: '$',
-  fractionalUnit: 'cent'
+  fractionalUnit: 'cent',
+  iso4217Support: true
 }
 
 export const SEK: Currency = {
@@ -1030,7 +1154,8 @@ export const SEK: Currency = {
   code: 'SEK',
   decimals: 2n,
   symbol: 'kr',
-  fractionalUnit: 'öre'
+  fractionalUnit: 'öre',
+  iso4217Support: true
 }
 
 export const CHF: Currency = {
@@ -1038,7 +1163,8 @@ export const CHF: Currency = {
   code: 'CHF',
   decimals: 2n,
   symbol: 'Fr',
-  fractionalUnit: 'centime'
+  fractionalUnit: 'centime',
+  iso4217Support: true
 }
 
 export const SYP: Currency = {
@@ -1046,7 +1172,8 @@ export const SYP: Currency = {
   code: 'SYP',
   decimals: 2n,
   symbol: '£S',
-  fractionalUnit: 'piastre'
+  fractionalUnit: 'piastre',
+  iso4217Support: true
 }
 
 export const TWD: Currency = {
@@ -1054,7 +1181,8 @@ export const TWD: Currency = {
   code: 'TWD',
   decimals: 2n,
   symbol: '$',
-  fractionalUnit: 'cent'
+  fractionalUnit: 'cent',
+  iso4217Support: true
 }
 
 export const TJS: Currency = {
@@ -1062,7 +1190,8 @@ export const TJS: Currency = {
   code: 'TJS',
   decimals: 2n,
   symbol: 'ЅМ',
-  fractionalUnit: 'diram'
+  fractionalUnit: 'diram',
+  iso4217Support: true
 }
 
 export const TZS: Currency = {
@@ -1070,7 +1199,8 @@ export const TZS: Currency = {
   code: 'TZS',
   decimals: 2n,
   symbol: 'Sh',
-  fractionalUnit: 'cent'
+  fractionalUnit: 'cent',
+  iso4217Support: true
 }
 
 export const THB: Currency = {
@@ -1078,7 +1208,8 @@ export const THB: Currency = {
   code: 'THB',
   decimals: 2n,
   symbol: '฿',
-  fractionalUnit: 'satang'
+  fractionalUnit: 'satang',
+  iso4217Support: true
 }
 
 export const TOP: Currency = {
@@ -1086,7 +1217,8 @@ export const TOP: Currency = {
   code: 'TOP',
   decimals: 2n,
   symbol: 'T$',
-  fractionalUnit: 'seniti'
+  fractionalUnit: 'seniti',
+  iso4217Support: true
 }
 
 export const TTD: Currency = {
@@ -1094,7 +1226,8 @@ export const TTD: Currency = {
   code: 'TTD',
   decimals: 2n,
   symbol: '$',
-  fractionalUnit: 'cent'
+  fractionalUnit: 'cent',
+  iso4217Support: true
 }
 
 export const TND: Currency = {
@@ -1102,7 +1235,8 @@ export const TND: Currency = {
   code: 'TND',
   decimals: 3n,
   symbol: 'د.ت',
-  fractionalUnit: 'millime'
+  fractionalUnit: 'millime',
+  iso4217Support: true
 }
 
 export const TRY: Currency = {
@@ -1110,7 +1244,8 @@ export const TRY: Currency = {
   code: 'TRY',
   decimals: 2n,
   symbol: '₺',
-  fractionalUnit: 'kuruş'
+  fractionalUnit: 'kuruş',
+  iso4217Support: true
 }
 
 export const TMT: Currency = {
@@ -1118,7 +1253,8 @@ export const TMT: Currency = {
   code: 'TMT',
   decimals: 2n,
   symbol: 'm',
-  fractionalUnit: 'tenge'
+  fractionalUnit: 'tenge',
+  iso4217Support: true
 }
 
 export const UGX: Currency = {
@@ -1126,7 +1262,8 @@ export const UGX: Currency = {
   code: 'UGX',
   decimals: 0n,
   symbol: 'Sh',
-  fractionalUnit: 'cent'
+  fractionalUnit: 'cent',
+  iso4217Support: true
 }
 
 export const UAH: Currency = {
@@ -1134,7 +1271,8 @@ export const UAH: Currency = {
   code: 'UAH',
   decimals: 2n,
   symbol: '₴',
-  fractionalUnit: 'kopiyka'
+  fractionalUnit: 'kopiyka',
+  iso4217Support: true
 }
 
 export const AED: Currency = {
@@ -1142,7 +1280,8 @@ export const AED: Currency = {
   code: 'AED',
   decimals: 2n,
   symbol: 'د.إ',
-  fractionalUnit: 'fils'
+  fractionalUnit: 'fils',
+  iso4217Support: true
 }
 
 export const GBP: Currency = {
@@ -1150,7 +1289,8 @@ export const GBP: Currency = {
   code: 'GBP',
   decimals: 2n,
   symbol: '£',
-  fractionalUnit: 'penny'
+  fractionalUnit: 'penny',
+  iso4217Support: true
 }
 
 export const USD: Currency = {
@@ -1158,7 +1298,8 @@ export const USD: Currency = {
   code: 'USD',
   decimals: 2n,
   symbol: '$',
-  fractionalUnit: 'cent'
+  fractionalUnit: 'cent',
+  iso4217Support: true
 }
 
 export const UYU: Currency = {
@@ -1166,7 +1307,8 @@ export const UYU: Currency = {
   code: 'UYU',
   decimals: 2n,
   symbol: '$',
-  fractionalUnit: 'centésimo'
+  fractionalUnit: 'centésimo',
+  iso4217Support: true
 }
 
 export const UZS: Currency = {
@@ -1174,7 +1316,8 @@ export const UZS: Currency = {
   code: 'UZS',
   decimals: 2n,
   symbol: 'сўм',
-  fractionalUnit: 'tiyin'
+  fractionalUnit: 'tiyin',
+  iso4217Support: true
 }
 
 export const VUV: Currency = {
@@ -1182,7 +1325,8 @@ export const VUV: Currency = {
   code: 'VUV',
   decimals: 0n,
   symbol: 'Vt',
-  fractionalUnit: 'centimes'
+  fractionalUnit: 'centimes',
+  iso4217Support: true
 }
 
 export const VES: Currency = {
@@ -1190,7 +1334,8 @@ export const VES: Currency = {
   code: 'VES',
   decimals: 2n,
   symbol: 'Bs.S',
-  fractionalUnit: 'céntimo'
+  fractionalUnit: 'céntimo',
+  iso4217Support: true
 }
 
 export const VND: Currency = {
@@ -1198,7 +1343,8 @@ export const VND: Currency = {
   code: 'VND',
   decimals: 0n,
   symbol: '₫',
-  fractionalUnit: 'xu'
+  fractionalUnit: 'xu',
+  iso4217Support: true
 }
 
 export const XOF: Currency = {
@@ -1206,7 +1352,8 @@ export const XOF: Currency = {
   code: 'XOF',
   decimals: 0n,
   symbol: 'Fr',
-  fractionalUnit: 'centime'
+  fractionalUnit: 'centime',
+  iso4217Support: true
 }
 
 export const YER: Currency = {
@@ -1214,7 +1361,8 @@ export const YER: Currency = {
   code: 'YER',
   decimals: 2n,
   symbol: '﷼',
-  fractionalUnit: 'fils'
+  fractionalUnit: 'fils',
+  iso4217Support: true
 }
 
 export const ZMW: Currency = {
@@ -1222,7 +1370,8 @@ export const ZMW: Currency = {
   code: 'ZMW',
   decimals: 2n,
   symbol: 'ZK',
-  fractionalUnit: 'ngwee'
+  fractionalUnit: 'ngwee',
+  iso4217Support: true
 }
 
 export const ZWL: Currency = {
@@ -1230,7 +1379,8 @@ export const ZWL: Currency = {
   code: 'ZWL',
   decimals: 2n,
   symbol: '$',
-  fractionalUnit: 'cent'
+  fractionalUnit: 'cent',
+  iso4217Support: true
 }
 
 // cryptocurrencies
@@ -1243,7 +1393,8 @@ export const BTC: Currency = {
     8: ['satoshi', 'sat'],
     7: ['bit'],
     12: ['millisatoshi', 'msat']
-  }
+  },
+  iso4217Support: false
 }
 
 export const ETH: Currency = {
@@ -1255,7 +1406,8 @@ export const ETH: Currency = {
     18: ['wei'],
     16: ['kwei', 'babbage'],
     13: ['gwei', 'shannon']
-  }
+  },
+  iso4217Support: false
 }
 
 export const SOL: Currency = {
@@ -1263,7 +1415,8 @@ export const SOL: Currency = {
   code: 'SOL',
   decimals: 9n,
   symbol: '◎',
-  fractionalUnit: 'lamport'
+  fractionalUnit: 'lamport',
+  iso4217Support: false
 }
 
 // record of all currencies by code

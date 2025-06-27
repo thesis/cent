@@ -39,6 +39,9 @@ export type Currency = FungibleAsset & {
   // the common currency symbol, eg $ for USD, R$ for the Brazillian real,
   // and ₿ for BTC
   symbol: string
+  // indicates if this currency is consistent with ISO 4217 standard
+  // true for traditional fiat currencies, false for cryptocurrencies
+  iso4217Support?: boolean
 }
 
 export type AnyAsset = ( Asset | FungibleAsset | Currency )
