@@ -1,5 +1,6 @@
 import { FixedPoint, Ratio, DecimalString } from "./types"
 import { BigIntStringSchema, NonNegativeBigIntStringSchema } from "./validation-schemas"
+import { isOnlyFactorsOf2And5 } from "./math-utils"
 import { z } from "zod"
 
 export const FixedPointJSONSchema = z.object({
@@ -116,6 +117,113 @@ export class FixedPointNumber implements FixedPoint, Ratio {
     return new FixedPointNumber(
       result,
       maxDecimals
+    )
+  }
+
+  /**
+   * Divide this fixed-point number by another value and return the result.
+   * Only allows division by values that are composed only of factors of 2 and 5,
+   * ensuring the result can be represented exactly in decimal notation.
+   *
+   * @param other - The value to divide by (either a FixedPoint or a bigint)
+   * @returns A new FixedPointNumber instance with the quotient
+   * @throws Error if the divisor contains factors other than 2 and 5, or if dividing by zero
+   */
+  divide(other: FixedPoint | bigint): FixedPointNumber {
+    if (typeof other === 'bigint') {
+      if (other === 0n) {
+        throw new Error("Cannot divide by zero")
+      }
+      
+      const divisor = other < 0n ? -other : other
+      if (!isOnlyFactorsOf2And5(divisor)) {
+        throw new Error(`Cannot divide by ${other}: divisor must be composed only of factors of 2 and 5`)
+      }
+      
+      // To divide by a number exactly in decimal, we need to determine
+      // how many decimal places are needed. For a number that's only 
+      // factors of 2 and 5, we can represent 1/n exactly.
+      
+      // Find the power of 10 that makes the division exact
+      let tempDivisor = divisor
+      let powerOf10Needed = 1n
+      
+      // For each factor of 2, we need a factor of 5 in the power of 10
+      // For each factor of 5, we need a factor of 2 in the power of 10
+      let factorsOf2 = 0n
+      let factorsOf5 = 0n
+      
+      while (tempDivisor % 2n === 0n) {
+        tempDivisor = tempDivisor / 2n
+        factorsOf2++
+      }
+      
+      while (tempDivisor % 5n === 0n) {
+        tempDivisor = tempDivisor / 5n
+        factorsOf5++
+      }
+      
+      // We need enough factors of both 2 and 5 to balance the divisor
+      const neededFactors = factorsOf2 > factorsOf5 ? factorsOf2 : factorsOf5
+      powerOf10Needed = 10n ** neededFactors
+      
+      // Scale up the dividend and perform integer division
+      const scaledDividend = this.amount * powerOf10Needed
+      const result = scaledDividend / divisor
+      
+      return new FixedPointNumber(
+        other < 0n ? -result : result,
+        this.decimals + neededFactors
+      )
+    }
+
+    // Division by FixedPoint
+    if (other.amount === 0n) {
+      throw new Error("Cannot divide by zero")
+    }
+    
+    // Check if the divisor (other.amount) is composed only of factors of 2 and 5
+    const divisorAmount = other.amount < 0n ? -other.amount : other.amount
+    if (!isOnlyFactorsOf2And5(divisorAmount)) {
+      throw new Error(`Cannot divide by ${other.amount}/${10n ** other.decimals}: divisor numerator must be composed only of factors of 2 and 5`)
+    }
+    
+    // Convert to rational form and use the same logic as bigint division
+    // (a/10^m) ÷ (b/10^n) = (a/10^m) * (10^n/b) = (a * 10^n) / (b * 10^m)
+    // But we can simplify this to: multiply by (10^n) then divide by b, then scale appropriately
+    
+    // Scale up the dividend by the divisor's denominator
+    const scaledDividend = this.amount * (10n ** other.decimals)
+    
+    // Now we need to divide by other.amount and figure out the right number of decimals
+    const divisor = other.amount < 0n ? -other.amount : other.amount
+    
+    // Find the power of 10 needed for exact division by the divisor
+    let tempDivisor = divisor
+    let factorsOf2 = 0n
+    let factorsOf5 = 0n
+    
+    while (tempDivisor % 2n === 0n) {
+      tempDivisor = tempDivisor / 2n
+      factorsOf2++
+    }
+    
+    while (tempDivisor % 5n === 0n) {
+      tempDivisor = tempDivisor / 5n
+      factorsOf5++
+    }
+    
+    // We need enough factors of both 2 and 5 to balance the divisor
+    const neededFactors = factorsOf2 > factorsOf5 ? factorsOf2 : factorsOf5
+    const powerOf10Needed = 10n ** neededFactors
+    
+    // Scale up the dividend further and perform integer division
+    const finalDividend = scaledDividend * powerOf10Needed
+    const result = finalDividend / divisor
+    
+    return new FixedPointNumber(
+      other.amount < 0n ? -result : result,
+      this.decimals + other.decimals + neededFactors
     )
   }
 

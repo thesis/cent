@@ -1,0 +1,80 @@
+import { gcd, isOnlyFactorsOf2And5 } from '../src/math-utils'
+
+describe('Math Utils', () => {
+  describe('gcd', () => {
+    it('should calculate GCD of positive numbers', () => {
+      expect(gcd(12n, 8n)).toBe(4n)
+      expect(gcd(15n, 10n)).toBe(5n)
+      expect(gcd(7n, 13n)).toBe(1n) // coprime numbers
+    })
+
+    it('should handle negative numbers', () => {
+      expect(gcd(-12n, 8n)).toBe(4n)
+      expect(gcd(12n, -8n)).toBe(4n)
+      expect(gcd(-12n, -8n)).toBe(4n)
+    })
+
+    it('should handle zero as one argument', () => {
+      expect(gcd(0n, 5n)).toBe(5n)
+      expect(gcd(5n, 0n)).toBe(5n)
+    })
+
+    it('should handle same numbers', () => {
+      expect(gcd(7n, 7n)).toBe(7n)
+      expect(gcd(12n, 12n)).toBe(12n)
+    })
+
+    it('should handle one and another number', () => {
+      expect(gcd(1n, 100n)).toBe(1n)
+      expect(gcd(100n, 1n)).toBe(1n)
+    })
+  })
+
+  describe('isOnlyFactorsOf2And5', () => {
+    it('should return true for powers of 2', () => {
+      expect(isOnlyFactorsOf2And5(1n)).toBe(true)   // 2^0
+      expect(isOnlyFactorsOf2And5(2n)).toBe(true)   // 2^1
+      expect(isOnlyFactorsOf2And5(4n)).toBe(true)   // 2^2
+      expect(isOnlyFactorsOf2And5(8n)).toBe(true)   // 2^3
+      expect(isOnlyFactorsOf2And5(16n)).toBe(true)  // 2^4
+    })
+
+    it('should return true for powers of 5', () => {
+      expect(isOnlyFactorsOf2And5(5n)).toBe(true)   // 5^1
+      expect(isOnlyFactorsOf2And5(25n)).toBe(true)  // 5^2
+      expect(isOnlyFactorsOf2And5(125n)).toBe(true) // 5^3
+    })
+
+    it('should return true for combinations of 2 and 5', () => {
+      expect(isOnlyFactorsOf2And5(10n)).toBe(true)  // 2 * 5
+      expect(isOnlyFactorsOf2And5(20n)).toBe(true)  // 2^2 * 5
+      expect(isOnlyFactorsOf2And5(50n)).toBe(true)  // 2 * 5^2
+      expect(isOnlyFactorsOf2And5(100n)).toBe(true) // 2^2 * 5^2
+      expect(isOnlyFactorsOf2And5(250n)).toBe(true) // 2 * 5^3
+    })
+
+    it('should return false for numbers with other prime factors', () => {
+      expect(isOnlyFactorsOf2And5(3n)).toBe(false)   // prime 3
+      expect(isOnlyFactorsOf2And5(6n)).toBe(false)   // 2 * 3
+      expect(isOnlyFactorsOf2And5(7n)).toBe(false)   // prime 7
+      expect(isOnlyFactorsOf2And5(12n)).toBe(false)  // 2^2 * 3
+      expect(isOnlyFactorsOf2And5(15n)).toBe(false)  // 3 * 5
+      expect(isOnlyFactorsOf2And5(21n)).toBe(false)  // 3 * 7
+      expect(isOnlyFactorsOf2And5(30n)).toBe(false)  // 2 * 3 * 5
+    })
+
+    it('should return false for zero and negative numbers', () => {
+      expect(isOnlyFactorsOf2And5(0n)).toBe(false)
+      expect(isOnlyFactorsOf2And5(-1n)).toBe(false)
+      expect(isOnlyFactorsOf2And5(-2n)).toBe(false)
+      expect(isOnlyFactorsOf2And5(-5n)).toBe(false)
+    })
+
+    it('should handle large numbers', () => {
+      expect(isOnlyFactorsOf2And5(1024n)).toBe(true)  // 2^10
+      expect(isOnlyFactorsOf2And5(3125n)).toBe(true)  // 5^5
+      expect(isOnlyFactorsOf2And5(1000n)).toBe(true)  // 2^3 * 5^3
+      expect(isOnlyFactorsOf2And5(1023n)).toBe(false) // 3 * 11 * 31
+    })
+  })
+})

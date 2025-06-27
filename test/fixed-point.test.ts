@@ -103,6 +103,122 @@ describe('FixedPointNumber', () => {
     })
   })
 
+  describe('divide', () => {
+    describe('division by bigint', () => {
+      it('should divide by powers of 2', () => {
+        const fp = new FixedPointNumber(100n, 0n) // 100
+        const result = fp.divide(4n) // 100 / 4 = 25.00 (needs 2 decimals for 4=2^2)
+        
+        expect(result.amount).toBe(2500n) // 25.00 as 2500 with 2 decimals
+        expect(result.decimals).toBe(2n) // 4 = 2^2, needs 2 decimal places
+      })
+
+      it('should divide by powers of 5', () => {
+        const fp = new FixedPointNumber(100n, 0n) // 100
+        const result = fp.divide(25n) // 100 / 25 = 4.00 (needs 2 decimals for 25=5^2)
+        
+        expect(result.amount).toBe(400n) // 4.00 as 400 with 2 decimals
+        expect(result.decimals).toBe(2n) // 25 = 5^2, needs 2 decimal places
+      })
+
+      it('should divide by powers of 10', () => {
+        const fp = new FixedPointNumber(100n, 0n) // 100
+        const result = fp.divide(10n) // 100 / 10 = 10.0 (needs 1 decimal for 10=2*5)
+        
+        expect(result.amount).toBe(100n) // 10.0 as 100 with 1 decimal
+        expect(result.decimals).toBe(1n) // 10 = 2*5, needs 1 decimal place
+      })
+
+      it('should divide by combinations of 2 and 5', () => {
+        const fp = new FixedPointNumber(200n, 1n) // 20.0
+        const result = fp.divide(8n) // 20.0 / 8 = 2.500 (original 1 + 3 for 8=2^3)
+        
+        expect(result.amount).toBe(25000n) // 2.500 as 25000 with 4 decimals
+        expect(result.decimals).toBe(4n) // original 1 + 3 for 8=2^3
+      })
+
+      it('should handle negative divisors', () => {
+        const fp = new FixedPointNumber(100n, 0n) // 100
+        const result = fp.divide(-4n) // 100 / -4 = -25.00
+        
+        expect(result.amount).toBe(-2500n) // -25.00 as -2500 with 2 decimals
+        expect(result.decimals).toBe(2n)
+      })
+
+      it('should handle negative dividends', () => {
+        const fp = new FixedPointNumber(-100n, 0n) // -100
+        const result = fp.divide(4n) // -100 / 4 = -25.00
+        
+        expect(result.amount).toBe(-2500n) // -25.00 as -2500 with 2 decimals
+        expect(result.decimals).toBe(2n)
+      })
+
+      it('should throw when dividing by zero', () => {
+        const fp = new FixedPointNumber(100n, 0n)
+        
+        expect(() => fp.divide(0n)).toThrow('Cannot divide by zero')
+      })
+
+      it('should throw when dividing by numbers with factors other than 2 and 5', () => {
+        const fp = new FixedPointNumber(100n, 0n)
+        
+        expect(() => fp.divide(3n)).toThrow('divisor must be composed only of factors of 2 and 5')
+        expect(() => fp.divide(6n)).toThrow('divisor must be composed only of factors of 2 and 5')
+        expect(() => fp.divide(7n)).toThrow('divisor must be composed only of factors of 2 and 5')
+        expect(() => fp.divide(12n)).toThrow('divisor must be composed only of factors of 2 and 5')
+      })
+    })
+
+    describe('division by FixedPoint', () => {
+      it('should divide by FixedPoint with factors of 2 and 5 only', () => {
+        const fp1 = new FixedPointNumber(100n, 1n) // 10.0
+        const fp2 = new FixedPointNumber(25n, 1n) // 2.5 
+        const result = fp1.divide(fp2) // 10.0 / 2.5 = 4.000
+        
+        // 10.0 / 2.5: (100*10) / 25 * 10^2 = 1000 / 25 * 100 = 40 * 100 = 4000
+        // Decimals: 1 + 1 + 2 = 4 (for 25 = 5^2)
+        expect(result.amount).toBe(4000n) // 4.0000 as 4000 with 4 decimals
+        expect(result.decimals).toBe(4n) // 1 + 1 + 2 for 25=5^2
+      })
+
+      it('should handle division resulting in decimal expansion', () => {
+        const fp1 = new FixedPointNumber(1n, 0n) // 1
+        const fp2 = new FixedPointNumber(8n, 0n) // 8
+        const result = fp1.divide(fp2) // 1 / 8 = 0.125
+        
+        // 1 / 8: (1*1) / 8 * 10^3 = 1 / 8 * 1000 = 1000 / 8 = 125
+        // Decimals: 0 + 0 + 3 = 3 (for 8 = 2^3)
+        expect(result.amount).toBe(125n) // 0.125 as 125 with 3 decimals
+        expect(result.decimals).toBe(3n) // 0 + 0 + 3 for 8=2^3
+      })
+
+      it('should throw when dividing by zero FixedPoint', () => {
+        const fp1 = new FixedPointNumber(100n, 0n)
+        const fp2 = new FixedPointNumber(0n, 1n)
+        
+        expect(() => fp1.divide(fp2)).toThrow('Cannot divide by zero')
+      })
+
+      it('should throw when FixedPoint divisor has factors other than 2 and 5', () => {
+        const fp1 = new FixedPointNumber(100n, 0n)
+        const fp2 = new FixedPointNumber(3n, 0n) // 3
+        
+        expect(() => fp1.divide(fp2)).toThrow('divisor numerator must be composed only of factors of 2 and 5')
+      })
+
+      it('should handle negative FixedPoint divisors', () => {
+        const fp1 = new FixedPointNumber(100n, 0n) // 100
+        const fp2 = new FixedPointNumber(-4n, 0n) // -4
+        const result = fp1.divide(fp2) // 100 / -4 = -25.00
+        
+        // 100 / -4: (100*1) / 4 * 10^2 = 100 / 4 * 100 = 25 * 100 = 2500, then negate
+        // Decimals: 0 + 0 + 2 = 2 (for 4 = 2^2)
+        expect(result.amount).toBe(-2500n) // -25.00 as -2500 with 2 decimals
+        expect(result.decimals).toBe(2n)
+      })
+    })
+  })
+
   describe('toString', () => {
     it('should convert a whole number to string', () => {
       const fp = new FixedPointNumber(123n, 0n)
