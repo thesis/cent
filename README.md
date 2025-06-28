@@ -158,6 +158,12 @@ console.log(`${simplified.p}/${simplified.q}`) // "2/3"
 // Convert to fixed-point (when possible)
 const tenth = new RationalNumber({ p: 1n, q: 10n })
 const fixed = tenth.toFixedPoint() // { amount: 1n, decimals: 1n }
+
+// Seamless conversion between types using DecimalString
+const rational = new RationalNumber({ p: 3n, q: 8n }) // 3/8
+const decimalStr = rational.toDecimalString() // "0.375" (DecimalString)
+const fixedPoint = FixedPointNumber.fromDecimalString(decimalStr) // auto-detects 3 decimals
+console.log(fixedPoint.toString()) // "0.375"
 ```
 
 ## Price operations
@@ -375,7 +381,8 @@ console.log(change.toString()) // "$0.00"
 - `normalize(target)` - Change decimal precision
 - `equals(other)` - Equality check
 - `toString()` - DecimalString representation
-- `parseString(str, decimals)` - Parse from string
+- `parseString(str, decimals)` - Parse from string with explicit decimals
+- `fromDecimalString(str)` - Parse from DecimalString with auto-detected decimals
 
 ### `RationalNumber`
 

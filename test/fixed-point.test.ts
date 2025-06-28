@@ -459,6 +459,80 @@ describe('FixedPointNumber', () => {
     })
   })
 
+  describe('fromDecimalString', () => {
+    it('should parse a whole number', () => {
+      const fp = FixedPointNumber.fromDecimalString('123')
+      expect(fp.amount).toBe(123n)
+      expect(fp.decimals).toBe(0n)
+    })
+
+    it('should parse a decimal number and auto-detect decimals', () => {
+      const fp = FixedPointNumber.fromDecimalString('123.45')
+      expect(fp.amount).toBe(12345n)
+      expect(fp.decimals).toBe(2n)
+    })
+
+    it('should parse a decimal number with more decimal places', () => {
+      const fp = FixedPointNumber.fromDecimalString('123.456789')
+      expect(fp.amount).toBe(123456789n)
+      expect(fp.decimals).toBe(6n)
+    })
+
+    it('should parse negative numbers', () => {
+      const fp = FixedPointNumber.fromDecimalString('-123.45')
+      expect(fp.amount).toBe(-12345n)
+      expect(fp.decimals).toBe(2n)
+    })
+
+    it('should parse negative whole numbers', () => {
+      const fp = FixedPointNumber.fromDecimalString('-123')
+      expect(fp.amount).toBe(-123n)
+      expect(fp.decimals).toBe(0n)
+    })
+
+    it('should handle zero', () => {
+      const fp = FixedPointNumber.fromDecimalString('0')
+      expect(fp.amount).toBe(0n)
+      expect(fp.decimals).toBe(0n)
+    })
+
+    it('should handle zero with decimals', () => {
+      const fp = FixedPointNumber.fromDecimalString('0.00')
+      expect(fp.amount).toBe(0n)
+      expect(fp.decimals).toBe(2n)
+    })
+
+    it('should handle single decimal place', () => {
+      const fp = FixedPointNumber.fromDecimalString('1.5')
+      expect(fp.amount).toBe(15n)
+      expect(fp.decimals).toBe(1n)
+    })
+
+    it('should throw error for invalid number format', () => {
+      expect(() => FixedPointNumber.fromDecimalString('123.')).toThrow('Invalid number format')
+      expect(() => FixedPointNumber.fromDecimalString('.123')).toThrow('Invalid number format')
+      expect(() => FixedPointNumber.fromDecimalString('abc')).toThrow('Invalid number format')
+      expect(() => FixedPointNumber.fromDecimalString('--123')).toThrow('Invalid number format')
+      expect(() => FixedPointNumber.fromDecimalString('-')).toThrow('Invalid number format')
+    })
+
+    it('should round-trip with toString', () => {
+      const original = new FixedPointNumber(12345n, 3n) // 12.345
+      const str = original.toString()
+      const parsed = FixedPointNumber.fromDecimalString(str)
+      expect(parsed.equals(original)).toBe(true)
+    })
+
+    it('should work with DecimalString type', () => {
+      const rational = new (require('../src/rationals')).RationalNumber({ p: 1n, q: 2n })
+      const decimalStr = rational.toDecimalString() // Returns DecimalString
+      const fp = FixedPointNumber.fromDecimalString(decimalStr)
+      expect(fp.amount).toBe(5n)
+      expect(fp.decimals).toBe(1n)
+      expect(fp.toString()).toBe('0.5')
+    })
+  })
+
   describe('equals', () => {
     it('should return true for identical FixedPointNumbers', () => {
       const fp1 = new FixedPointNumber(123n, 2n)

@@ -328,7 +328,7 @@ export class FixedPointNumber implements FixedPoint, Ratio {
    * @returns A new FixedPointNumber instance
    * @throws Error if the string format is invalid
    */
-  static parseString(str: string, decimals: bigint): FixedPointNumber {
+  static parseString(str: string | DecimalString, decimals: bigint): FixedPointNumber {
     // validate the string format using a regex pattern that supports negative numbers
     const validNumberPattern = /^-?\d+(\.\d+)?$/
     if (!validNumberPattern.test(str)) {
@@ -354,6 +354,47 @@ export class FixedPointNumber implements FixedPoint, Ratio {
       const adjustedFraction = fractionPart.padEnd(Number(decimals), '0').slice(0, Number(decimals))
       // add the fraction part to the amount
       amount += BigInt(adjustedFraction)
+    }
+
+    // apply the sign
+    if (isNegative) {
+      amount = -amount
+    }
+
+    return new FixedPointNumber(amount, decimals)
+  }
+
+  /**
+   * Parse a string representation of a number into a FixedPointNumber with automatic decimal detection
+   *
+   * @param str - The string to parse (e.g., "10234.25")
+   * @returns A new FixedPointNumber instance with decimals set to the number of fractional digits
+   * @throws Error if the string format is invalid
+   */
+  static fromDecimalString(str: string | DecimalString): FixedPointNumber {
+    // validate the string format using a regex pattern that supports negative numbers
+    const validNumberPattern = /^-?\d+(\.\d+)?$/
+    if (!validNumberPattern.test(str)) {
+      throw new Error(`Invalid number format: "${str}". Expected format: digits with optional decimal point and fractional part.`)
+    }
+
+    // check if the number is negative
+    const isNegative = str.startsWith('-')
+    const absoluteStr = isNegative ? str.slice(1) : str
+
+    // split the string into whole and fractional parts
+    const [wholePart, fractionPart = ''] = absoluteStr.split('.')
+
+    // determine decimals from the fractional part length
+    const decimals = BigInt(fractionPart.length)
+    const factor = 10n ** decimals
+
+    // convert whole part to bigint and multiply by the factor
+    let amount = BigInt(wholePart) * factor
+
+    // if there's a fraction part, add it
+    if (fractionPart) {
+      amount += BigInt(fractionPart)
     }
 
     // apply the sign
