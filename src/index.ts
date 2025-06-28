@@ -1,9 +1,10 @@
 // Core classes
-export { Money, MoneyJSONSchema } from './money'
+export { MoneyJSONSchema } from './money'
 export { FixedPointNumber, FixedPointJSONSchema } from './fixed-point'
 export { RationalNumber, RationalNumberJSONSchema, Rational } from './rationals'
 
 // Factory functions
+export { MoneyFactory as Money } from './money'
 export { FixedPoint } from './fixed-point'
 
 // All currency constants
@@ -24,6 +25,7 @@ export type {
   UTCTime,
   PricePoint
 } from './types'
+
 
 // Rounding modes
 export {

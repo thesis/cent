@@ -28,7 +28,44 @@ Popular libraries like [dinero.js](https://dinerojs.com/) are built on JavaScrip
 - **🔄 Immutable**: All operations return new instances, preventing accidental mutations
 - **✨ Ergonomic API**: Clean factory functions for creating numbers from strings
 
-## Quick Start
+## Quick Start 💰
+
+The `Money()` factory function makes working with currencies simple:
+
+```typescript
+import { Money } from '@your-org/cent'
+
+// Parse currency symbols with auto-detection
+const usd = Money('$1,234.56')    // US Dollar: $1,234.56
+const eur = Money('€1.234,56')    // Euro (EU format): €1,234.56
+const gbp = Money('£999.99')      // British Pound: £999.99
+const jpy = Money('¥50,000')      // Japanese Yen: ¥50,000
+
+// Parse currency codes (case insensitive)
+const dollars = Money('USD 100.50')
+const euros = Money('100.50 EUR')
+
+// Parse cryptocurrency main units
+const bitcoin = Money('₿2.5')           // Bitcoin: 2.5 BTC
+const ethereum = Money('ETH 10.123456') // Ethereum: 10.123456 ETH
+
+// Parse cryptocurrency sub-units
+const satoshis = Money('1000 sat')      // 1000 satoshis = 0.00001000 BTC
+const wei = Money('1000000 wei')        // 1000000 wei = 0.000000000001 ETH
+const gwei = Money('50 gwei')           // 50 gwei = 0.00000005 ETH
+
+// Supports negative amounts
+const debt = Money('-$500.25')
+const refund = Money('€-123.45')
+
+// Financial precision - allows sub-cent amounts
+const precise = Money('$100.12345')    // 5 decimal places preserved
+const microYen = Money('¥1000.001')    // Sub-yen precision
+```
+
+**Symbol Priority**: When symbols are shared (like $ for multiple currencies), the most traded currency takes priority based on global trading volume: `$` → USD, `£` → GBP, `¥` → JPY. Use explicit currency codes for other currencies: `AUD 100`, `CAD 50`.
+
+### 🧮 Arbitrary precision math
 
 ```typescript
 import { FixedPoint, Rational } from '@your-org/cent'
@@ -356,6 +393,16 @@ console.log(change.toString()) // "$0.00"
 ## API reference
 
 ### Factory Functions
+
+**`Money()`** - Parse currency strings with intelligent format detection
+- `Money(str)` - Parse currency strings with symbols, codes, and crypto units
+  - Currency symbols: `Money('$100.50')`, `Money('€1.234,56')`, `Money('£999')`
+  - Currency codes: `Money('USD 100')`, `Money('100.50 EUR')` (case insensitive)
+  - Crypto main units: `Money('₿2.5')`, `Money('ETH 10.123456')`
+  - Crypto sub-units: `Money('1000 sat')`, `Money('50 gwei')`, `Money('1000000 wei')`
+  - Negative amounts: `Money('-$500')`, `Money('$-123.45')`
+  - Sub-unit precision: `Money('$100.12345')` (preserves exact precision)
+- `Money(balance)` - Create from AssetAmount object (original constructor)
 
 **`FixedPoint()`** - Create fixed-point numbers with ease
 - `FixedPoint(str)` - Parse decimal string, auto-detect precision (e.g., `FixedPoint('123.45')`)

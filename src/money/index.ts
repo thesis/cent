@@ -1,9 +1,10 @@
 import { z } from "zod"
-import { AssetAmount, FixedPoint, RoundingMode } from "./types"
-import { FixedPointNumber, FixedPointJSONSchema } from "./fixed-point"
-import { assetsEqual } from "./assets"
-import { DecimalStringSchema } from "./decimal-strings"
-import { NonNegativeBigIntStringSchema } from "./validation-schemas"
+import { AssetAmount, FixedPoint, RoundingMode } from "../types"
+import { FixedPointNumber, FixedPointJSONSchema } from "../fixed-point"
+import { assetsEqual } from "../assets"
+import { DecimalStringSchema } from "../decimal-strings"
+import { NonNegativeBigIntStringSchema } from "../validation-schemas"
+import { parseMoneyString } from "./parsing"
 
 // Extend Intl.NumberFormatOptions to include roundingMode for older TypeScript versions
 interface NumberFormatOptionsWithRounding extends Intl.NumberFormatOptions {
@@ -80,6 +81,13 @@ export class Money {
    */
   constructor(balance: AssetAmount) {
     this.balance = balance
+  }
+
+  /**
+   * Get the asset for this Money instance (convenience getter)
+   */
+  get asset() {
+    return this.balance.asset
   }
 
   /**
@@ -914,5 +922,52 @@ export function pluralizeFractionalUnit(unitName: string): string {
     return unitName + "es"
   } else {
     return unitName + "s"
+  }
+}
+
+
+/**
+ * Factory function for creating Money instances from string representations
+ * Also supports original constructor pattern with AssetAmount
+ * 
+ * Supports multiple formats:
+ * - Currency symbols: "$100", "€1,234.56", "£50.25"
+ * - Currency codes: "USD 100", "100 EUR", "JPY 1,000"
+ * - Crypto main units: "₿1.5", "BTC 0.001", "ETH 2.5"
+ * - Crypto sub-units: "1000 sat", "100000 wei", "50 gwei"
+ * - Number formats: US (1,234.56) and EU (1.234,56)
+ * 
+ * Symbol disambiguation uses trading volume priority:
+ * $ → USD, £ → GBP, ¥ → JPY, € → EUR, etc.
+ * Use currency codes for non-primary currencies.
+ * 
+ * @param input - String representation of money amount or AssetAmount
+ * @returns Money instance  
+ * @throws Error for invalid format or unknown currency
+ * 
+ * @example
+ * Money("$100.50")        // USD $100.50
+ * Money("€1.234,56")      // EUR €1,234.56 (EU format)
+ * Money("JPY 1,000")      // JPY ¥1,000 (no decimals)
+ * Money("1000 sat")       // BTC 0.00001000 (satoshis)
+ * Money("100 gwei")       // ETH 0.0000001 (gwei)
+ */
+export function MoneyFactory(input: string): Money
+export function MoneyFactory(balance: AssetAmount): Money
+export function MoneyFactory(inputOrBalance: string | AssetAmount): Money {
+  if (typeof inputOrBalance === 'string') {
+    // String parsing mode
+    const parseResult = parseMoneyString(inputOrBalance)
+    
+    return new Money({
+      asset: parseResult.currency,
+      amount: {
+        amount: parseResult.amount.amount,
+        decimals: parseResult.amount.decimals
+      }
+    })
+  } else {
+    // Original constructor mode
+    return new Money(inputOrBalance)
   }
 }

@@ -1,5 +1,5 @@
 import { AssetAmount, Ratio, FixedPoint, PricePoint, UNIXTime } from "./types"
-import { Money } from "./money"
+import { Money as MoneyClass } from "./money"
 import { assetsEqual } from "./assets"
 import { RationalNumber } from "./rationals"
 import { FixedPointNumber } from "./fixed-point"
@@ -16,10 +16,10 @@ export class Price implements PricePoint {
    * @param b - The second asset amount or Money instance
    * @param time - Optional UNIX timestamp (string or UNIXTime). Defaults to current time
    */
-  constructor(a: AssetAmount | Money, b: AssetAmount | Money, time?: UNIXTime | string) {
+  constructor(a: AssetAmount | MoneyClass, b: AssetAmount | MoneyClass, time?: UNIXTime | string) {
     // Convert Money instances to AssetAmount
-    const amountA = a instanceof Money ? a.balance : a
-    const amountB = b instanceof Money ? b.balance : b
+    const amountA = a instanceof MoneyClass ? a.balance : a
+    const amountB = b instanceof MoneyClass ? b.balance : b
 
     this.amounts = [amountA, amountB]
 

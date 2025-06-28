@@ -1,5 +1,5 @@
 import { AssetAmount, UNIXTime } from "./types"
-import { Money } from "./money"
+import { Money as MoneyClass } from "./money"
 import { Price } from "./prices"
 
 export class ExchangeRate extends Price {
@@ -10,7 +10,7 @@ export class ExchangeRate extends Price {
    * @param b - The second asset amount or Money instance
    * @param time - Optional UNIX timestamp (string or UNIXTime). Defaults to current time
    */
-  constructor(a: AssetAmount | Money, b: AssetAmount | Money, time?: UNIXTime | string) {
+  constructor(a: AssetAmount | MoneyClass, b: AssetAmount | MoneyClass, time?: UNIXTime | string) {
     super(a, b, time)
   }
 
