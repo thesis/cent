@@ -10,6 +10,30 @@ interface NumberFormatOptionsWithRounding extends Intl.NumberFormatOptions {
   roundingMode?: RoundingMode
 }
 
+/**
+ * Safely convert a bigint to a number with range checking
+ * @param value - The bigint value to convert
+ * @param context - Description for error messages
+ * @returns The number value
+ * @throws Error if value exceeds safe integer range
+ */
+function safeNumberFromBigInt(value: bigint, context: string): number {
+  if (value > Number.MAX_SAFE_INTEGER || value < Number.MIN_SAFE_INTEGER) {
+    throw new Error(`${context} (${value}) exceeds safe integer range`)
+  }
+  return Number(value)
+}
+
+/**
+ * Format a FixedPointNumber as a string for precise display formatting
+ * This preserves full precision by using the underlying BigInt representation
+ * @param fp - The FixedPointNumber to format
+ * @returns The decimal string representation with full precision
+ */
+function fixedPointToDecimalString(fp: FixedPointNumber): string {
+  return fp.toString()
+}
+
 // Schema for basic Asset
 const AssetJSONSchema = z.object({
   name: z.string(),
@@ -624,7 +648,7 @@ export function formatWithIntlCurrency(
     money.balance.amount.amount,
     money.balance.amount.decimals,
   )
-  const numericValue = parseFloat(fp.toString())
+  const decimalString = fixedPointToDecimalString(fp)
 
   // Get currency code for ISO formatting
   const currencyCode =
@@ -632,10 +656,12 @@ export function formatWithIntlCurrency(
 
   // Determine decimal places
   const assetDecimals =
-    "decimals" in money.balance.asset ? Number(money.balance.asset.decimals) : 2
+    "decimals" in money.balance.asset 
+      ? safeNumberFromBigInt(money.balance.asset.decimals, "Asset decimal places")
+      : 2
   const finalMaxDecimals =
     maxDecimals !== undefined
-      ? Math.min(Number(maxDecimals), 20)
+      ? Math.min(safeNumberFromBigInt(typeof maxDecimals === 'bigint' ? maxDecimals : BigInt(maxDecimals), "Max decimal places"), 20)
       : assetDecimals
   const finalMinDecimals = compact
     ? 0
@@ -655,6 +681,14 @@ export function formatWithIntlCurrency(
   }
 
   const formatter = new Intl.NumberFormat(normalizeLocale(locale), formatterOptions)
+
+  // Convert decimal string to number with precision loss warning
+  const numericValue = parseFloat(decimalString)
+  
+  // Warn if the underlying BigInt amount is large, which could lead to precision issues
+  if (money.balance.amount.amount >= BigInt(Number.MAX_SAFE_INTEGER) || money.balance.amount.amount <= BigInt(Number.MIN_SAFE_INTEGER)) {
+    console.warn(`Potential precision loss in display formatting for large amount: ${decimalString}`)
+  }
 
   return formatter.format(numericValue)
 }
@@ -681,18 +715,22 @@ export function formatWithCustomFormatting(
   roundingMode?: RoundingMode,
 ): string {
   // Handle fractional unit conversion if specified
-  const { numericValue, unitSuffix } = convertToPreferredUnit(
+  const { decimalString, unitSuffix } = convertToPreferredUnit(
     money,
     preferredUnit,
   )
 
   // Determine decimal places
   const assetDecimals =
-    "decimals" in money.balance.asset ? Number(money.balance.asset.decimals) : 2
+    "decimals" in money.balance.asset 
+      ? safeNumberFromBigInt(money.balance.asset.decimals, "Asset decimal places")
+      : 2
   const finalMaxDecimals =
-    maxDecimals !== undefined ? Number(maxDecimals) : assetDecimals
+    maxDecimals !== undefined 
+      ? safeNumberFromBigInt(typeof maxDecimals === 'bigint' ? maxDecimals : BigInt(maxDecimals), "Max decimal places")
+      : assetDecimals
 
-  // Format the number part using Intl.NumberFormat
+  // Format the number part using Intl.NumberFormat with string input
   const formatterOptions: NumberFormatOptionsWithRounding = {
     style: "decimal",
     notation: compact ? "compact" : "standard",
@@ -706,6 +744,14 @@ export function formatWithCustomFormatting(
   }
 
   const formatter = new Intl.NumberFormat(normalizeLocale(locale), formatterOptions)
+
+  // Convert decimal string to number with precision loss warning
+  const numericValue = parseFloat(decimalString)
+  
+  // Warn if the underlying BigInt amount is large, which could lead to precision issues
+  if (money.balance.amount.amount >= BigInt(Number.MAX_SAFE_INTEGER) || money.balance.amount.amount <= BigInt(Number.MIN_SAFE_INTEGER)) {
+    console.warn(`Potential precision loss in display formatting for large amount: ${decimalString}`)
+  }
 
   const formattedNumber = formatter.format(numericValue)
 
@@ -728,17 +774,17 @@ export function formatWithCustomFormatting(
  *
  * @param money - The Money instance
  * @param preferredUnit - The preferred fractional unit
- * @returns Object with numeric value and unit suffix
+ * @returns Object with decimal string value and unit suffix
  */
 export function convertToPreferredUnit(
   money: Money,
   preferredUnit?: string,
-): { numericValue: number; unitSuffix?: string } {
+): { decimalString: string; unitSuffix?: string } {
   const fp = new FixedPointNumber(
     money.balance.amount.amount,
     money.balance.amount.decimals,
   )
-  let numericValue = parseFloat(fp.toString())
+  let decimalString = fixedPointToDecimalString(fp)
   let unitSuffix: string | undefined
 
   if (
@@ -749,7 +795,7 @@ export function convertToPreferredUnit(
     const { fractionalUnit } = money.balance.asset
     const assetDecimals =
       "decimals" in money.balance.asset
-        ? Number(money.balance.asset.decimals)
+        ? safeNumberFromBigInt(money.balance.asset.decimals, "Asset decimal places")
         : 0
     const unitInfo = findFractionalUnitInfo(
       fractionalUnit,
@@ -758,11 +804,13 @@ export function convertToPreferredUnit(
     )
 
     if (unitInfo) {
-      // Convert to the fractional unit
-      const multiplier = 10 ** unitInfo.decimals
-      numericValue *= multiplier
+      // Convert to the fractional unit using BigInt arithmetic
+      const multiplierDecimals = BigInt(unitInfo.decimals)
+      const convertedFp = fp.multiply({ amount: 10n ** multiplierDecimals, decimals: 0n })
+      decimalString = fixedPointToDecimalString(convertedFp)
 
-      // Pluralize the unit name if amount is not exactly 1
+      // Parse the decimal string to determine pluralization
+      const numericValue = parseFloat(decimalString)
       if (numericValue === 1) {
         unitSuffix = preferredUnit
       } else {
@@ -771,7 +819,7 @@ export function convertToPreferredUnit(
     }
   }
 
-  return { numericValue, unitSuffix }
+  return { decimalString, unitSuffix }
 }
 
 /**
