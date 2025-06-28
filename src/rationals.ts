@@ -1,6 +1,8 @@
-import { Ratio, FixedPoint, DecimalString } from "./types"
+import { Ratio, FixedPoint, DecimalString, RationalString } from "./types"
 import { gcd } from "./math-utils"
 import { BigIntStringSchema } from "./validation-schemas"
+import { FixedPointNumber } from "./fixed-point"
+import { parseFraction, getRationalStringType } from "./rational-strings"
 import { z } from "zod"
 
 export const RationalNumberJSONSchema = z.object({
@@ -320,5 +322,38 @@ export class RationalNumber implements Ratio {
       p: BigInt(parsed.p),
       q: BigInt(parsed.q)
     })
+  }
+}
+
+/**
+ * Factory function for creating RationalNumber instances
+ * Supports fraction strings, decimal strings, bigint p/q arguments, and original constructor signature
+ */
+export function Rational(str: string | DecimalString | RationalString): RationalNumber
+export function Rational(ratio: Ratio): RationalNumber
+export function Rational(p: bigint, q: bigint): RationalNumber
+export function Rational(ratioOrStrOrP: Ratio | string | DecimalString | RationalString | bigint, q?: bigint): RationalNumber {
+  if (typeof ratioOrStrOrP === 'bigint') {
+    // BigInt p, q mode
+    if (q === undefined) {
+      throw new Error('q parameter is required when creating Rational with bigint p')
+    }
+    return new RationalNumber({ p: ratioOrStrOrP, q })
+  } else if (typeof ratioOrStrOrP === 'string') {
+    // String parsing mode
+    const stringType = getRationalStringType(ratioOrStrOrP)
+    
+    if (stringType === 'fraction') {
+      // Parse fraction format using utility function
+      const ratio = parseFraction(ratioOrStrOrP)
+      return new RationalNumber(ratio)
+    } else {
+      // Parse decimal format "12234.352453" - convert to fraction
+      const fp = FixedPointNumber.fromDecimalString(ratioOrStrOrP)
+      return new RationalNumber({ p: fp.amount, q: fp.q })
+    }
+  } else {
+    // Original constructor mode
+    return new RationalNumber(ratioOrStrOrP)
   }
 }

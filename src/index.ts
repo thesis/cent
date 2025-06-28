@@ -1,14 +1,17 @@
 // Core classes
 export { Money, MoneyJSONSchema } from './money'
 export { FixedPointNumber, FixedPointJSONSchema } from './fixed-point'
-export { RationalNumber, RationalNumberJSONSchema } from './rationals'
+export { RationalNumber, RationalNumberJSONSchema, Rational } from './rationals'
+
+// Factory functions
+export { FixedPoint } from './fixed-point'
 
 // All currency constants
 export * from './currencies'
 
 // Core types
 export type {
-  FixedPoint,
+  FixedPoint as FixedPointType,
   Ratio,
   Asset,
   FungibleAsset,
@@ -16,6 +19,7 @@ export type {
   AnyAsset,
   AssetAmount,
   DecimalString,
+  RationalString,
   UNIXTime,
   UTCTime,
   PricePoint
@@ -34,3 +38,17 @@ export {
   HALF_TRUNC,
   HALF_EVEN
 } from './types'
+
+// String utilities
+export {
+  isDecimalString,
+  toDecimalString
+} from './decimal-strings'
+
+export {
+  isFractionString,
+  isRationalString,
+  toRationalString,
+  parseFraction,
+  getRationalStringType
+} from './rational-strings'

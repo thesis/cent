@@ -1,4 +1,4 @@
-import { FixedPoint, Ratio, DecimalString } from "./types"
+import type { FixedPoint, Ratio, DecimalString } from "./types"
 import { BigIntStringSchema, NonNegativeBigIntStringSchema } from "./validation-schemas"
 import { isOnlyFactorsOf2And5 } from "./math-utils"
 import { z } from "zod"
@@ -549,5 +549,28 @@ export class FixedPointNumber implements FixedPoint, Ratio {
     const parsed = FixedPointJSONSchema.parse(json)
 
     return new FixedPointNumber(BigInt(parsed.amount), BigInt(parsed.decimals))
+  }
+}
+
+/**
+ * Factory function for creating FixedPointNumber instances
+ * Supports string parsing, FixedPoint objects, and original constructor signatures
+ */
+export function FixedPoint(str: string | DecimalString): FixedPointNumber
+export function FixedPoint(fixedPoint: FixedPoint): FixedPointNumber
+export function FixedPoint(amount: bigint, decimals: bigint): FixedPointNumber
+export function FixedPoint(amountOrStrOrFixedPoint: bigint | string | DecimalString | FixedPoint, decimals?: bigint): FixedPointNumber {
+  if (typeof amountOrStrOrFixedPoint === 'string') {
+    // String parsing mode
+    return FixedPointNumber.fromDecimalString(amountOrStrOrFixedPoint)
+  } else if (typeof amountOrStrOrFixedPoint === 'object' && 'amount' in amountOrStrOrFixedPoint && 'decimals' in amountOrStrOrFixedPoint) {
+    // FixedPoint object mode
+    return FixedPointNumber.fromFixedPoint(amountOrStrOrFixedPoint)
+  } else {
+    // Original constructor mode (bigint)
+    if (decimals === undefined) {
+      throw new Error('decimals parameter is required when creating FixedPoint with bigint amount')
+    }
+    return new FixedPointNumber(amountOrStrOrFixedPoint as bigint, decimals)
   }
 }

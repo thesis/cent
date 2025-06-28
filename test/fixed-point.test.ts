@@ -1,4 +1,4 @@
-import { FixedPointNumber, FixedPointJSONSchema } from '../src/fixed-point'
+import { FixedPointNumber, FixedPointJSONSchema, FixedPoint } from '../src/fixed-point'
 
 describe('FixedPointNumber', () => {
   describe('constructor', () => {
@@ -1113,6 +1113,139 @@ describe('FixedPointNumber', () => {
       
       expect(fp.p).toBe(75n)
       expect(fp.q).toBe(100n) // represents 75/100 = 0.75
+    })
+  })
+})
+
+describe('FixedPoint factory function', () => {
+  describe('string parsing mode', () => {
+    it('should parse whole numbers', () => {
+      const fp = FixedPoint('123')
+      expect(fp).toBeInstanceOf(FixedPointNumber)
+      expect(fp.amount).toBe(123n)
+      expect(fp.decimals).toBe(0n)
+    })
+
+    it('should parse decimal numbers with auto-detected decimals', () => {
+      const fp = FixedPoint('123.45')
+      expect(fp.amount).toBe(12345n)
+      expect(fp.decimals).toBe(2n)
+    })
+
+    it('should parse high precision decimals', () => {
+      const fp = FixedPoint('1.234098')
+      expect(fp.amount).toBe(1234098n)
+      expect(fp.decimals).toBe(6n)
+    })
+
+    it('should parse negative numbers', () => {
+      const fp = FixedPoint('-123.45')
+      expect(fp.amount).toBe(-12345n)
+      expect(fp.decimals).toBe(2n)
+    })
+
+    it('should parse zero', () => {
+      const fp = FixedPoint('0')
+      expect(fp.amount).toBe(0n)
+      expect(fp.decimals).toBe(0n)
+    })
+
+    it('should parse zero with decimals', () => {
+      const fp = FixedPoint('0.00')
+      expect(fp.amount).toBe(0n)
+      expect(fp.decimals).toBe(2n)
+    })
+
+    it('should work with DecimalString type', () => {
+      const decimalStr = '1.5' as any // Simulating DecimalString
+      const fp = FixedPoint(decimalStr)
+      expect(fp.amount).toBe(15n)
+      expect(fp.decimals).toBe(1n)
+    })
+
+    it('should throw for invalid string formats', () => {
+      expect(() => FixedPoint('abc')).toThrow('Invalid number format')
+      expect(() => FixedPoint('123.')).toThrow('Invalid number format')
+      expect(() => FixedPoint('.123')).toThrow('Invalid number format')
+    })
+  })
+
+  describe('original constructor mode', () => {
+    it('should work with bigint amount and decimals', () => {
+      const fp = FixedPoint(12345n, 3n)
+      expect(fp).toBeInstanceOf(FixedPointNumber)
+      expect(fp.amount).toBe(12345n)
+      expect(fp.decimals).toBe(3n)
+    })
+
+    it('should work with zero values', () => {
+      const fp = FixedPoint(0n, 2n)
+      expect(fp.amount).toBe(0n)
+      expect(fp.decimals).toBe(2n)
+    })
+
+    it('should work with negative amounts', () => {
+      const fp = FixedPoint(-500n, 2n)
+      expect(fp.amount).toBe(-500n)
+      expect(fp.decimals).toBe(2n)
+    })
+
+    it('should throw when decimals parameter is missing', () => {
+      expect(() => FixedPoint(123n as any)).toThrow('decimals parameter is required')
+    })
+  })
+
+  describe('FixedPoint object mode', () => {
+    it('should work with FixedPoint objects', () => {
+      const original = new FixedPointNumber(12345n, 3n)
+      const fp = FixedPoint(original)
+      expect(fp).toBeInstanceOf(FixedPointNumber)
+      expect(fp.amount).toBe(12345n)
+      expect(fp.decimals).toBe(3n)
+      expect(fp.equals(original)).toBe(true)
+    })
+
+    it('should work with FixedPoint-compatible objects', () => {
+      const compatibleObj = { amount: 98765n, decimals: 4n }
+      const fp = FixedPoint(compatibleObj)
+      expect(fp).toBeInstanceOf(FixedPointNumber)
+      expect(fp.amount).toBe(98765n)
+      expect(fp.decimals).toBe(4n)
+    })
+
+    it('should work with zero values', () => {
+      const zero = { amount: 0n, decimals: 2n }
+      const fp = FixedPoint(zero)
+      expect(fp.amount).toBe(0n)
+      expect(fp.decimals).toBe(2n)
+    })
+
+    it('should work with negative amounts', () => {
+      const negative = { amount: -5000n, decimals: 2n }
+      const fp = FixedPoint(negative)
+      expect(fp.amount).toBe(-5000n)
+      expect(fp.decimals).toBe(2n)
+    })
+
+    it('should create a new instance, not return the same object', () => {
+      const original = new FixedPointNumber(12345n, 3n)
+      const fp = FixedPoint(original)
+      expect(fp).not.toBe(original) // Different object references
+      expect(fp.equals(original)).toBe(true) // But same values
+    })
+  })
+
+  describe('equivalence with constructor', () => {
+    it('should produce same results as constructor for bigint mode', () => {
+      const factory = FixedPoint(12345n, 3n)
+      const constructor = new FixedPointNumber(12345n, 3n)
+      expect(factory.equals(constructor)).toBe(true)
+    })
+
+    it('should produce same results as fromDecimalString for string mode', () => {
+      const factory = FixedPoint('123.45')
+      const method = FixedPointNumber.fromDecimalString('123.45')
+      expect(factory.equals(method)).toBe(true)
     })
   })
 })

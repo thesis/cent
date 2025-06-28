@@ -22,34 +22,34 @@ Popular libraries like [dinero.js](https://dinerojs.com/) are built on JavaScrip
 
 - **🔢 Arbitrary Precision**: Uses `BigInt` for unlimited precision arithmetic
 - **💰 Multi-Asset Support**: Handles traditional currencies, cryptocurrencies, and custom assets
-- **🧮 Exact Mathematics**: Guaranteed exact results for division by powers of 2 and 5
+- **🧮 Exact Mathematics**: Fxied point math that guarantees exacy results, with options for non-fixed calculations.
 - **🌍 Comprehensive Currency Database**: Built-in support for 180+ world currencies
 - **🎯 Type Safety**: Full TypeScript support with strict type checking
 - **🔄 Immutable**: All operations return new instances, preventing accidental mutations
+- **✨ Ergonomic API**: Clean factory functions for creating numbers from strings
 
 ## Quick Start
 
 ```typescript
-import { Money, USD, BTC } from '@your-org/cent'
+import { FixedPoint, Rational } from '@your-org/cent'
 
-// Create money amounts
-const price = new Money({
-  asset: USD,
-  amount: { amount: 12550n, decimals: 2n } // $125.50
-})
+const x = FixedPoint('125.50')
+const y = FixedPoint('0.875')
 
-const bitcoin = new Money({
-  asset: BTC,
-  amount: { amount: 21000000n, decimals: 8n } // 0.21000000 BTC
-})
+// Arithmetic operations with fixed precision
+const product = x.multiply(y)
+console.log(product.toString()) // "109.812"
 
-// Perform calculations
-const tax = price.multiply({ amount: 875n, decimals: 3n }) // 8.75%
-const total = price.add(tax)
+// Create rational numbers from fractions or decimals
+const oneThird = Rational('1/3')
+const decimal = Rational('0.25')
 
-// Format for display
-console.log(total.toString()) // "$135.48"
-console.log(bitcoin.toString({ preferredUnit: 'satoshi' })) // "21,000,000 satoshis"
+console.log(oneThird.toString()) // "1/3"
+console.log(decimal.toString()) // "1/4" (simplified)
+
+// Seamless conversion between types
+const fromRational = FixedPoint(oneThird.toDecimalString(6)) // 6 decimal places
+console.log(fromRational.toString()) // "0.333333"
 ```
 
 ## Core utils
@@ -108,19 +108,17 @@ applications.
 ### Examples
 
 ```typescript
-// FixedPointNumber allows
+import { FixedPoint, Rational } from '@your-org/cent'
 
-import { FixedPointNumber } from '@your-org/cent'
+// FixedPoint - Perfect for decimal numbers
+const price = FixedPoint('1255.50')  // Auto-detects 2 decimals
+const rate = FixedPoint('0.875')     // Auto-detects 3 decimals
 
-// Create fixed-point numbers
-const price = new FixedPointNumber(125550n, 2n) // 1255.50
-const rate = new FixedPointNumber(875n, 3n) // 0.875
+// Arithmetic operations with automatic precision handling
+const product = price.multiply(rate)
+console.log(product.toString()) // "1098.562"
 
-// Arithmetic operations
-const product = price.multiply(rate) // Automatic precision handling
-console.log(product.toString()) // "1098.5625"
-
-// Precise division (only factors of 2 and 5)
+// Precise division (only multiples of 2 and 5)
 const half = price.divide(2n)
 const fifth = price.divide(5n)
 const tenth = price.divide(10n)
@@ -129,40 +127,41 @@ const tenth = price.divide(10n)
 console.log(price.greaterThan(rate)) // true
 console.log(price.lessThanOrEqual(rate)) // false
 
-// Conversion to string
-console.log(price.toString()) // "1255.50"
+// Also supports original constructor for explicit control
+const explicit = FixedPoint(125550n, 2n) // Same as FixedPoint('1255.50')
 
-// Normalization between different precisions
-const normalized = rate.normalize({ amount: 0n, decimals: 2n })
-console.log(normalized.toString()) // "0.88" (rounded down)
+// Rational - fractions and exact arithmetic
 
-// RationalNumber enables arbitrary division
+// Create from fraction strings
+const oneThird = Rational('1/3')
+const twoFifths = Rational('2/5')
 
-import { RationalNumber } from '@your-org/cent'
+// Create from decimal strings (auto-converted to fractions)
+const quarter = Rational('0.25') // Becomes 1/4
+const decimal = Rational('0.125') // Becomes 1/8
 
-// Create rational numbers
-const oneThird = new RationalNumber({ p: 1n, q: 3n }) // 1/3
-const twoFifths = new RationalNumber({ p: 2n, q: 5n }) // 2/5
+// Create directly from bigint numerator and denominator
+const pi = Rational(22n, 7n) // 22/7 approximation of π
+const oneThird = Rational(1n, 3n) // 1/3
 
 // Exact arithmetic
-const sum = oneThird.add(twoFifths) // (1/3) + (2/5) = (5 + 6)/15 = 11/15
-console.log(`${sum.p}/${sum.q}`) // "11/15"
+const sum = oneThird.add(twoFifths) // (1/3) + (2/5) = 11/15
+console.log(sum.toString()) // "11/15"
 
 const product = oneThird.multiply(twoFifths) // (1/3) * (2/5) = 2/15
-console.log(`${product.p}/${product.q}`) // "2/15"
+console.log(product.toString()) // "2/15"
 
-// Simplification
-const simplified = new RationalNumber({ p: 6n, q: 9n }).simplify()
-console.log(`${simplified.p}/${simplified.q}`) // "2/3"
+// Automatic simplification
+const simplified = Rational('6/9')
+console.log(simplified.toString()) // "2/3"
 
-// Convert to fixed-point (when possible)
-const tenth = new RationalNumber({ p: 1n, q: 10n })
-const fixed = tenth.toFixedPoint() // { amount: 1n, decimals: 1n }
+// Also supports original constructor
+const explicit = Rational({ p: 1n, q: 10n }) // Same as Rational('1/10')
 
-// Seamless conversion between types using DecimalString
-const rational = new RationalNumber({ p: 3n, q: 8n }) // 3/8
-const decimalStr = rational.toDecimalString() // "0.375" (DecimalString)
-const fixedPoint = FixedPointNumber.fromDecimalString(decimalStr) // auto-detects 3 decimals
+// Seamless conversion between types
+const rational = Rational('3/8')
+const decimalStr = rational.toDecimalString() // "0.375"
+const fixedPoint = FixedPoint(decimalStr) // Auto-detects 3 decimals
 console.log(fixedPoint.toString()) // "0.375"
 ```
 
@@ -355,6 +354,18 @@ console.log(change.toString()) // "$0.00"
 ```
 
 ## API reference
+
+### Factory Functions
+
+**`FixedPoint()`** - Create fixed-point numbers with ease
+- `FixedPoint(str)` - Parse decimal string, auto-detect precision (e.g., `FixedPoint('123.45')`)
+- `FixedPoint(fixedPoint)` - Copy/clone existing FixedPoint object (e.g., `FixedPoint(existing)`)
+- `FixedPoint(amount, decimals)` - Create from bigint values (e.g., `FixedPoint(12345n, 2n)`)
+
+**`Rational()`** - Create rational numbers from strings, bigints, or objects
+- `Rational(str)` - Parse fraction (e.g., `Rational('22/7')`) or decimal (e.g., `Rational('0.125')`)
+- `Rational(p, q)` - Create from bigint numerator and denominator (e.g., `Rational(22n, 7n)`)
+- `Rational(ratio)` - Create from Ratio object (e.g., `Rational({ p: 1n, q: 3n })`)
 
 ### `Money`
 

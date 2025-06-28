@@ -113,6 +113,10 @@ export type UTCTime = Opaque<string, typeof UTCTimeSymbol>
 declare const DecimalStringSymbol: unique symbol
 export type DecimalString = Opaque<string, typeof DecimalStringSymbol>
 
+// declare a "nominal" rational string type that can only be used via casting
+declare const RationalStringSymbol: unique symbol
+export type RationalString = Opaque<string, typeof RationalStringSymbol>
+
 export type PricePoint = {
   amounts: [AssetAmount, AssetAmount]
   time: UNIXTime
