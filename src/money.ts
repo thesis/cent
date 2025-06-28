@@ -682,15 +682,8 @@ export function formatWithIntlCurrency(
 
   const formatter = new Intl.NumberFormat(normalizeLocale(locale), formatterOptions)
 
-  // Convert decimal string to number with precision loss warning
-  const numericValue = parseFloat(decimalString)
-  
-  // Warn if the underlying BigInt amount is large, which could lead to precision issues
-  if (money.balance.amount.amount >= BigInt(Number.MAX_SAFE_INTEGER) || money.balance.amount.amount <= BigInt(Number.MIN_SAFE_INTEGER)) {
-    console.warn(`Potential precision loss in display formatting for large amount: ${decimalString}`)
-  }
-
-  return formatter.format(numericValue)
+  // Use decimal string directly to avoid precision loss
+  return formatter.format(decimalString as string)
 }
 
 /**
@@ -745,15 +738,8 @@ export function formatWithCustomFormatting(
 
   const formatter = new Intl.NumberFormat(normalizeLocale(locale), formatterOptions)
 
-  // Convert decimal string to number with precision loss warning
-  const numericValue = parseFloat(decimalString)
-  
-  // Warn if the underlying BigInt amount is large, which could lead to precision issues
-  if (money.balance.amount.amount >= BigInt(Number.MAX_SAFE_INTEGER) || money.balance.amount.amount <= BigInt(Number.MIN_SAFE_INTEGER)) {
-    console.warn(`Potential precision loss in display formatting for large amount: ${decimalString}`)
-  }
-
-  const formattedNumber = formatter.format(numericValue)
+  // Use decimal string directly to avoid precision loss
+  const formattedNumber = formatter.format(decimalString as string)
 
   // Handle symbol vs code formatting
   if (preferSymbol && "symbol" in money.balance.asset && !unitSuffix) {

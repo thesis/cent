@@ -238,7 +238,8 @@ export class FixedPointNumber implements FixedPoint, Ratio {
     const fractionPart = this.amount % factor
 
     // convert fraction part to string and pad with leading zeros if needed
-    let fractionStr = fractionPart.toString()
+    // take absolute value to handle negative numbers correctly
+    let fractionStr = fractionPart < 0n ? (-fractionPart).toString() : fractionPart.toString()
     const padding = Number(this.decimals) - fractionStr.length
     if (padding > 0) {
       fractionStr = '0'.repeat(padding) + fractionStr
@@ -316,14 +317,18 @@ export class FixedPointNumber implements FixedPoint, Ratio {
    * @throws Error if the string format is invalid
    */
   static parseString(str: string, decimals: bigint): FixedPointNumber {
-    // validate the string format using a regex pattern
-    const validNumberPattern = /^\d+(\.\d+)?$/
+    // validate the string format using a regex pattern that supports negative numbers
+    const validNumberPattern = /^-?\d+(\.\d+)?$/
     if (!validNumberPattern.test(str)) {
       throw new Error(`Invalid number format: "${str}". Expected format: digits with optional decimal point and fractional part.`)
     }
 
+    // check if the number is negative
+    const isNegative = str.startsWith('-')
+    const absoluteStr = isNegative ? str.slice(1) : str
+
     // split the string into whole and fractional parts
-    const [wholePart, fractionPart = ''] = str.split('.')
+    const [wholePart, fractionPart = ''] = absoluteStr.split('.')
 
     // calculate the factor for the specified number of decimals
     const factor = 10n ** decimals
@@ -337,6 +342,11 @@ export class FixedPointNumber implements FixedPoint, Ratio {
       const adjustedFraction = fractionPart.padEnd(Number(decimals), '0').slice(0, Number(decimals))
       // add the fraction part to the amount
       amount += BigInt(adjustedFraction)
+    }
+
+    // apply the sign
+    if (isNegative) {
+      amount = -amount
     }
 
     return new FixedPointNumber(amount, decimals)

@@ -130,26 +130,4 @@ describe('Precision Safety', () => {
     })
   })
 
-  describe('Console warnings for potential precision loss', () => {
-    it('should warn about large amounts in display formatting', () => {
-      // Spy on console.warn
-      const warnSpy = jest.spyOn(console, 'warn').mockImplementation()
-      
-      // Create a very large amount that might lose precision in display
-      const veryLarge = new Money({
-        asset: USD,
-        amount: { amount: BigInt(Number.MAX_SAFE_INTEGER), decimals: 2n }
-      })
-
-      // Format it - should trigger warning
-      veryLarge.toString()
-      
-      // Should have warned about potential precision loss
-      expect(warnSpy).toHaveBeenCalledWith(
-        expect.stringContaining('Potential precision loss in display formatting')
-      )
-      
-      warnSpy.mockRestore()
-    })
-  })
 })

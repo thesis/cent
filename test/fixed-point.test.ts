@@ -239,6 +239,167 @@ describe('FixedPointNumber', () => {
       const fp = new FixedPointNumber(1005n, 3n)
       expect(fp.toString()).toBe('1.005')
     })
+
+    describe('negative numbers', () => {
+      it('should handle negative decimal numbers', () => {
+        const fp = new FixedPointNumber(-12345n, 2n)
+        expect(fp.toString()).toBe('-123.45')
+      })
+
+      it('should handle negative whole numbers', () => {
+        const fp = new FixedPointNumber(-123n, 0n)
+        expect(fp.toString()).toBe('-123')
+      })
+
+      it('should handle negative numbers with leading zeros in fractional part', () => {
+        const fp = new FixedPointNumber(-1005n, 3n)
+        expect(fp.toString()).toBe('-1.005')
+      })
+
+      it('should handle negative zero', () => {
+        const fp = new FixedPointNumber(-0n, 2n)
+        expect(fp.toString()).toBe('0.00')
+      })
+
+      it('should handle very large negative numbers', () => {
+        const fp = new FixedPointNumber(-12345678901234567890n, 5n)
+        expect(fp.toString()).toBe('-123456789012345.67890')
+      })
+    })
+
+    describe('trailing zeros preservation', () => {
+      it('should preserve trailing zeros in fractional part', () => {
+        const fp = new FixedPointNumber(12300n, 2n)
+        expect(fp.toString()).toBe('123.00')
+      })
+
+      it('should handle amounts with all fractional digits as zeros', () => {
+        const fp = new FixedPointNumber(12000n, 3n)
+        expect(fp.toString()).toBe('12.000')
+      })
+
+      it('should preserve single trailing zero', () => {
+        const fp = new FixedPointNumber(1230n, 2n)
+        expect(fp.toString()).toBe('12.30')
+      })
+
+      it('should preserve multiple trailing zeros', () => {
+        const fp = new FixedPointNumber(100000n, 4n)
+        expect(fp.toString()).toBe('10.0000')
+      })
+    })
+
+    describe('high precision scenarios', () => {
+      it('should handle very high decimal precision', () => {
+        const fp = new FixedPointNumber(123456789012345n, 15n)
+        expect(fp.toString()).toBe('0.123456789012345')
+      })
+
+      it('should handle extensive padding requirements', () => {
+        const fp = new FixedPointNumber(1n, 10n)
+        expect(fp.toString()).toBe('0.0000000001')
+      })
+
+      it('should handle maximum padding case', () => {
+        const fp = new FixedPointNumber(1n, 20n)
+        expect(fp.toString()).toBe('0.00000000000000000001')
+      })
+
+      it('should handle numbers requiring both integer and fractional precision', () => {
+        const fp = new FixedPointNumber(123456789012345678901234567890n, 15n)
+        expect(fp.toString()).toBe('123456789012345.678901234567890')
+      })
+    })
+
+    describe('boundary values', () => {
+      it('should handle powers of 10 as whole numbers', () => {
+        const fp = new FixedPointNumber(1000n, 0n)
+        expect(fp.toString()).toBe('1000')
+      })
+
+      it('should handle powers of 10 with decimals', () => {
+        const fp = new FixedPointNumber(1000n, 3n)
+        expect(fp.toString()).toBe('1.000')
+      })
+
+      it('should handle very large amounts with no decimals', () => {
+        const fp = new FixedPointNumber(BigInt(Number.MAX_SAFE_INTEGER), 0n)
+        expect(fp.toString()).toBe(Number.MAX_SAFE_INTEGER.toString())
+      })
+
+      it('should handle very large amounts with decimals', () => {
+        const fp = new FixedPointNumber(BigInt(Number.MAX_SAFE_INTEGER), 3n)
+        expect(fp.toString()).toBe('9007199254740.991')
+      })
+
+      it('should handle minimum safe integer', () => {
+        const fp = new FixedPointNumber(BigInt(Number.MIN_SAFE_INTEGER), 0n)
+        expect(fp.toString()).toBe(Number.MIN_SAFE_INTEGER.toString())
+      })
+
+      it('should handle amounts at decimal boundaries', () => {
+        const fp = new FixedPointNumber(999999999n, 9n)
+        expect(fp.toString()).toBe('0.999999999')
+      })
+    })
+
+    describe('edge cases', () => {
+      it('should handle single digit amounts', () => {
+        const fp = new FixedPointNumber(5n, 0n)
+        expect(fp.toString()).toBe('5')
+      })
+
+      it('should handle single digit with high precision', () => {
+        const fp = new FixedPointNumber(5n, 8n)
+        expect(fp.toString()).toBe('0.00000005')
+      })
+
+      it('should handle fractional amounts close to 1', () => {
+        const fp = new FixedPointNumber(999n, 3n)
+        expect(fp.toString()).toBe('0.999')
+      })
+
+      it('should handle fractional amounts just over 1', () => {
+        const fp = new FixedPointNumber(1001n, 3n)
+        expect(fp.toString()).toBe('1.001')
+      })
+
+      it('should handle maximum precision with large numbers', () => {
+        const fp = new FixedPointNumber(987654321098765432109876543210n, 18n)
+        expect(fp.toString()).toBe('987654321098.765432109876543210')
+      })
+    })
+
+    describe('consistency with parseString round-trip', () => {
+      it('should round-trip correctly for simple decimals', () => {
+        const original = new FixedPointNumber(12345n, 2n)
+        const str = original.toString()
+        const parsed = FixedPointNumber.parseString(str, 2n)
+        expect(parsed.equals(original)).toBe(true)
+      })
+
+      it('should round-trip correctly for negative numbers', () => {
+        const original = new FixedPointNumber(-12345n, 3n)
+        const str = original.toString()
+        const parsed = FixedPointNumber.parseString(str, 3n)
+        expect(parsed.equals(original)).toBe(true)
+      })
+
+      it('should round-trip correctly for high precision numbers', () => {
+        const original = new FixedPointNumber(123456789012345n, 10n)
+        const str = original.toString()
+        const parsed = FixedPointNumber.parseString(str, 10n)
+        expect(parsed.equals(original)).toBe(true)
+      })
+
+      it('should round-trip correctly for numbers with trailing zeros', () => {
+        const original = new FixedPointNumber(12300n, 2n)
+        const str = original.toString()
+        expect(str).toBe('123.00')
+        const parsed = FixedPointNumber.parseString(str, 2n)
+        expect(parsed.equals(original)).toBe(true)
+      })
+    })
   })
 
   describe('parseString', () => {
@@ -266,10 +427,30 @@ describe('FixedPointNumber', () => {
       expect(fp.decimals).toBe(2n)
     })
 
+    it('should parse negative numbers', () => {
+      const fp = FixedPointNumber.parseString('-123.45', 2n)
+      expect(fp.amount).toBe(-12345n)
+      expect(fp.decimals).toBe(2n)
+    })
+
+    it('should parse negative whole numbers', () => {
+      const fp = FixedPointNumber.parseString('-123', 0n)
+      expect(fp.amount).toBe(-123n)
+      expect(fp.decimals).toBe(0n)
+    })
+
+    it('should parse negative numbers with fewer decimal places than specified', () => {
+      const fp = FixedPointNumber.parseString('-123.4', 2n)
+      expect(fp.amount).toBe(-12340n)
+      expect(fp.decimals).toBe(2n)
+    })
+
     it('should throw an error for invalid number format', () => {
       expect(() => FixedPointNumber.parseString('123.', 2n)).toThrow('Invalid number format')
       expect(() => FixedPointNumber.parseString('.123', 2n)).toThrow('Invalid number format')
       expect(() => FixedPointNumber.parseString('abc', 2n)).toThrow('Invalid number format')
+      expect(() => FixedPointNumber.parseString('--123', 2n)).toThrow('Invalid number format')
+      expect(() => FixedPointNumber.parseString('-', 2n)).toThrow('Invalid number format')
     })
   })
 
