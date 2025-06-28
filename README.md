@@ -160,6 +160,73 @@ const tenth = new RationalNumber({ p: 1n, q: 10n })
 const fixed = tenth.toFixedPoint() // { amount: 1n, decimals: 1n }
 ```
 
+## Price operations
+
+`cent` includes `Price` and `ExchangeRate` classes for representing price ratios between assets with mathematical operations:
+
+```typescript
+import { Price, ExchangeRate } from '@your-org/cent'
+
+// Create price ratios
+const usdPerApple = new Price(
+  { asset: USD, amount: { amount: 500n, decimals: 2n } }, // $5.00
+  { asset: APPLE, amount: { amount: 1n, decimals: 0n } }  // 1 apple
+)
+
+const applesPerBtc = new Price(
+  { asset: APPLE, amount: { amount: 10000n, decimals: 0n } }, // 10,000 apples
+  { asset: BTC, amount: { amount: 100000000n, decimals: 8n } } // 1.00000000 BTC
+)
+
+// Price-to-Price multiplication (assets must share a common unit)
+// $5/apple × 10,000 apples/BTC = $50,000/BTC
+const usdPerBtc = usdPerApple.multiply(applesPerBtc)
+console.log(usdPerBtc.amounts[0].amount.amount) // 5000000n ($50,000.00)
+
+// Real-world FX example: Calculate USD/BTC from USD/EUR and BTC/EUR rates
+const usdPerEur = new ExchangeRate(
+  { asset: USD, amount: { amount: 108n, decimals: 2n } }, // $1.08
+  { asset: EUR, amount: { amount: 100n, decimals: 2n } }  // €1.00
+)
+
+const btcPerEur = new ExchangeRate(
+  { asset: BTC, amount: { amount: 100000000n, decimals: 8n } }, // 1.00000000 BTC
+  { asset: EUR, amount: { amount: 4500000n, decimals: 2n } }    // €45,000.00
+)
+
+// USD/EUR × EUR/BTC = USD/BTC (EUR cancels out)
+// Note: We need to invert btcPerEur to get EUR/BTC
+const eurPerBtc = btcPerEur.invert() // €45,000/1 BTC
+const usdPerBtcFx = usdPerEur.multiply(eurPerBtc) // $1.08/€1 × €45,000/1 BTC = $48,600/1 BTC
+console.log(usdPerBtcFx.amounts[0].amount.amount) // 4860000n ($48,600.00)
+
+// Price-to-Price division
+// $50,000/BTC ÷ $5/apple = 10,000 apples/BTC
+const calculatedApplesPerBtc = usdPerBtc.divide(usdPerApple)
+
+// Scalar operations (multiply/divide by numbers)
+const doubledPrice = usdPerApple.multiply(2n) // $10.00/apple
+const halfPrice = usdPerApple.divide(2n)      // $2.50/apple
+
+// Convert to mathematical ratio
+const ratio = usdPerApple.asRatio() // RationalNumber: 500/1
+
+// Exchange rates with timestamps
+const exchangeRate = new ExchangeRate(
+  { asset: USD, amount: { amount: 117n, decimals: 2n } }, // $1.17
+  { asset: EUR, amount: { amount: 100n, decimals: 2n } }  // €1.00
+) // Automatically timestamped
+
+// Price operations validate shared assets
+try {
+  const orangesPerBtc = new Price(orange5000, btc1)
+  usdPerApple.multiply(orangesPerBtc) // Error: no shared asset!
+} catch (error) {
+  console.log(error.message) 
+  // "Cannot multiply prices: no shared asset found between US Dollar/Apple and Orange/Bitcoin"
+}
+```
+
 ## Other features
 
 ### Currency support
@@ -317,6 +384,20 @@ console.log(change.toString()) // "$0.00"
 - `divide(other)` - Exact division
 - `simplify()` - Reduce to lowest terms
 - `toFixedPoint()` - Convert to decimal (when possible)
+
+### `Price`
+
+- `multiply(scalar | Price)` - Scalar multiplication or Price-to-Price multiplication
+- `divide(scalar | Price)` - Scalar division or Price-to-Price division
+- `asRatio()` - Convert to RationalNumber ratio
+- `invert()` - Swap numerator and denominator
+- `equals(other)` - Check equality (including time for timed prices)
+
+### `ExchangeRate`
+
+- Inherits all `Price` methods
+- `constructor(a, b, time?)` - Create with optional timestamp
+- Automatic timestamping for exchange rate tracking
 
 ## Comparison with dinero.js
 

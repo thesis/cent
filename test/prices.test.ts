@@ -41,6 +41,35 @@ describe('Price', () => {
     amount: { amount: 100000000n, decimals: 8n }  // 1.00000000 BTC
   }
 
+  const appleCurrency: Currency = {
+    name: 'Apple',
+    code: 'APPLE',
+    decimals: 0n,
+    symbol: '🍎'
+  }
+
+  const orangeCurrency: Currency = {
+    name: 'Orange', 
+    code: 'ORANGE',
+    decimals: 0n,
+    symbol: '🍊'
+  }
+
+  const appleAmount: AssetAmount = {
+    asset: appleCurrency,
+    amount: { amount: 1n, decimals: 0n }  // 1 apple
+  }
+
+  const applesAmount: AssetAmount = {
+    asset: appleCurrency,
+    amount: { amount: 10000n, decimals: 0n }  // 10000 apples
+  }
+
+  const orangeAmount: AssetAmount = {
+    asset: orangeCurrency,
+    amount: { amount: 5000n, decimals: 0n }  // 5000 oranges
+  }
+
   describe('constructor', () => {
     it('should create a Price instance with the provided amounts', () => {
       const price = new Price(usdAmount, eurAmount)
@@ -192,6 +221,110 @@ describe('Price', () => {
       const price2 = new Price(btcAmount, eurAmount, time)
       
       expect(price1.equals(price2)).toBe(false)
+    })
+  })
+
+  describe('Price-to-Price multiplication', () => {
+    it('should multiply prices with shared assets (A/B * B/C = A/C)', () => {
+      // $5 / 1 apple
+      const usdPerApple = new Price(
+        { asset: usdCurrency, amount: { amount: 500n, decimals: 2n } },
+        appleAmount
+      )
+      
+      // 10000 apples / 1 BTC
+      const applesPerBtc = new Price(
+        applesAmount,
+        btcAmount
+      )
+      
+      // Should give us $50,000 / 1 BTC (500 * 10000 / 100)
+      const usdPerBtc = usdPerApple.multiply(applesPerBtc)
+      
+      expect(usdPerBtc.amounts[0].asset).toBe(usdCurrency)
+      expect(usdPerBtc.amounts[1].asset).toBe(btcCurrency)
+      expect(usdPerBtc.amounts[0].amount.amount).toBe(5000000n)  // $50,000.00
+      expect(usdPerBtc.amounts[1].amount.amount).toBe(100000000n) // 1.00000000 BTC
+    })
+
+    it('should multiply prices with shared assets (A/B * C/A = C/B)', () => {
+      // 1 BTC / $50,000
+      const btcPerUsd = new Price(
+        btcAmount,
+        { asset: usdCurrency, amount: { amount: 5000000n, decimals: 2n } }
+      )
+      
+      // $5 / 1 apple  
+      const usdPerApple = new Price(
+        { asset: usdCurrency, amount: { amount: 500n, decimals: 2n } },
+        appleAmount
+      )
+      
+      // Should give us BTC/apple (not apple/BTC)  
+      const result = btcPerUsd.multiply(usdPerApple)
+      
+      expect(result.amounts[0].asset).toBe(btcCurrency)
+      expect(result.amounts[1].asset).toBe(appleCurrency)
+    })
+
+    it('should throw error when multiplying prices without shared assets', () => {
+      // $5 / 1 apple
+      const usdPerApple = new Price(
+        { asset: usdCurrency, amount: { amount: 500n, decimals: 2n } },
+        appleAmount
+      )
+      
+      // 5000 oranges / 1 BTC (no shared asset with apples)
+      const orangesPerBtc = new Price(
+        orangeAmount,
+        btcAmount
+      )
+      
+      expect(() => usdPerApple.multiply(orangesPerBtc)).toThrow(
+        'Cannot multiply prices: no shared asset found between US Dollar/Apple and Orange/Bitcoin'
+      )
+    })
+  })
+
+  describe('Price-to-Price division', () => {
+    it('should divide prices with shared assets', () => {
+      // $50,000 / 1 BTC
+      const usdPerBtc = new Price(
+        { asset: usdCurrency, amount: { amount: 5000000n, decimals: 2n } },
+        btcAmount
+      )
+      
+      // $5 / 1 apple
+      const usdPerApple = new Price(
+        { asset: usdCurrency, amount: { amount: 500n, decimals: 2n } },
+        appleAmount
+      )
+      
+      // Should give us 10000 apples / 1 BTC
+      const applesPerBtc = usdPerBtc.divide(usdPerApple)
+      
+      expect(applesPerBtc.amounts[0].asset).toBe(appleCurrency)
+      expect(applesPerBtc.amounts[1].asset).toBe(btcCurrency)
+      expect(applesPerBtc.amounts[0].amount.amount).toBe(10000n)     // 10000 apples
+      expect(applesPerBtc.amounts[1].amount.amount).toBe(100000000n) // 1.00000000 BTC
+    })
+
+    it('should throw error when dividing prices without shared assets', () => {
+      // $5 / 1 apple
+      const usdPerApple = new Price(
+        { asset: usdCurrency, amount: { amount: 500n, decimals: 2n } },
+        appleAmount
+      )
+      
+      // 5000 oranges / 1 BTC
+      const orangesPerBtc = new Price(
+        orangeAmount,
+        btcAmount
+      )
+      
+      expect(() => usdPerApple.divide(orangesPerBtc)).toThrow(
+        'Cannot multiply prices: no shared asset found'
+      )
     })
   })
 })

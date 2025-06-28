@@ -58,12 +58,20 @@ export class Price implements PricePoint {
   }
 
   /**
-   * Multiply this Price by a scalar value
+   * Multiply this Price by a scalar value or another Price
    *
-   * @param scalar - The value to multiply by (bigint, FixedPoint, or Ratio)
+   * @param multiplier - The value to multiply by (bigint, FixedPoint, Ratio, or Price)
    * @returns A new Price instance with scaled amounts
+   * @throws Error if multiplying by another Price without shared assets
    */
-  multiply(scalar: bigint | FixedPoint | Ratio): Price {
+  multiply(multiplier: bigint | FixedPoint | Ratio | Price): Price {
+    // Handle Price-to-Price multiplication
+    if (multiplier instanceof Price) {
+      return this.multiplyByPrice(multiplier)
+    }
+
+    // Handle scalar multiplication (existing logic)
+    const scalar = multiplier
     let multiplierP: bigint
     let multiplierQ: bigint
 
@@ -101,13 +109,19 @@ export class Price implements PricePoint {
   }
 
   /**
-   * Divide this Price by a scalar value
+   * Divide this Price by a scalar value or another Price
    *
-   * @param divisor - The value to divide by (bigint, FixedPoint, or Ratio)
+   * @param divisor - The value to divide by (bigint, FixedPoint, Ratio, or Price)
    * @returns A new Price instance with scaled amounts
-   * @throws Error if the divisor is zero
+   * @throws Error if the divisor is zero or if dividing by another Price without shared assets
    */
-  divide(divisor: bigint | FixedPoint | Ratio): Price {
+  divide(divisor: bigint | FixedPoint | Ratio | Price): Price {
+    // Handle Price-to-Price division (multiply by inverse)
+    if (divisor instanceof Price) {
+      return this.multiplyByPrice(divisor.invert())
+    }
+
+    // Handle scalar division (existing logic)
     // Division is multiplication by the inverted ratio
     let invertedRatio: Ratio
 
@@ -160,5 +174,61 @@ export class Price implements PricePoint {
       this.amounts[1].amount === other.amounts[0].amount
 
     return sameOrder || invertedOrder
+  }
+
+  /**
+   * Multiply this Price by another Price with asset validation
+   *
+   * @param other - The other Price to multiply by
+   * @returns A new Price instance with the result
+   * @throws Error if no shared asset is found
+   */
+  private multiplyByPrice(other: Price): Price {
+    // Check for shared assets that allow multiplication
+    // Case 1: this.amounts[1].asset === other.amounts[0].asset (A/B * B/C = (A*B)/(B*C) = A/C after cancellation)
+    if (assetsEqual(this.amounts[1].asset, other.amounts[0].asset)) {
+      const newAmountA = {
+        asset: this.amounts[0].asset,
+        amount: {
+          amount: (this.amounts[0].amount.amount * other.amounts[0].amount.amount) / this.amounts[1].amount.amount,
+          decimals: this.amounts[0].amount.decimals
+        }
+      }
+      
+      const newAmountB = {
+        asset: other.amounts[1].asset,
+        amount: {
+          amount: other.amounts[1].amount.amount,
+          decimals: other.amounts[1].amount.decimals
+        }
+      }
+
+      return new Price(newAmountA, newAmountB, this.time)
+    }
+    
+    // Case 2: this.amounts[0].asset === other.amounts[1].asset (A/B * C/A = (A*C)/(B*A) = C/B after cancellation)
+    if (assetsEqual(this.amounts[0].asset, other.amounts[1].asset)) {
+      const newAmountA = {
+        asset: other.amounts[0].asset,
+        amount: {
+          amount: (other.amounts[0].amount.amount * this.amounts[0].amount.amount) / other.amounts[1].amount.amount,
+          decimals: other.amounts[0].amount.decimals
+        }
+      }
+      
+      const newAmountB = {
+        asset: this.amounts[1].asset,
+        amount: {
+          amount: this.amounts[1].amount.amount,
+          decimals: this.amounts[1].amount.decimals
+        }
+      }
+
+      return new Price(newAmountA, newAmountB, this.time)
+    }
+
+    // No shared asset found
+    const getAssetName = (asset: any) => asset.name || asset.code || 'Unknown Asset'
+    throw new Error(`Cannot multiply prices: no shared asset found between ${getAssetName(this.amounts[0].asset)}/${getAssetName(this.amounts[1].asset)} and ${getAssetName(other.amounts[0].asset)}/${getAssetName(other.amounts[1].asset)}`)
   }
 }
