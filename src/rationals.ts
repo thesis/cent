@@ -1,4 +1,4 @@
-import { Ratio, FixedPoint } from "./types"
+import { Ratio, FixedPoint, DecimalString } from "./types"
 import { gcd } from "./math-utils"
 import { BigIntStringSchema } from "./validation-schemas"
 import { z } from "zod"
@@ -235,6 +235,63 @@ export class RationalNumber implements Ratio {
       amount: this.q < 0n ? -this.p : this.p,
       decimals
     }
+  }
+
+  /**
+   * Convert this RationalNumber to a string representation in simplified p/q format
+   *
+   * @returns A string representation of the simplified ratio (e.g., "2/3")
+   */
+  toString(): string {
+    const simplified = this.simplify()
+    return `${simplified.p}/${simplified.q}`
+  }
+
+  /**
+   * Convert this RationalNumber to a decimal string representation
+   *
+   * @param precision - Maximum number of decimal places (default: 50n)
+   * @returns A decimal string representation without trailing zeros
+   */
+  toDecimalString(precision: bigint = 50n): DecimalString {
+    if (this.q === 0n) {
+      throw new Error("Division by zero")
+    }
+    
+    // Handle sign
+    const negative = (this.p < 0n) !== (this.q < 0n)
+    const numerator = this.p < 0n ? -this.p : this.p
+    const denominator = this.q < 0n ? -this.q : this.q
+    
+    // Integer part
+    const integerPart = numerator / denominator
+    let remainder = numerator % denominator
+    
+    if (remainder === 0n) {
+      return ((negative ? "-" : "") + integerPart.toString()) as DecimalString
+    }
+    
+    // Build decimal part
+    let result = (negative ? "-" : "") + integerPart.toString() + "."
+    
+    for (let i = 0n; i < precision && remainder !== 0n; i++) {
+      remainder *= 10n
+      const digit = remainder / denominator
+      result += digit.toString()
+      remainder = remainder % denominator
+    }
+    
+    // Remove trailing zeros
+    while (result.endsWith("0") && result.includes(".")) {
+      result = result.slice(0, -1)
+    }
+    
+    // Remove trailing decimal point if no fractional part remains
+    if (result.endsWith(".")) {
+      result = result.slice(0, -1)
+    }
+    
+    return result as DecimalString
   }
 
   /**

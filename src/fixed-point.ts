@@ -237,20 +237,32 @@ export class FixedPointNumber implements FixedPoint, Ratio {
     const wholePart = this.amount / factor
     const fractionPart = this.amount % factor
 
-    // convert fraction part to string and pad with leading zeros if needed
-    // take absolute value to handle negative numbers correctly
-    let fractionStr = fractionPart < 0n ? (-fractionPart).toString() : fractionPart.toString()
-    const padding = Number(this.decimals) - fractionStr.length
-    if (padding > 0) {
-      fractionStr = '0'.repeat(padding) + fractionStr
-    }
-
     // if decimals is 0, just return the whole part
     if (this.decimals === 0n) {
       return wholePart.toString() as DecimalString
     }
 
-    return `${wholePart.toString()}.${fractionStr}` as DecimalString
+    // Handle negative numbers correctly
+    if (this.amount < 0n && wholePart === 0n) {
+      // For negative numbers where wholePart is 0 (e.g., -0.5)
+      // we need to preserve the negative sign and use absolute value of fractionPart
+      const absFractionPart = -fractionPart
+      let fractionStr = absFractionPart.toString()
+      const padding = Number(this.decimals) - fractionStr.length
+      if (padding > 0) {
+        fractionStr = '0'.repeat(padding) + fractionStr
+      }
+      return `-0.${fractionStr}` as DecimalString
+    } else {
+      // For positive numbers or negative numbers with non-zero whole part
+      // convert fraction part to string and pad with leading zeros if needed
+      let fractionStr = fractionPart < 0n ? (-fractionPart).toString() : fractionPart.toString()
+      const padding = Number(this.decimals) - fractionStr.length
+      if (padding > 0) {
+        fractionStr = '0'.repeat(padding) + fractionStr
+      }
+      return `${wholePart.toString()}.${fractionStr}` as DecimalString
+    }
   }
 
   /**

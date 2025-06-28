@@ -256,6 +256,11 @@ describe('FixedPointNumber', () => {
         expect(fp.toString()).toBe('-1.005')
       })
 
+      it('should handle small negative fractional numbers', () => {
+        const fp = new FixedPointNumber(-5n, 1n) // -0.5
+        expect(fp.toString()).toBe('-0.5')
+      })
+
       it('should handle negative zero', () => {
         const fp = new FixedPointNumber(-0n, 2n)
         expect(fp.toString()).toBe('0.00')

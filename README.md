@@ -180,6 +180,7 @@ const applesPerBtc = new Price(
 
 // Price-to-Price multiplication (assets must share a common unit)
 // $5/apple × 10,000 apples/BTC = $50,000/BTC
+// while this is fun, remember that there might not be apple-to-BTC liquidity 😉
 const usdPerBtc = usdPerApple.multiply(applesPerBtc)
 console.log(usdPerBtc.amounts[0].amount.amount) // 5000000n ($50,000.00)
 
@@ -222,7 +223,7 @@ try {
   const orangesPerBtc = new Price(orange5000, btc1)
   usdPerApple.multiply(orangesPerBtc) // Error: no shared asset!
 } catch (error) {
-  console.log(error.message) 
+  console.log(error.message)
   // "Cannot multiply prices: no shared asset found between US Dollar/Apple and Orange/Bitcoin"
 }
 ```
@@ -373,7 +374,7 @@ console.log(change.toString()) // "$0.00"
 - `divide(other)` - Safe division
 - `normalize(target)` - Change decimal precision
 - `equals(other)` - Equality check
-- `toString()` - String representation
+- `toString()` - DecimalString representation
 - `parseString(str, decimals)` - Parse from string
 
 ### `RationalNumber`
@@ -383,6 +384,8 @@ console.log(change.toString()) // "$0.00"
 - `multiply(other)` - Exact multiplication
 - `divide(other)` - Exact division
 - `simplify()` - Reduce to lowest terms
+- `toString()` - Convert to simplified "p/q" string format
+- `toDecimalString(precision?)` - Convert to DecimalString (default 50 digits)
 - `toFixedPoint()` - Convert to decimal (when possible)
 
 ### `Price`

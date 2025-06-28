@@ -58,7 +58,7 @@ export class Price implements PricePoint {
   }
 
   /**
-   * Multiply this Price by a scalar value or another Price
+   * Multiply this Price by a scalar value or another Price.
    *
    * @param multiplier - The value to multiply by (bigint, FixedPoint, Ratio, or Price)
    * @returns A new Price instance with scaled amounts
@@ -194,7 +194,7 @@ export class Price implements PricePoint {
           decimals: this.amounts[0].amount.decimals
         }
       }
-      
+
       const newAmountB = {
         asset: other.amounts[1].asset,
         amount: {
@@ -205,7 +205,7 @@ export class Price implements PricePoint {
 
       return new Price(newAmountA, newAmountB, this.time)
     }
-    
+
     // Case 2: this.amounts[0].asset === other.amounts[1].asset (A/B * C/A = (A*C)/(B*A) = C/B after cancellation)
     if (assetsEqual(this.amounts[0].asset, other.amounts[1].asset)) {
       const newAmountA = {
@@ -215,7 +215,7 @@ export class Price implements PricePoint {
           decimals: other.amounts[0].amount.decimals
         }
       }
-      
+
       const newAmountB = {
         asset: this.amounts[1].asset,
         amount: {
