@@ -587,7 +587,7 @@ export interface MoneyToStringOptions {
  * @param options - Formatting options
  * @returns A formatted string representation
  */
-export function formatMoney(
+function formatMoney(
   money: Money,
   options: MoneyToStringOptions = {},
 ): string {
