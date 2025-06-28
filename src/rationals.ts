@@ -79,37 +79,43 @@ export class RationalNumber implements Ratio {
    * Add another ratio to this rational number
    *
    * Formula: (a/b) + (c/d) = (a*d + b*c)/(b*d)
+   * 
+   * The result is automatically simplified to keep the ratio in lowest terms,
+   * preventing numerators and denominators from growing unnecessarily large.
    *
    * @param other - The ratio to add
-   * @returns A new RationalNumber instance with the sum
+   * @returns A new RationalNumber instance with the sum in simplified form
    */
   add(other: Ratio): RationalNumber {
     return new RationalNumber({
       p: this.p * other.q + this.q * other.p,
       q: this.q * other.q
-    })
+    }).simplify()
   }
 
   /**
    * Subtract another ratio from this rational number
    *
    * Formula: (a/b) - (c/d) = (a*d - b*c)/(b*d)
+   * 
+   * The result is automatically simplified to keep the ratio in lowest terms,
+   * preventing numerators and denominators from growing unnecessarily large.
    *
    * @param other - The ratio to subtract
-   * @returns A new RationalNumber instance with the difference
+   * @returns A new RationalNumber instance with the difference in simplified form
    */
   subtract(other: Ratio): RationalNumber {
     return new RationalNumber({
       p: this.p * other.q - this.q * other.p,
       q: this.q * other.q
-    })
+    }).simplify()
   }
 
   /**
    * Check if this RationalNumber is greater than another ratio
-   * 
+   *
    * Formula: (a/b) > (c/d) iff a*d > b*c
-   * 
+   *
    * @param other - The ratio to compare with
    * @returns true if this number is greater than other, false otherwise
    */
@@ -119,7 +125,7 @@ export class RationalNumber implements Ratio {
 
   /**
    * Check if this RationalNumber is greater than or equal to another ratio
-   * 
+   *
    * @param other - The ratio to compare with
    * @returns true if this number is greater than or equal to other, false otherwise
    */
@@ -129,7 +135,7 @@ export class RationalNumber implements Ratio {
 
   /**
    * Check if this RationalNumber represents zero
-   * 
+   *
    * @returns true if the numerator is zero, false otherwise
    */
   isZero(): boolean {
@@ -138,9 +144,9 @@ export class RationalNumber implements Ratio {
 
   /**
    * Check if this RationalNumber is positive (greater than zero)
-   * 
+   *
    * A rational number is positive if p and q have the same sign
-   * 
+   *
    * @returns true if the number is positive, false otherwise
    */
   isPositive(): boolean {
@@ -149,9 +155,9 @@ export class RationalNumber implements Ratio {
 
   /**
    * Check if this RationalNumber is negative (less than zero)
-   * 
+   *
    * A rational number is negative if p and q have opposite signs
-   * 
+   *
    * @returns true if the number is negative, false otherwise
    */
   isNegative(): boolean {
@@ -160,9 +166,9 @@ export class RationalNumber implements Ratio {
 
   /**
    * Check if this RationalNumber is less than another ratio
-   * 
+   *
    * Formula: (a/b) < (c/d) iff a*d < b*c
-   * 
+   *
    * @param other - The ratio to compare with
    * @returns true if this number is less than other, false otherwise
    */
@@ -172,7 +178,7 @@ export class RationalNumber implements Ratio {
 
   /**
    * Check if this RationalNumber is less than or equal to another ratio
-   * 
+   *
    * @param other - The ratio to compare with
    * @returns true if this number is less than or equal to other, false otherwise
    */
@@ -182,7 +188,7 @@ export class RationalNumber implements Ratio {
 
   /**
    * Simplify this RationalNumber by reducing to lowest terms
-   * 
+   *
    * @returns A new RationalNumber with numerator and denominator in lowest terms
    */
   simplify(): RationalNumber {
@@ -190,23 +196,23 @@ export class RationalNumber implements Ratio {
       // 0/anything = 0/1
       return new RationalNumber({ p: 0n, q: 1n })
     }
-    
+
     const gcdValue = gcd(this.p, this.q)
     let newP = this.p / gcdValue
     let newQ = this.q / gcdValue
-    
+
     // Ensure denominator is positive (move negative sign to numerator if needed)
     if (newQ < 0n) {
       newP = -newP
       newQ = -newQ
     }
-    
+
     return new RationalNumber({ p: newP, q: newQ })
   }
 
   /**
    * Convert this RationalNumber to a FixedPoint
-   * 
+   *
    * @returns A FixedPoint object with amount and decimals
    * @throws Error if the denominator is not a power of 10
    */
@@ -214,17 +220,17 @@ export class RationalNumber implements Ratio {
     // Check if q is a power of 10
     let temp = this.q
     let decimals = 0n
-    
+
     if (temp === 0n) {
       throw new Error("Cannot convert ratio with zero denominator to fixed point")
     }
-    
+
     // Handle negative denominators by making them positive
     // (the sign will be preserved in the numerator)
     if (temp < 0n) {
       temp = -temp
     }
-    
+
     while (temp > 1n) {
       if (temp % 10n !== 0n) {
         throw new Error(`Cannot convert ratio to fixed point: denominator ${this.q} is not a power of 10`)
@@ -232,7 +238,7 @@ export class RationalNumber implements Ratio {
       temp = temp / 10n
       decimals++
     }
-    
+
     return {
       amount: this.q < 0n ? -this.p : this.p,
       decimals
@@ -259,40 +265,40 @@ export class RationalNumber implements Ratio {
     if (this.q === 0n) {
       throw new Error("Division by zero")
     }
-    
+
     // Handle sign
     const negative = (this.p < 0n) !== (this.q < 0n)
     const numerator = this.p < 0n ? -this.p : this.p
     const denominator = this.q < 0n ? -this.q : this.q
-    
+
     // Integer part
     const integerPart = numerator / denominator
     let remainder = numerator % denominator
-    
+
     if (remainder === 0n) {
       return ((negative ? "-" : "") + integerPart.toString()) as DecimalString
     }
-    
+
     // Build decimal part
     let result = (negative ? "-" : "") + integerPart.toString() + "."
-    
+
     for (let i = 0n; i < precision && remainder !== 0n; i++) {
       remainder *= 10n
       const digit = remainder / denominator
       result += digit.toString()
       remainder = remainder % denominator
     }
-    
+
     // Remove trailing zeros
     while (result.endsWith("0") && result.includes(".")) {
       result = result.slice(0, -1)
     }
-    
+
     // Remove trailing decimal point if no fractional part remains
     if (result.endsWith(".")) {
       result = result.slice(0, -1)
     }
-    
+
     return result as DecimalString
   }
 
@@ -317,7 +323,7 @@ export class RationalNumber implements Ratio {
    */
   static fromJSON(json: any): RationalNumber {
     const parsed = RationalNumberJSONSchema.parse(json)
-    
+
     return new RationalNumber({
       p: BigInt(parsed.p),
       q: BigInt(parsed.q)
@@ -342,7 +348,7 @@ export function Rational(ratioOrStrOrP: Ratio | string | DecimalString | Rationa
   } else if (typeof ratioOrStrOrP === 'string') {
     // String parsing mode
     const stringType = getRationalStringType(ratioOrStrOrP)
-    
+
     if (stringType === 'fraction') {
       // Parse fraction format using utility function
       const ratio = parseFraction(ratioOrStrOrP)

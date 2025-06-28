@@ -98,11 +98,11 @@ describe('RationalNumber', () => {
     })
 
     it('should add positive and negative rationals correctly', () => {
-      // (1/2) + (-1/2) = (1 - 1)/2 = 0/2
+      // (1/2) + (-1/2) = (1 - 1)/2 = 0/2, simplified to 0/1
       const rational1 = new RationalNumber(oneHalf)
       const result = rational1.add(negativeOneHalf)
       expect(result.p).toBe(0n)
-      expect(result.q).toBe(4n)
+      expect(result.q).toBe(1n) // Automatically simplified from 0/2 to 0/1
     })
 
     it('should add with zero correctly', () => {
@@ -147,11 +147,11 @@ describe('RationalNumber', () => {
     })
 
     it('should subtract negative rationals correctly', () => {
-      // (1/2) - (-1/2) = (1*2 - 2*(-1))/(2*2) = (2 + 2)/4 = 4/4
+      // (1/2) - (-1/2) = (1*2 - 2*(-1))/(2*2) = (2 + 2)/4 = 4/4, simplified to 1/1
       const rational1 = new RationalNumber(oneHalf)
       const result = rational1.subtract(negativeOneHalf)
-      expect(result.p).toBe(4n)
-      expect(result.q).toBe(4n)
+      expect(result.p).toBe(1n) // Automatically simplified from 4/4 to 1/1
+      expect(result.q).toBe(1n)
     })
 
     it('should subtract zero correctly', () => {
