@@ -28,7 +28,28 @@ Popular libraries like [dinero.js](https://dinerojs.com/) are built on JavaScrip
 - **🔄 Immutable**: All operations return new instances, preventing accidental mutations
 - **✨ Ergonomic API**: Clean factory functions for creating numbers from strings
 
-## Quick Start 💰
+## Quick start 💰
+
+```typescript
+import { Money, Price } from '@your-org/cent'
+
+// Creation
+const usd = Money("$100.50")
+const btc = Money("0.5 BTC")
+
+// Arithmetic
+const total = usd.add(Money("$25.25"))  // $125.75
+
+// Conversion with precision preservation
+const price = new Price(Money("$50,000"), Money("1 BTC"))
+const converted = usd.convert(price)    // Exact BTC amount
+
+// Formatting
+usd.toString({ locale: "en-US", compact: true })  // "$100.50"
+btc.toString({ preferredUnit: "satoshi" })        // "50,000,000 sat"
+```
+
+### `Money()`
 
 The `Money()` factory function makes working with currencies simple:
 
