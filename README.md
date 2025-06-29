@@ -53,7 +53,9 @@ usd.toString({ locale: "en-US", compact: true })  // "$100.50"
 btc.toString({ preferredUnit: "satoshi" })        // "50,000,000 sat"
 ```
 
-### `Money()`
+## Core utils
+
+### `Money()` and the `Money` class
 
 The `Money()` factory function makes working with currencies simple:
 
@@ -88,35 +90,7 @@ const precise = Money('$100.12345')    // 5 decimal places preserved
 const microYen = Money('¥1000.001')    // Sub-yen precision
 ```
 
-**Symbol Priority**: When symbols are shared (like $ for multiple currencies), the most traded currency takes priority based on global trading volume: `$` → USD, `£` → GBP, `¥` → JPY. Use explicit currency codes for other currencies: `AUD 100`, `CAD 50`.
-
-### 🧮 Arbitrary precision math
-
-```typescript
-import { FixedPoint, Rational } from '@your-org/cent'
-
-const x = FixedPoint('125.50')
-const y = FixedPoint('0.875')
-
-// Arithmetic operations with fixed precision
-const product = x.multiply(y)
-console.log(product.toString()) // "109.812"
-
-// Create rational numbers from fractions or decimals
-const oneThird = Rational('1/3')
-const decimal = Rational('0.25')
-
-console.log(oneThird.toString()) // "1/3"
-console.log(decimal.toString()) // "1/4" (simplified)
-
-// Seamless conversion between types
-const fromRational = FixedPoint(oneThird.toDecimalString(6)) // 6 decimal places
-console.log(fromRational.toString()) // "0.333333"
-```
-
-## Core utils
-
-### `Money`
+**A note on symbol priority**: When symbols are shared (like $ for multiple currencies), the most traded currency takes priority based on global trading volume: `$` → USD, `£` → GBP, `¥` → JPY. Use explicit currency codes for other currencies: `AUD 100`, `CAD 50`.
 
 The `Money` class provides safe monetary operations with automatic precision handling:
 
@@ -171,7 +145,7 @@ const parts = precise.distribute(3, { distributeFractionalUnits: false })
 // Results: [$33.33, $33.33, $33.34, $0.00015] (change separated)
 ```
 
-## Math utilities
+## Math utilities 🧮
 
 `cent` comes with two flavors of arbitrary-precision math utilities.
 
@@ -386,6 +360,13 @@ try {
 }
 ```
 
+If you need division that would break out of what's possible to represent in
+fixed point, you can mix `FixedPointNumber` and `RationalNumber`.
+
+```typescript
+(new RationalNumber("1/3")).multiply(new FixedPointNumber(100n, 0n)) // 100/3
+```
+
 ## Use cases
 
 ### FinTech
@@ -411,14 +392,20 @@ const satoshiAmount = new Money({
 console.log(satoshiAmount.toString({ preferredUnit: 'satoshi' }))
 // "100,000,000 satoshis"
 
+satoshiAmount.equals(Money("1 BTC")) // true
+
 // ethereum with wei precision (18 decimals)
 const weiAmount = new Money({
   asset: ETH,
   amount: { amount: 1000000000000000000n, decimals: 18n } // 1.0 ETH
 })
+
+weiAmount.equals(Money("1 ETH") // true
+weiAmount.equals(Money("Ξ1.0")) // true
 ```
 
 ### Accounting & bookkeeping
+
 ```typescript
 // Allocate amounts without losing precision
 const revenue = Money("$12,345.67")
@@ -435,11 +422,11 @@ const [alice, bob, charlie] = bonus.distribute(3)
 // Handle fractional units for precision accounting
 const preciseAmount = Money("$1,000.00123") // High-precision amount
 const parts = preciseAmount.allocate([1, 1, 1], { distributeFractionalUnits: false })
-// Results: [$333.33, $333.33, $333.34, $0.00123] 
+// Results: [$333.33, $333.33, $333.34, $0.00123]
 // Main allocations clean, fractional $0.00123 can go to a separate ledger
 
 // Traditional concretization for currency sub-units
-const [main, change] = preciseAmount.concretize() 
+const [main, change] = preciseAmount.concretize()
 console.log(main.toString())   // "$1,000.00" (standard currency precision)
 console.log(change.toString()) // "$0.00123" (sub-unit precision)
 ```
