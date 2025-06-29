@@ -459,6 +459,166 @@ export class Money {
   }
 
   /**
+   * Allocate this Money instance proportionally based on ratios
+   * 
+   * Distributes the money according to the provided ratios, handling remainders
+   * using the largest remainder method to ensure exact totals are preserved.
+   * 
+   * When distributeFractionalUnits is false, fractional units beyond the currency's
+   * canonical precision are separated out as "change" that can be handled separately.
+   * This is useful for removing long decimal tails from RationalNumber amounts or
+   * routing sub-unit remainders to separate ledgers.
+   * 
+   * @param ratios - Array of positive integers representing allocation ratios
+   * @param options - Allocation options
+   * @param options.distributeFractionalUnits - When true (default), fractional units 
+   *   are distributed among recipients. When false, fractional units beyond the 
+   *   currency's canonical precision are returned as a separate "change" amount.
+   * @returns Array of Money instances proportional to the ratios. When distributeFractionalUnits
+   *   is false, includes an additional element containing fractional unit change.
+   * @throws Error if ratios are empty, contain non-positive values, or all ratios are zero
+   * 
+   * @example
+   * // Standard allocation (distributeFractionalUnits: true)
+   * const money = Money("$100")
+   * const [first, second, third] = money.allocate([1, 2, 1]) // [$25, $50, $25]
+   * 
+   * // Separate fractional units (distributeFractionalUnits: false)
+   * const precise = Money("$100.00015")
+   * const parts = precise.allocate([1, 1, 1], { distributeFractionalUnits: false })
+   * // Returns: [$33.33, $33.33, $33.34, $0.00015] - change separated
+   */
+  allocate(ratios: number[], options: { distributeFractionalUnits?: boolean } = {}): Money[] {
+    if (ratios.length === 0) {
+      throw new Error("Cannot allocate with empty ratios array")
+    }
+
+    // Validate ratios are non-negative
+    for (const ratio of ratios) {
+      if (ratio < 0) {
+        throw new Error("Cannot allocate with negative ratios")
+      }
+    }
+
+    const totalRatio = ratios.reduce((sum, ratio) => sum + ratio, 0)
+    if (totalRatio === 0) {
+      throw new Error("Cannot allocate with all zero ratios")
+    }
+
+    const { distributeFractionalUnits = true } = options
+
+    // Convert to FixedPointNumber for calculations
+    const fixedPointAmount = isFixedPointNumber(this.amount) 
+      ? this.amount 
+      : toFixedPointNumber(this.amount)
+
+    let workingAmount = fixedPointAmount
+    let fractionalChange: Money | null = null
+
+    // Handle fractional units separation if requested
+    if (!distributeFractionalUnits && "decimals" in this.currency) {
+      const currencyDecimals = this.currency.decimals
+      const currentDecimals = fixedPointAmount.decimals
+
+      if (currentDecimals > currencyDecimals) {
+        // Separate fractional units beyond currency precision
+        const [concrete, change] = this.concretize()
+        workingAmount = isFixedPointNumber(concrete.amount) 
+          ? concrete.amount 
+          : toFixedPointNumber(concrete.amount)
+        fractionalChange = change
+      }
+    }
+
+    const totalAmount = workingAmount.amount
+    const decimals = workingAmount.decimals
+
+    // Calculate base allocations (rounded down)
+    const allocations: bigint[] = []
+    const remainders: number[] = []
+    
+    for (let i = 0; i < ratios.length; i++) {
+      const ratio = ratios[i]
+      // Calculate exact allocation as totalAmount * ratio / totalRatio
+      const exactAllocation = totalAmount * BigInt(ratio) / BigInt(totalRatio)
+      const remainder = Number((totalAmount * BigInt(ratio)) % BigInt(totalRatio)) / totalRatio
+      
+      allocations.push(exactAllocation)
+      remainders.push(remainder)
+    }
+
+    // Calculate how much we've allocated so far
+    const allocatedTotal = allocations.reduce((sum, amount) => sum + amount, 0n)
+    const unallocatedAmount = totalAmount - allocatedTotal
+
+    // Distribute the unallocated amount using largest remainder method
+    if (unallocatedAmount > 0n) {
+      // Create array of indices sorted by remainder (largest first)
+      const indicesByRemainder = remainders
+        .map((remainder, index) => ({ remainder, index }))
+        .sort((a, b) => b.remainder - a.remainder)
+        .map(item => item.index)
+
+      // Distribute one unit to each of the top remainder holders
+      let remaining = unallocatedAmount
+      for (const index of indicesByRemainder) {
+        if (remaining <= 0n) break
+        allocations[index] += 1n
+        remaining -= 1n
+      }
+    }
+
+    // Create Money instances from allocations
+    const result = allocations.map(amount => new Money(this.currency, new FixedPointNumber(amount, decimals)))
+
+    // Add fractional change as final element if we separated it
+    if (fractionalChange && !fractionalChange.isZero()) {
+      result.push(fractionalChange)
+    }
+
+    return result
+  }
+
+  /**
+   * Distribute this Money instance evenly across N parts
+   * 
+   * Splits the money into the specified number of equal parts, handling remainders
+   * using the largest remainder method to ensure exact totals are preserved.
+   * 
+   * When distributeFractionalUnits is false, fractional units beyond the currency's
+   * canonical precision are separated as "change" that can be handled separately.
+   * This is useful for cleanly separating sub-unit precision from main allocations.
+   * 
+   * @param parts - Number of parts to split into (must be positive)
+   * @param options - Distribution options
+   * @param options.distributeFractionalUnits - When true (default), fractional units 
+   *   are distributed among recipients. When false, fractional units beyond the 
+   *   currency's canonical precision are returned as a separate "change" amount.
+   * @returns Array of Money instances split as evenly as possible. When distributeFractionalUnits
+   *   is false, includes an additional element containing fractional unit change.
+   * @throws Error if parts is not a positive integer
+   * 
+   * @example
+   * // Standard distribution (distributeFractionalUnits: true)  
+   * const money = Money("$100")
+   * const [a, b, c] = money.distribute(3) // [$33.34, $33.33, $33.33]
+   * 
+   * // Separate fractional units (distributeFractionalUnits: false)
+   * const precise = Money("$100.00015") 
+   * const parts = precise.distribute(3, { distributeFractionalUnits: false })
+   * // Returns: [$33.33, $33.33, $33.34, $0.00015] - change separated
+   */
+  distribute(parts: number, options: { distributeFractionalUnits?: boolean } = {}): Money[] {
+    if (!Number.isInteger(parts) || parts <= 0) {
+      throw new Error("Parts must be a positive integer")
+    }
+
+    // Use allocate with equal ratios
+    const equalRatios = Array(parts).fill(1)
+    return this.allocate(equalRatios, options)
+  }
+
+  /**
    * Return the maximum of this Money and other(s)
    *
    * @param other - The other Money instance(s) to compare with

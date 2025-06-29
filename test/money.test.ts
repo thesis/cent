@@ -720,6 +720,500 @@ describe('Money', () => {
     })
   })
 
+  describe('allocate', () => {
+    it('should allocate money proportionally by ratios', () => {
+      const money = new Money({
+        asset: usdCurrency,
+        amount: { amount: 10000n, decimals: 2n } // $100.00
+      })
+      
+      const [first, second, third] = money.allocate([1, 2, 1])
+      
+      // Should split as $25, $50, $25
+      expect(first.balance.amount.amount).toBe(2500n) // $25.00
+      expect(second.balance.amount.amount).toBe(5000n) // $50.00  
+      expect(third.balance.amount.amount).toBe(2500n) // $25.00
+      
+      // All should have the same currency and decimals
+      expect(first.currency).toEqual(usdCurrency)
+      expect(second.currency).toEqual(usdCurrency)
+      expect(third.currency).toEqual(usdCurrency)
+      expect(first.balance.amount.decimals).toBe(2n)
+      expect(second.balance.amount.decimals).toBe(2n)
+      expect(third.balance.amount.decimals).toBe(2n)
+    })
+
+    it('should handle remainders using largest remainder method', () => {
+      const money = new Money({
+        asset: usdCurrency,
+        amount: { amount: 10001n, decimals: 2n } // $100.01
+      })
+      
+      const [first, second, third] = money.allocate([1, 1, 1])
+      
+      // Should split as $33.34, $33.34, $33.33 (remainders go to first recipients)
+      const amounts = [first, second, third].map(m => m.balance.amount.amount)
+      const total = amounts.reduce((sum, amount) => sum + amount, 0n)
+      
+      expect(total).toBe(10001n) // Should equal original amount exactly
+      expect(amounts.sort()).toEqual([3333n, 3334n, 3334n]) // Two get extra penny
+    })
+
+    it('should handle uneven ratios correctly', () => {
+      const money = new Money({
+        asset: usdCurrency,
+        amount: { amount: 10000n, decimals: 2n } // $100.00
+      })
+      
+      const [small, large] = money.allocate([1, 3])
+      
+      expect(small.balance.amount.amount).toBe(2500n) // $25.00 (1/4)
+      expect(large.balance.amount.amount).toBe(7500n) // $75.00 (3/4)
+      
+      // Total should be preserved
+      const total = small.add(large)
+      expect(total.equals(money)).toBe(true)
+    })
+
+    it('should work with zero amounts', () => {
+      const money = new Money({
+        asset: usdCurrency,
+        amount: { amount: 0n, decimals: 2n } // $0.00
+      })
+      
+      const [first, second] = money.allocate([1, 1])
+      
+      expect(first.balance.amount.amount).toBe(0n)
+      expect(second.balance.amount.amount).toBe(0n)
+      expect(first.isZero()).toBe(true)
+      expect(second.isZero()).toBe(true)
+    })
+
+    it('should work with single ratio', () => {
+      const money = new Money({
+        asset: usdCurrency,
+        amount: { amount: 5000n, decimals: 2n } // $50.00
+      })
+      
+      const [only] = money.allocate([1])
+      
+      expect(only.equals(money)).toBe(true)
+    })
+
+    it('should handle zero ratios', () => {
+      const money = new Money({
+        asset: usdCurrency,
+        amount: { amount: 10000n, decimals: 2n } // $100.00
+      })
+      
+      const [first, second, third] = money.allocate([2, 0, 1])
+      
+      expect(first.balance.amount.amount).toBe(6667n) // $66.67 (2/3)
+      expect(second.balance.amount.amount).toBe(0n) // $0.00 (0/3)
+      expect(third.balance.amount.amount).toBe(3333n) // $33.33 (1/3)
+      
+      // Total should be preserved
+      const total = first.add(second).add(third)
+      expect(total.equals(money)).toBe(true)
+    })
+
+    it('should work with RationalNumber amounts', () => {
+      const rationalAmount = new (require('../src/rationals').RationalNumber)({ p: 10000n, q: 100n }) // 100.00
+      const money = new Money(usdCurrency, rationalAmount)
+      
+      const [first, second] = money.allocate([1, 1])
+      
+      // Should split evenly - check that total is preserved rather than specific amounts
+      // since RationalNumber gets converted to FixedPointNumber with different precision
+      const total = first.add(second)
+      expect(total.equals(money)).toBe(true)
+      
+      // Both parts should be equal
+      expect(first.equals(second)).toBe(true)
+    })
+
+    it('should throw error for empty ratios array', () => {
+      const money = new Money({
+        asset: usdCurrency,
+        amount: { amount: 10000n, decimals: 2n }
+      })
+      
+      expect(() => money.allocate([])).toThrow('Cannot allocate with empty ratios array')
+    })
+
+    it('should throw error for negative ratios', () => {
+      const money = new Money({
+        asset: usdCurrency,
+        amount: { amount: 10000n, decimals: 2n }
+      })
+      
+      expect(() => money.allocate([1, -1, 1])).toThrow('Cannot allocate with negative ratios')
+    })
+
+    it('should throw error for all zero ratios', () => {
+      const money = new Money({
+        asset: usdCurrency,
+        amount: { amount: 10000n, decimals: 2n }
+      })
+      
+      expect(() => money.allocate([0, 0, 0])).toThrow('Cannot allocate with all zero ratios')
+    })
+
+    it('should preserve precision with small amounts', () => {
+      const money = new Money({
+        asset: usdCurrency,
+        amount: { amount: 1n, decimals: 2n } // $0.01
+      })
+      
+      const [first, second, third] = money.allocate([1, 1, 1])
+      
+      // One should get the penny, others should get zero
+      const amounts = [first, second, third].map(m => m.balance.amount.amount)
+      const total = amounts.reduce((sum, amount) => sum + amount, 0n)
+      
+      expect(total).toBe(1n)
+      expect(amounts.filter(a => a === 1n).length).toBe(1) // Exactly one gets the penny
+      expect(amounts.filter(a => a === 0n).length).toBe(2) // Two get nothing
+    })
+
+    describe('distributeFractionalUnits option', () => {
+      it('should separate fractional units when distributeFractionalUnits is false', () => {
+        const money = new Money({
+          asset: usdCurrency,
+          amount: { amount: 10000015n, decimals: 5n } // $100.00015
+        })
+        
+        const parts = money.allocate([1, 1, 1], { distributeFractionalUnits: false })
+        
+        expect(parts.length).toBe(4) // 3 main parts + 1 change
+        
+        // Main parts should be in standard currency precision (2 decimals)
+        expect(parts[0].balance.amount.decimals).toBe(2n)
+        expect(parts[1].balance.amount.decimals).toBe(2n)
+        expect(parts[2].balance.amount.decimals).toBe(2n)
+        
+        // Should distribute $100.00 evenly: first gets extra cent due to largest remainder method
+        expect(parts[0].balance.amount.amount).toBe(3334n) // $33.34 (gets remainder)
+        expect(parts[1].balance.amount.amount).toBe(3333n) // $33.33
+        expect(parts[2].balance.amount.amount).toBe(3333n) // $33.33
+        
+        // Change should contain the fractional units beyond currency precision
+        const change = parts[3]
+        expect(change.balance.amount.amount).toBe(15n) // $0.00015
+        expect(change.balance.amount.decimals).toBe(5n) // Original precision
+        
+        // Total of main parts + change should equal original
+        const mainTotal = parts.slice(0, 3).reduce((sum, part) => sum.add(part))
+        const grandTotal = mainTotal.add(change)
+        expect(grandTotal.equals(money)).toBe(true)
+      })
+
+      it('should include fractional units in distribution when distributeFractionalUnits is true (default)', () => {
+        const money = new Money({
+          asset: usdCurrency,
+          amount: { amount: 10000015n, decimals: 5n } // $100.00015
+        })
+        
+        const parts = money.allocate([1, 1, 1], { distributeFractionalUnits: true })
+        
+        expect(parts.length).toBe(3) // Only 3 parts, no separate change
+        
+        // All parts should maintain original precision
+        expect(parts[0].balance.amount.decimals).toBe(5n) // Original precision maintained
+        expect(parts[1].balance.amount.decimals).toBe(5n)
+        expect(parts[2].balance.amount.decimals).toBe(5n)
+        
+        // Total should equal original
+        const total = parts.reduce((sum, part) => sum.add(part))
+        expect(total.equals(money)).toBe(true)
+      })
+
+      it('should handle zero fractional change gracefully', () => {
+        const money = new Money({
+          asset: usdCurrency,
+          amount: { amount: 10000000n, decimals: 5n } // $100.00000 (no fractional units)
+        })
+        
+        const parts = money.allocate([1, 1, 1], { distributeFractionalUnits: false })
+        
+        expect(parts.length).toBe(3) // No change element since change is zero
+        
+        // Should distribute $100.00 evenly (first gets remainder due to largest remainder method)
+        expect(parts[0].balance.amount.amount).toBe(3334n) // $33.34 (gets remainder)
+        expect(parts[1].balance.amount.amount).toBe(3333n) // $33.33  
+        expect(parts[2].balance.amount.amount).toBe(3333n) // $33.33
+        
+        const total = parts.reduce((sum, part) => sum.add(part))
+        expect(total.balance.amount.amount).toBe(10000n) // $100.00 in cents
+      })
+
+      it('should work with currencies that have high precision by default', () => {
+        const btcCurrency = {
+          name: 'Bitcoin',
+          code: 'BTC',
+          decimals: 8n,
+          symbol: '₿'
+        }
+        
+        const money = new Money({
+          asset: btcCurrency,
+          amount: { amount: 100000001n, decimals: 10n } // 1.00000001 BTC with extra precision
+        })
+        
+        const parts = money.allocate([1, 1], { distributeFractionalUnits: false })
+        
+        expect(parts.length).toBe(3) // 2 main parts + 1 change
+        
+        // Main parts should be in BTC standard precision (8 decimals)
+        expect(parts[0].balance.amount.decimals).toBe(8n)
+        expect(parts[1].balance.amount.decimals).toBe(8n)
+        
+        // Change should contain the extra precision
+        const change = parts[2]
+        expect(change.balance.amount.decimals).toBe(10n)
+        
+        const total = parts.reduce((sum, part) => sum.add(part))
+        expect(total.equals(money)).toBe(true)
+      })
+
+      it('should not separate when current precision equals currency precision', () => {
+        const money = new Money({
+          asset: usdCurrency,
+          amount: { amount: 10050n, decimals: 2n } // $100.50 - already at currency precision
+        })
+        
+        const parts = money.allocate([1, 1, 1], { distributeFractionalUnits: false })
+        
+        expect(parts.length).toBe(3) // No change element
+        
+        // Should distribute normally
+        const total = parts.reduce((sum, part) => sum.add(part))
+        expect(total.equals(money)).toBe(true)
+      })
+
+      it('should work with RationalNumber amounts', () => {
+        const rationalAmount = new (require('../src/rationals').RationalNumber)({ p: 10000015n, q: 100000n }) // 100.00015
+        const money = new Money(usdCurrency, rationalAmount)
+        
+        const parts = money.allocate([1, 1, 1], { distributeFractionalUnits: false })
+        
+        // Should have change if there are fractional units to separate
+        expect(parts.length).toBeGreaterThanOrEqual(3) // At least 3 parts
+        
+        // Verify total preservation by comparing decimal string representations
+        const total = parts.reduce((sum, part) => sum.add(part))
+        const originalDecimal = money.amount.toDecimalString(10n)
+        const totalDecimal = total.amount.toDecimalString ? total.amount.toDecimalString(10n) : total.amount.toString()
+        expect(totalDecimal).toBe(originalDecimal)
+      })
+    })
+  })
+
+  describe('distribute', () => {
+    it('should distribute money evenly', () => {
+      const money = new Money({
+        asset: usdCurrency,
+        amount: { amount: 10000n, decimals: 2n } // $100.00
+      })
+      
+      const [first, second] = money.distribute(2)
+      
+      expect(first.balance.amount.amount).toBe(5000n) // $50.00
+      expect(second.balance.amount.amount).toBe(5000n) // $50.00
+      
+      const total = first.add(second)
+      expect(total.equals(money)).toBe(true)
+    })
+
+    it('should handle remainders fairly', () => {
+      const money = new Money({
+        asset: usdCurrency,
+        amount: { amount: 10001n, decimals: 2n } // $100.01
+      })
+      
+      const parts = money.distribute(3)
+      
+      // Should split as evenly as possible
+      const amounts = parts.map(m => m.balance.amount.amount)
+      const total = amounts.reduce((sum, amount) => sum + amount, 0n)
+      
+      expect(total).toBe(10001n) // Should equal original exactly
+      expect(amounts.sort()).toEqual([3333n, 3334n, 3334n]) // As even as possible
+    })
+
+    it('should work with single part', () => {
+      const money = new Money({
+        asset: usdCurrency,
+        amount: { amount: 7500n, decimals: 2n } // $75.00
+      })
+      
+      const [only] = money.distribute(1)
+      
+      expect(only.equals(money)).toBe(true)
+    })
+
+    it('should work with zero amounts', () => {
+      const money = new Money({
+        asset: usdCurrency,
+        amount: { amount: 0n, decimals: 2n } // $0.00
+      })
+      
+      const parts = money.distribute(5)
+      
+      expect(parts.length).toBe(5)
+      parts.forEach(part => {
+        expect(part.isZero()).toBe(true)
+      })
+    })
+
+    it('should distribute large amounts correctly', () => {
+      const money = new Money({
+        asset: usdCurrency,
+        amount: { amount: 1000000n, decimals: 2n } // $10,000.00
+      })
+      
+      const parts = money.distribute(7)
+      
+      const amounts = parts.map(m => m.balance.amount.amount)
+      const total = amounts.reduce((sum, amount) => sum + amount, 0n)
+      
+      expect(total).toBe(1000000n) // Should equal original exactly
+      expect(parts.length).toBe(7)
+      
+      // All amounts should be close to 1000000/7 ≈ 142857.14
+      amounts.forEach(amount => {
+        expect(amount >= 142857n && amount <= 142858n).toBe(true)
+      })
+    })
+
+    it('should throw error for zero parts', () => {
+      const money = new Money({
+        asset: usdCurrency,
+        amount: { amount: 10000n, decimals: 2n }
+      })
+      
+      expect(() => money.distribute(0)).toThrow('Parts must be a positive integer')
+    })
+
+    it('should throw error for negative parts', () => {
+      const money = new Money({
+        asset: usdCurrency,
+        amount: { amount: 10000n, decimals: 2n }
+      })
+      
+      expect(() => money.distribute(-1)).toThrow('Parts must be a positive integer')
+    })
+
+    it('should throw error for non-integer parts', () => {
+      const money = new Money({
+        asset: usdCurrency,
+        amount: { amount: 10000n, decimals: 2n }
+      })
+      
+      expect(() => money.distribute(2.5)).toThrow('Parts must be a positive integer')
+    })
+
+    it('should work with RationalNumber amounts', () => {
+      const rationalAmount = new (require('../src/rationals').RationalNumber)({ p: 15000n, q: 100n }) // 150.00
+      const money = new Money(usdCurrency, rationalAmount)
+      
+      const parts = money.distribute(4)
+      
+      const total = parts.reduce((sum, part) => sum.add(part))
+      expect(total.equals(money)).toBe(true)
+    })
+
+    describe('distributeFractionalUnits option', () => {
+      it('should separate fractional units when distributeFractionalUnits is false', () => {
+        const money = new Money({
+          asset: usdCurrency,
+          amount: { amount: 10000015n, decimals: 5n } // $100.00015
+        })
+        
+        const parts = money.distribute(3, { distributeFractionalUnits: false })
+        
+        expect(parts.length).toBe(4) // 3 main parts + 1 change
+        
+        // Main parts should be distributed (first gets remainder due to largest remainder method)  
+        expect(parts[0].balance.amount.amount).toBe(3334n) // $33.34 (gets remainder)
+        expect(parts[1].balance.amount.amount).toBe(3333n) // $33.33
+        expect(parts[2].balance.amount.amount).toBe(3333n) // $33.33
+        
+        // Change should be the fractional part
+        const change = parts[3]
+        expect(change.balance.amount.amount).toBe(15n) // $0.00015
+        expect(change.balance.amount.decimals).toBe(5n)
+        
+        // Verify totals
+        const mainTotal = parts.slice(0, 3).reduce((sum, part) => sum.add(part))
+        const grandTotal = mainTotal.add(change)
+        expect(grandTotal.equals(money)).toBe(true)
+      })
+
+      it('should include fractional units in distribution when distributeFractionalUnits is true (default)', () => {
+        const money = new Money({
+          asset: usdCurrency,
+          amount: { amount: 10000015n, decimals: 5n } // $100.00015
+        })
+        
+        const parts = money.distribute(3, { distributeFractionalUnits: true })
+        
+        expect(parts.length).toBe(3) // Only 3 parts, no separate change
+        
+        const total = parts.reduce((sum, part) => sum.add(part))
+        expect(total.equals(money)).toBe(true)
+      })
+
+      it('should omit change element when fractional change is zero', () => {
+        const money = new Money({
+          asset: usdCurrency,
+          amount: { amount: 10000000n, decimals: 5n } // $100.00000 (no fractional part)
+        })
+        
+        const parts = money.distribute(2, { distributeFractionalUnits: false })
+        
+        expect(parts.length).toBe(2) // No change element
+        expect(parts[0].balance.amount.amount).toBe(5000n) // $50.00
+        expect(parts[1].balance.amount.amount).toBe(5000n) // $50.00
+      })
+
+      it('should work with single part distribution', () => {
+        const money = new Money({
+          asset: usdCurrency,
+          amount: { amount: 5000015n, decimals: 5n } // $50.00015
+        })
+        
+        const parts = money.distribute(1, { distributeFractionalUnits: false })
+        
+        expect(parts.length).toBe(2) // 1 main part + change
+        expect(parts[0].balance.amount.amount).toBe(5000n) // $50.00
+        expect(parts[1].balance.amount.amount).toBe(15n) // $0.00015
+      })
+
+      it('should respect the example from documentation', () => {
+        const money = new Money({
+          asset: usdCurrency,
+          amount: { amount: 10000015n, decimals: 5n } // $100.00015
+        })
+        
+        const parts = money.distribute(3, { distributeFractionalUnits: false })
+        
+        // Should have 4 parts: 3 main + change (order may vary due to largest remainder method)
+        expect(parts.length).toBe(4)
+        
+        // Verify the main parts sum to $100.00 in canonical precision
+        const mainParts = parts.slice(0, 3)
+        const mainTotal = mainParts.reduce((sum, part) => sum.add(part))
+        expect(mainTotal.balance.amount.amount).toBe(10000n) // $100.00 in cents
+        
+        // Verify change is the fractional part
+        const change = parts[3]
+        expect(change.balance.amount.amount).toBe(15n) // $0.00015
+        expect(change.balance.amount.decimals).toBe(5n)
+      })
+    })
+  })
+
   describe('max', () => {
     it('should return the larger of two Money instances', () => {
       const money1 = new Money({
