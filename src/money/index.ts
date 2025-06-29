@@ -1,10 +1,21 @@
 import { z } from "zod"
-import { AssetAmount, FixedPoint, RoundingMode } from "../types"
+import { AssetAmount, FixedPoint, RoundingMode, Currency } from "../types"
+import { MoneyAmount } from "./types"
 import { FixedPointNumber, FixedPointJSONSchema } from "../fixed-point"
+import { RationalNumber, RationalNumberJSONSchema } from "../rationals"
 import { assetsEqual } from "../assets"
 import { DecimalStringSchema } from "../decimal-strings"
 import { NonNegativeBigIntStringSchema } from "../validation-schemas"
 import { parseMoneyString } from "./parsing"
+import { isOnlyFactorsOf2And5 } from "../math-utils"
+import { 
+  isFixedPointNumber, 
+  isRationalNumber, 
+  toFixedPointNumber, 
+  isZero as isMoneyAmountZero,
+  isPositive as isMoneyAmountPositive,
+  isNegative as isMoneyAmountNegative
+} from "./utils"
 
 // Extend Intl.NumberFormatOptions to include roundingMode for older TypeScript versions
 interface NumberFormatOptionsWithRounding extends Intl.NumberFormatOptions {
@@ -48,7 +59,7 @@ const FungibleAssetJSONSchema = AssetJSONSchema.extend({
     .union([
       z.string(),
       z.array(z.string()),
-      z.record(z.number(), z.union([z.string(), z.array(z.string())])),
+      z.record(z.string(), z.union([z.string(), z.array(z.string())])),
     ])
     .optional(),
 })
@@ -65,29 +76,71 @@ const AnyAssetJSONSchema = z.union([
   AssetJSONSchema,
 ])
 
+// Schema for MoneyAmount (union of FixedPointNumber and RationalNumber)
+// Type is inferred from structure: {amount, decimals} vs {p, q}
+const MoneyAmountJSONSchema = z.union([
+  FixedPointJSONSchema,  // {amount: string, decimals: string}
+  RationalNumberJSONSchema  // {p: string, q: string}
+])
+
 // Schema for the complete Money JSON structure
 export const MoneyJSONSchema = z.object({
-  asset: AnyAssetJSONSchema,
-  amount: FixedPointJSONSchema,
+  currency: AnyAssetJSONSchema,
+  amount: MoneyAmountJSONSchema,
 })
 
 export class Money {
-  readonly balance: AssetAmount
+  readonly currency: Currency
+  readonly amount: MoneyAmount
 
   /**
    * Create a new Money instance
    *
+   * @param currency - The currency for this money
+   * @param amount - The amount as either FixedPointNumber or RationalNumber
+   */
+  constructor(currency: Currency, amount: MoneyAmount)
+  /**
+   * Create a new Money instance (backward compatibility)
+   *
    * @param balance - The asset amount balance
    */
-  constructor(balance: AssetAmount) {
-    this.balance = balance
+  constructor(balance: AssetAmount)
+  constructor(currencyOrBalance: Currency | AssetAmount, amount?: MoneyAmount) {
+    if (amount !== undefined) {
+      // New constructor: (currency, amount)
+      this.currency = currencyOrBalance as Currency
+      this.amount = amount
+    } else {
+      // Legacy constructor: (balance)
+      const balance = currencyOrBalance as AssetAmount
+      this.currency = balance.asset as Currency
+      this.amount = new FixedPointNumber(balance.amount.amount, balance.amount.decimals)
+    }
   }
 
   /**
-   * Get the asset for this Money instance (convenience getter)
+   * Get the asset for this Money instance (convenience getter for backward compatibility)
    */
   get asset() {
-    return this.balance.asset
+    return this.currency
+  }
+
+  /**
+   * Get the balance as AssetAmount for backward compatibility
+   */
+  get balance(): AssetAmount {
+    const fixedPoint = isFixedPointNumber(this.amount) 
+      ? this.amount 
+      : toFixedPointNumber(this.amount)
+    
+    return {
+      asset: this.currency,
+      amount: {
+        amount: fixedPoint.amount,
+        decimals: fixedPoint.decimals
+      }
+    }
   }
 
   /**
@@ -98,29 +151,29 @@ export class Money {
    * @throws Error if the assets are not the same type
    */
   add(other: Money | AssetAmount): Money {
-    const otherAmount = other instanceof Money ? other.balance : other
+    const otherMoney = other instanceof Money ? other : new Money(other)
 
-    if (!assetsEqual(this.balance.asset, otherAmount.asset)) {
+    if (!assetsEqual(this.currency, otherMoney.currency)) {
       throw new Error("Cannot add Money with different asset types")
     }
 
-    const thisFixedPoint = new FixedPointNumber(
-      this.balance.amount.amount,
-      this.balance.amount.decimals,
-    )
-    const otherFixedPoint = new FixedPointNumber(
-      otherAmount.amount.amount,
-      otherAmount.amount.decimals,
-    )
-    const result = thisFixedPoint.add(otherFixedPoint)
+    // If both are FixedPointNumber, use fast path
+    if (isFixedPointNumber(this.amount) && isFixedPointNumber(otherMoney.amount)) {
+      const result = this.amount.add(otherMoney.amount)
+      return new Money(this.currency, result)
+    }
 
-    return new Money({
-      asset: this.balance.asset,
-      amount: {
-        amount: result.amount,
-        decimals: result.decimals,
-      },
-    })
+    // If either is RationalNumber, convert both to RationalNumber and add
+    const thisRational = isRationalNumber(this.amount) 
+      ? this.amount 
+      : new RationalNumber({ p: this.amount.amount, q: this.amount.q })
+      
+    const otherRational = isRationalNumber(otherMoney.amount)
+      ? otherMoney.amount
+      : new RationalNumber({ p: otherMoney.amount.amount, q: otherMoney.amount.q })
+
+    const result = thisRational.add(otherRational)
+    return new Money(this.currency, result)
   }
 
   /**
@@ -131,29 +184,29 @@ export class Money {
    * @throws Error if the assets are not the same type
    */
   subtract(other: Money | AssetAmount): Money {
-    const otherAmount = other instanceof Money ? other.balance : other
+    const otherMoney = other instanceof Money ? other : new Money(other)
 
-    if (!assetsEqual(this.balance.asset, otherAmount.asset)) {
+    if (!assetsEqual(this.currency, otherMoney.currency)) {
       throw new Error("Cannot subtract Money with different asset types")
     }
 
-    const thisFixedPoint = new FixedPointNumber(
-      this.balance.amount.amount,
-      this.balance.amount.decimals,
-    )
-    const otherFixedPoint = new FixedPointNumber(
-      otherAmount.amount.amount,
-      otherAmount.amount.decimals,
-    )
-    const result = thisFixedPoint.subtract(otherFixedPoint)
+    // If both are FixedPointNumber, use fast path
+    if (isFixedPointNumber(this.amount) && isFixedPointNumber(otherMoney.amount)) {
+      const result = this.amount.subtract(otherMoney.amount)
+      return new Money(this.currency, result)
+    }
 
-    return new Money({
-      asset: this.balance.asset,
-      amount: {
-        amount: result.amount,
-        decimals: result.decimals,
-      },
-    })
+    // If either is RationalNumber, convert both to RationalNumber and subtract
+    const thisRational = isRationalNumber(this.amount) 
+      ? this.amount 
+      : new RationalNumber({ p: this.amount.amount, q: this.amount.q })
+      
+    const otherRational = isRationalNumber(otherMoney.amount)
+      ? otherMoney.amount
+      : new RationalNumber({ p: otherMoney.amount.amount, q: otherMoney.amount.q })
+
+    const result = thisRational.subtract(otherRational)
+    return new Money(this.currency, result)
   }
 
   /**
@@ -240,7 +293,7 @@ export class Money {
    * @returns true if the amount is zero, false otherwise
    */
   isZero(): boolean {
-    return this.balance.amount.amount === 0n
+    return isMoneyAmountZero(this.amount)
   }
 
   /**
@@ -353,7 +406,7 @@ export class Money {
    * @returns true if the amount is positive, false otherwise
    */
   isPositive(): boolean {
-    return this.balance.amount.amount > 0n
+    return isMoneyAmountPositive(this.amount)
   }
 
   /**
@@ -362,7 +415,7 @@ export class Money {
    * @returns true if the amount is negative, false otherwise
    */
   isNegative(): boolean {
-    return this.balance.amount.amount < 0n
+    return isMoneyAmountNegative(this.amount)
   }
 
   /**
@@ -470,7 +523,7 @@ export class Money {
   /**
    * Serialize this Money instance to JSON
    *
-   * @returns A JSON-serializable object representing the AssetAmount
+   * @returns A JSON-serializable object with currency and amount
    */
   toJSON(): any {
     // Helper function to serialize any value, converting bigints to strings
@@ -491,12 +544,14 @@ export class Money {
       return value
     }
 
+    // Serialize amount directly based on type - structure determines type
+    const amountData = isFixedPointNumber(this.amount)
+      ? this.amount.toJSON()  // {amount: string, decimals: string}
+      : this.amount.toJSON()  // {p: string, q: string}
+
     return {
-      asset: serializeValue(this.balance.asset),
-      amount: new FixedPointNumber(
-        this.balance.amount.amount,
-        this.balance.amount.decimals,
-      ).toJSON(),
+      currency: serializeValue(this.currency),
+      amount: amountData,
     }
   }
 
@@ -507,22 +562,29 @@ export class Money {
    * @returns true if both Money instances have the same asset and amount, false otherwise
    */
   equals(other: Money): boolean {
-    // Check if assets are equal
-    if (!assetsEqual(this.balance.asset, other.balance.asset)) {
+    // Check if currencies are equal
+    if (!assetsEqual(this.currency, other.currency)) {
       return false
     }
 
-    // Check if amounts are equal
-    const thisFixedPoint = new FixedPointNumber(
-      this.balance.amount.amount,
-      this.balance.amount.decimals,
-    )
-    const otherFixedPoint = new FixedPointNumber(
-      other.balance.amount.amount,
-      other.balance.amount.decimals,
-    )
+    // If both are the same type, use direct comparison
+    if ((isFixedPointNumber(this.amount) && isFixedPointNumber(other.amount))) {
+      return this.amount.equals(other.amount)
+    }
+    
+    if ((isRationalNumber(this.amount) && isRationalNumber(other.amount))) {
+      return this.amount.p === other.amount.p && this.amount.q === other.amount.q
+    }
 
-    return thisFixedPoint.equals(otherFixedPoint)
+    // Mixed types - convert both to comparable decimal strings
+    const thisDecimal = isFixedPointNumber(this.amount) 
+      ? this.amount.toString() 
+      : this.amount.toDecimalString(50n)
+    const otherDecimal = isFixedPointNumber(other.amount)
+      ? other.amount.toString()
+      : other.amount.toDecimalString(50n)
+    
+    return thisDecimal === otherDecimal
   }
 
   /**
@@ -533,30 +595,52 @@ export class Money {
    * @throws Error if the JSON data is invalid
    */
   static fromJSON(json: any): Money {
+    // Check if this is the old format (has 'asset' instead of 'currency')
+    if ('asset' in json && !('currency' in json)) {
+      // Old format compatibility
+      const deserializeAsset = (asset: any): any => {
+        const result: any = { ...asset }
+        if ("decimals" in result) {
+          result.decimals = BigInt(result.decimals)
+        }
+        return result
+      }
+
+      const asset = deserializeAsset(json.asset)
+      const amount = FixedPointNumber.fromJSON(json.amount)
+
+      return new Money({
+        asset,
+        amount: {
+          amount: amount.amount,
+          decimals: amount.decimals,
+        },
+      })
+    }
+
+    // New format
     const parsed = MoneyJSONSchema.parse(json)
 
-    // Helper function to deserialize asset, converting string bigints back to bigints
-    const deserializeAsset = (asset: any): any => {
-      const result: any = { ...asset }
+    // Helper function to deserialize currency, converting string bigints back to bigints
+    const deserializeCurrency = (currency: any): Currency => {
+      const result: any = { ...currency }
 
       // Convert decimals back to bigint if present (FungibleAsset/Currency)
       if ("decimals" in result) {
         result.decimals = BigInt(result.decimals)
       }
 
-      return result
+      return result as Currency
     }
 
-    const asset = deserializeAsset(parsed.asset)
-    const amount = FixedPointNumber.fromJSON(parsed.amount)
+    const currency = deserializeCurrency(parsed.currency)
+    
+    // Deserialize amount based on structure - infer type from fields
+    const amount = "amount" in parsed.amount && "decimals" in parsed.amount
+      ? FixedPointNumber.fromJSON(parsed.amount)  // {amount, decimals} -> FixedPointNumber
+      : RationalNumber.fromJSON(parsed.amount)    // {p, q} -> RationalNumber
 
-    return new Money({
-      asset,
-      amount: {
-        amount: amount.amount,
-        decimals: amount.decimals,
-      },
-    })
+    return new Money(currency, amount)
   }
 
   /**
@@ -567,6 +651,67 @@ export class Money {
    */
   toString(options: MoneyToStringOptions = {}): string {
     return formatMoney(this, options)
+  }
+
+  /**
+   * Convert this Money instance to another currency using a price or exchange rate
+   * 
+   * Uses lossless conversion when possible (when price denominators only contain factors of 2 and 5).
+   * Falls back to precision-preserving RationalNumber arithmetic when exact division isn't possible.
+   * 
+   * @param price - Price or ExchangeRate to use for conversion
+   * @param options - Conversion options (reserved for future use)
+   * @returns A new Money instance in the target currency
+   * @throws Error if conversion is not possible or currencies don't match
+   * 
+   * @example
+   * const usd = Money("$100")
+   * const btcPrice = new Price(Money("$50,000"), Money("1 BTC"))
+   * const btc = usd.convert(btcPrice) // Returns Money with BTC amount
+   */
+  convert(price: import("../prices").Price | import("../exchange-rates").ExchangeRate, options?: any): Money {
+    // Get the price amounts - both Price and ExchangeRate have amounts array
+    const [amount1, amount2] = price.amounts
+    
+    // Convert AssetAmount to Money for easier handling
+    const money1 = new Money(amount1)
+    const money2 = new Money(amount2)
+    
+    // Determine conversion direction
+    let fromMoney: Money, toMoney: Money
+    if (assetsEqual(this.currency, money1.currency)) {
+      fromMoney = money1
+      toMoney = money2
+    } else if (assetsEqual(this.currency, money2.currency)) {
+      fromMoney = money2  
+      toMoney = money1
+    } else {
+      throw new Error(`Cannot convert ${this.currency.code || this.currency.name} using price with currencies ${money1.currency.code || money1.currency.name} and ${money2.currency.code || money2.currency.name}`)
+    }
+    
+    // TODO: Implement lossless division when FixedPointNumber.divide() is fixed
+    // For now, always use RationalNumber arithmetic for precision
+    
+    // Precision-preserving path: use RationalNumber arithmetic
+    const thisRational = isRationalNumber(this.amount) 
+      ? this.amount 
+      : new RationalNumber({ p: this.amount.amount, q: 10n ** this.amount.decimals })
+    
+    const toRational = isRationalNumber(toMoney.amount)
+      ? toMoney.amount 
+      : new RationalNumber({ p: toMoney.amount.amount, q: 10n ** toMoney.amount.decimals })
+      
+    const fromRational = isRationalNumber(fromMoney.amount)
+      ? fromMoney.amount
+      : new RationalNumber({ p: fromMoney.amount.amount, q: 10n ** fromMoney.amount.decimals })
+    
+    // Calculate: thisRational * (toRational / fromRational)
+    // Which is: thisRational * toRational * (1 / fromRational)
+    // Which is: thisRational * toRational * (q / p) of fromRational
+    const rate = new RationalNumber({ p: toRational.p * fromRational.q, q: toRational.q * fromRational.p })
+    const result = thisRational.multiply(rate)
+    
+    return new Money(toMoney.currency, result)
   }
 }
 
@@ -608,14 +753,19 @@ function formatMoney(
     roundingMode,
   } = options
 
-  // Determine if we should use ISO 4217 formatting
-  const useIsoFormatting = shouldUseIsoFormatting(money.balance.asset)
+  // Convert RationalNumber to FixedPointNumber for formatting
+  const formattingMoney = isRationalNumber(money.amount)
+    ? new Money(money.currency, toFixedPointNumber(money.amount))
+    : money
+
+  // Determine if we should use ISO 4217 formatting  
+  const useIsoFormatting = shouldUseIsoFormatting(formattingMoney.currency)
 
   if (useIsoFormatting) {
-    return formatWithIntlCurrency(money, locale, compact, maxDecimals, roundingMode)
+    return formatWithIntlCurrency(formattingMoney, locale, compact, maxDecimals, roundingMode)
   }
   return formatWithCustomFormatting(
-    money,
+    formattingMoney,
     locale,
     compact,
     maxDecimals,
@@ -652,20 +802,17 @@ export function formatWithIntlCurrency(
   maxDecimals?: number | bigint,
   roundingMode?: RoundingMode,
 ): string {
-  const fp = new FixedPointNumber(
-    money.balance.amount.amount,
-    money.balance.amount.decimals,
-  )
+  // Money should have FixedPointNumber amount here due to formatting conversion
+  const fp = money.amount as FixedPointNumber
   const decimalString = fixedPointToDecimalString(fp)
 
   // Get currency code for ISO formatting
-  const currencyCode =
-    "code" in money.balance.asset ? money.balance.asset.code : "XXX"
+  const currencyCode = "code" in money.currency ? money.currency.code : "XXX"
 
   // Determine decimal places
   const assetDecimals =
-    "decimals" in money.balance.asset 
-      ? safeNumberFromBigInt(money.balance.asset.decimals, "Asset decimal places")
+    "decimals" in money.currency 
+      ? safeNumberFromBigInt(money.currency.decimals, "Asset decimal places")
       : 2
   const finalMaxDecimals =
     maxDecimals !== undefined
@@ -690,8 +837,8 @@ export function formatWithIntlCurrency(
 
   const formatter = new Intl.NumberFormat(normalizeLocale(locale), formatterOptions)
 
-  // Use decimal string directly to avoid precision loss
-  return formatter.format(decimalString as string)
+  // Convert decimal string to number for formatting
+  return formatter.format(parseFloat(decimalString))
 }
 
 /**
@@ -723,8 +870,8 @@ export function formatWithCustomFormatting(
 
   // Determine decimal places
   const assetDecimals =
-    "decimals" in money.balance.asset 
-      ? safeNumberFromBigInt(money.balance.asset.decimals, "Asset decimal places")
+    "decimals" in money.currency 
+      ? safeNumberFromBigInt(money.currency.decimals, "Asset decimal places")
       : 2
   const finalMaxDecimals =
     maxDecimals !== undefined 
@@ -746,17 +893,17 @@ export function formatWithCustomFormatting(
 
   const formatter = new Intl.NumberFormat(normalizeLocale(locale), formatterOptions)
 
-  // Use decimal string directly to avoid precision loss
-  const formattedNumber = formatter.format(decimalString as string)
+  // Convert decimal string to number for formatting
+  const formattedNumber = formatter.format(parseFloat(decimalString))
 
   // Handle symbol vs code formatting
-  if (preferSymbol && "symbol" in money.balance.asset && !unitSuffix) {
-    return `${money.balance.asset.symbol}${formattedNumber}`
+  if (preferSymbol && "symbol" in money.currency && !unitSuffix) {
+    return `${money.currency.symbol}${formattedNumber}`
   }
 
   // Add currency code or unit suffix
   const currencyPart = getCurrencyDisplayPart(
-    money.balance.asset,
+    money.currency,
     preferSymbol,
     unitSuffix,
   )
@@ -774,22 +921,20 @@ export function convertToPreferredUnit(
   money: Money,
   preferredUnit?: string,
 ): { decimalString: string; unitSuffix?: string } {
-  const fp = new FixedPointNumber(
-    money.balance.amount.amount,
-    money.balance.amount.decimals,
-  )
+  // Money should have FixedPointNumber amount here due to formatting conversion
+  const fp = money.amount as FixedPointNumber
   let decimalString = fixedPointToDecimalString(fp)
   let unitSuffix: string | undefined
 
   if (
     preferredUnit &&
-    "fractionalUnit" in money.balance.asset &&
-    money.balance.asset.fractionalUnit
+    "fractionalUnit" in money.currency &&
+    money.currency.fractionalUnit
   ) {
-    const { fractionalUnit } = money.balance.asset
+    const { fractionalUnit } = money.currency
     const assetDecimals =
-      "decimals" in money.balance.asset
-        ? safeNumberFromBigInt(money.balance.asset.decimals, "Asset decimal places")
+      "decimals" in money.currency
+        ? safeNumberFromBigInt(money.currency.decimals, "Asset decimal places")
         : 0
     const unitInfo = findFractionalUnitInfo(
       fractionalUnit,

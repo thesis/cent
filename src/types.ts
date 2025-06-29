@@ -53,6 +53,7 @@ export type AssetAmount = {
   amount: FixedPoint
 }
 
+
 /**
  * Rounding modes for number formatting, corresponding to Intl.NumberFormat roundingMode options
  */

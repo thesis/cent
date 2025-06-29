@@ -120,6 +120,7 @@ export class FixedPointNumber implements FixedPoint, Ratio {
     )
   }
 
+
   /**
    * Divide this fixed-point number by another value and return the result.
    * Only allows division by values that are composed only of factors of 2 and 5,

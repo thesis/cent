@@ -914,7 +914,7 @@ describe('Money', () => {
       const json = money.toJSON()
       
       expect(json).toEqual({
-        asset: {
+        currency: {
           name: 'US Dollar',
           code: 'USD',
           decimals: '2',
@@ -942,7 +942,7 @@ describe('Money', () => {
       const json = money.toJSON()
       
       expect(json).toEqual({
-        asset: {
+        currency: {
           name: 'Bitcoin',
           code: 'BTC',
           decimals: '8',
@@ -970,7 +970,7 @@ describe('Money', () => {
       const json = money.toJSON()
       
       expect(json).toEqual({
-        asset: {
+        currency: {
           name: 'Bitcoin',
           code: 'BTC',
           decimals: '8',
@@ -998,7 +998,7 @@ describe('Money', () => {
       const json = money.toJSON()
       
       expect(json).toEqual({
-        asset: {
+        currency: {
           name: 'Bitcoin',
           code: 'BTC',
           decimals: '8',
@@ -1021,7 +1021,7 @@ describe('Money', () => {
       const json = money.toJSON()
       
       expect(json).toEqual({
-        asset: {
+        currency: {
           name: 'Basic Asset'
         },
         amount: {
@@ -1068,7 +1068,7 @@ describe('Money', () => {
       const jsonString = JSON.stringify(money)
       const parsed = JSON.parse(jsonString)
       
-      expect(parsed.asset.decimals).toBe('2')
+      expect(parsed.currency.decimals).toBe('2')
       expect(parsed.amount.amount).toBe('100')
       expect(parsed.amount.decimals).toBe('2')
     })
@@ -1240,7 +1240,7 @@ describe('Money', () => {
 
     it('should throw error for invalid asset structure', () => {
       const json = {
-        asset: { code: 'TST', decimals: '2' }, // missing name
+        currency: { code: 'TST', decimals: '2' }, // missing name
         amount: { amount: "100", decimals: "2" }
       }
       
@@ -1249,7 +1249,7 @@ describe('Money', () => {
 
     it('should throw error for invalid amount structure', () => {
       const json = {
-        asset: { name: 'Test', code: 'TST', decimals: '2' },
+        currency: { name: 'Test', code: 'TST', decimals: '2' },
         amount: { amount: 100, decimals: "2" } // amount should be string
       }
       
@@ -1268,7 +1268,7 @@ describe('Money', () => {
   describe('MoneyJSONSchema', () => {
     it('should be exported and usable independently', () => {
       const validData = {
-        asset: { name: 'Test', code: 'TST', decimals: '2' },
+        currency: { name: 'Test', code: 'TST', decimals: '2' },
         amount: { amount: "100", decimals: "2" }
       }
       const parsed = MoneyJSONSchema.parse(validData)

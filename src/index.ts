@@ -2,6 +2,8 @@
 export { MoneyJSONSchema } from './money'
 export { FixedPointNumber, FixedPointJSONSchema } from './fixed-point'
 export { RationalNumber, RationalNumberJSONSchema, Rational } from './rationals'
+export { Price } from './prices'
+export { ExchangeRate } from './exchange-rates'
 
 // Factory functions
 export { MoneyFactory as Money } from './money'
@@ -25,6 +27,20 @@ export type {
   UTCTime,
   PricePoint
 } from './types'
+
+// Money types
+export type { MoneyAmount } from './money/types'
+
+// Money utilities
+export {
+  isFixedPointNumber,
+  isRationalNumber, 
+  toFixedPointNumber,
+  getComparableValue,
+  isZero as isMoneyAmountZero,
+  isPositive as isMoneyAmountPositive,
+  isNegative as isMoneyAmountNegative
+} from './money/utils'
 
 
 // Rounding modes
