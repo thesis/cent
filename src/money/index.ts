@@ -419,6 +419,46 @@ export class Money {
   }
 
   /**
+   * Get the absolute value of this Money instance
+   *
+   * @returns A new Money instance with the absolute value
+   */
+  absolute(): Money {
+    if (!this.isNegative()) {
+      return this
+    }
+
+    // If both amount types support multiplication by -1, use that approach
+    if (isFixedPointNumber(this.amount)) {
+      const result = this.amount.multiply(-1n)
+      return new Money(this.currency, result)
+    }
+
+    // For RationalNumber, negate by flipping the sign of p
+    const rational = this.amount as RationalNumber
+    const result = new RationalNumber({ p: -rational.p, q: rational.q })
+    return new Money(this.currency, result)
+  }
+
+  /**
+   * Get the negation of this Money instance (flip the sign)
+   *
+   * @returns A new Money instance with the opposite sign
+   */
+  negate(): Money {
+    // If both amount types support multiplication by -1, use that approach
+    if (isFixedPointNumber(this.amount)) {
+      const result = this.amount.multiply(-1n)
+      return new Money(this.currency, result)
+    }
+
+    // For RationalNumber, negate by flipping the sign of p
+    const rational = this.amount as RationalNumber
+    const result = new RationalNumber({ p: -rational.p, q: rational.q })
+    return new Money(this.currency, result)
+  }
+
+  /**
    * Return the maximum of this Money and other(s)
    *
    * @param other - The other Money instance(s) to compare with

@@ -579,6 +579,147 @@ describe('Money', () => {
     })
   })
 
+  describe('absolute', () => {
+    it('should return the same instance for positive amounts', () => {
+      const positiveMoney = new Money(usdAmount) // $100.50
+      const result = positiveMoney.absolute()
+      
+      expect(result).toBe(positiveMoney) // Should be the same instance
+      expect(result.balance.amount.amount).toBe(10050n)
+    })
+
+    it('should return the same instance for zero amounts', () => {
+      const zeroMoney = new Money({
+        asset: usdCurrency,
+        amount: { amount: 0n, decimals: 2n }
+      })
+      const result = zeroMoney.absolute()
+      
+      expect(result).toBe(zeroMoney) // Should be the same instance
+      expect(result.balance.amount.amount).toBe(0n)
+    })
+
+    it('should return positive amount for negative FixedPointNumber amounts', () => {
+      const negativeMoney = new Money({
+        asset: usdCurrency,
+        amount: { amount: -5000n, decimals: 2n } // -$50.00
+      })
+      const result = negativeMoney.absolute()
+      
+      expect(result).not.toBe(negativeMoney) // Should be a new instance
+      expect(result.balance.amount.amount).toBe(5000n) // $50.00
+      expect(result.balance.amount.decimals).toBe(2n)
+      expect(result.balance.asset).toEqual(usdCurrency)
+    })
+
+    it('should work with RationalNumber amounts', () => {
+      // Create a Money instance with RationalNumber (we'll use the new constructor)
+      const rationalAmount = new (require('../src/rationals').RationalNumber)({ p: -500n, q: 100n }) // -5.00
+      const negativeMoney = new Money(usdCurrency, rationalAmount)
+      const result = negativeMoney.absolute()
+      
+      expect(result).not.toBe(negativeMoney) // Should be a new instance
+      expect(result.isPositive()).toBe(true)
+      expect(result.currency).toEqual(usdCurrency)
+    })
+
+    it('should preserve immutability', () => {
+      const negativeMoney = new Money({
+        asset: usdCurrency,
+        amount: { amount: -2500n, decimals: 2n } // -$25.00
+      })
+      const originalAmount = negativeMoney.balance.amount.amount
+      
+      const result = negativeMoney.absolute()
+      
+      // Original should be unchanged
+      expect(negativeMoney.balance.amount.amount).toBe(originalAmount)
+      expect(negativeMoney.isNegative()).toBe(true)
+      
+      // Result should be positive
+      expect(result.balance.amount.amount).toBe(2500n)
+      expect(result.isPositive()).toBe(true)
+    })
+  })
+
+  describe('negate', () => {
+    it('should flip positive amounts to negative', () => {
+      const positiveMoney = new Money(usdAmount) // $100.50
+      const result = positiveMoney.negate()
+      
+      expect(result).not.toBe(positiveMoney) // Should be a new instance
+      expect(result.balance.amount.amount).toBe(-10050n) // -$100.50
+      expect(result.balance.amount.decimals).toBe(2n)
+      expect(result.balance.asset).toEqual(usdCurrency)
+      expect(result.isNegative()).toBe(true)
+    })
+
+    it('should flip negative amounts to positive', () => {
+      const negativeMoney = new Money({
+        asset: usdCurrency,
+        amount: { amount: -5000n, decimals: 2n } // -$50.00
+      })
+      const result = negativeMoney.negate()
+      
+      expect(result).not.toBe(negativeMoney) // Should be a new instance
+      expect(result.balance.amount.amount).toBe(5000n) // $50.00
+      expect(result.balance.amount.decimals).toBe(2n)
+      expect(result.balance.asset).toEqual(usdCurrency)
+      expect(result.isPositive()).toBe(true)
+    })
+
+    it('should flip zero to zero (but new instance)', () => {
+      const zeroMoney = new Money({
+        asset: usdCurrency,
+        amount: { amount: 0n, decimals: 2n }
+      })
+      const result = zeroMoney.negate()
+      
+      expect(result).not.toBe(zeroMoney) // Should be a new instance
+      expect(result.balance.amount.amount).toBe(0n) // Still zero
+      expect(result.balance.amount.decimals).toBe(2n)
+      expect(result.isZero()).toBe(true)
+    })
+
+    it('should work with RationalNumber amounts', () => {
+      // Create a Money instance with RationalNumber
+      const rationalAmount = new (require('../src/rationals').RationalNumber)({ p: 500n, q: 100n }) // 5.00
+      const positiveMoney = new Money(usdCurrency, rationalAmount)
+      const result = positiveMoney.negate()
+      
+      expect(result).not.toBe(positiveMoney) // Should be a new instance
+      expect(result.isNegative()).toBe(true)
+      expect(result.currency).toEqual(usdCurrency)
+    })
+
+    it('should preserve immutability', () => {
+      const originalMoney = new Money({
+        asset: usdCurrency,
+        amount: { amount: 7500n, decimals: 2n } // $75.00
+      })
+      const originalAmount = originalMoney.balance.amount.amount
+      
+      const result = originalMoney.negate()
+      
+      // Original should be unchanged
+      expect(originalMoney.balance.amount.amount).toBe(originalAmount)
+      expect(originalMoney.isPositive()).toBe(true)
+      
+      // Result should be negated
+      expect(result.balance.amount.amount).toBe(-7500n)
+      expect(result.isNegative()).toBe(true)
+    })
+
+    it('should be reversible (double negation)', () => {
+      const originalMoney = new Money(usdAmount) // $100.50
+      const negated = originalMoney.negate()
+      const doubleNegated = negated.negate()
+      
+      expect(doubleNegated.equals(originalMoney)).toBe(true)
+      expect(doubleNegated.balance.amount.amount).toBe(originalMoney.balance.amount.amount)
+    })
+  })
+
   describe('max', () => {
     it('should return the larger of two Money instances', () => {
       const money1 = new Money({
