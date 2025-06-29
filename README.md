@@ -44,6 +44,10 @@ const total = usd.add(Money("$25.25"))  // $125.75
 const price = new Price(Money("$50,000"), Money("1 BTC"))
 const converted = usd.convert(price)    // Exact BTC amount
 
+// Allocation and distribution
+const [first, second, third] = usd.allocate([1, 2, 1])    // [$25.13, $50.25, $25.12]
+const [a, b, c] = usd.distribute(3)                      // [$33.50, $33.50, $33.50]
+
 // Formatting
 usd.toString({ locale: "en-US", compact: true })  // "$100.50"
 btc.toString({ preferredUnit: "satoshi" })        // "50,000,000 sat"
@@ -149,6 +153,22 @@ console.log(euros.equals(euros)) // true
 // Formatting options
 console.log(euros.toString({ locale: 'de-DE' })) // "500,25 €"
 console.log(euros.toString({ compact: true })) // "€500"
+
+// Allocation and distribution
+const budget = Money("$1000")
+
+// Allocate proportionally by ratios
+const [marketing, development, operations] = budget.allocate([2, 5, 3])
+// Results: [$200, $500, $300] (2:5:3 ratio)
+
+// Distribute evenly
+const [alice, bob, charlie] = budget.distribute(3)
+// Results: [$333.34, $333.33, $333.33] (remainder to first)
+
+// Handle fractional units separately
+const precise = Money("$100.00015")
+const parts = precise.distribute(3, { distributeFractionalUnits: false })
+// Results: [$33.33, $33.33, $33.34, $0.00015] (change separated)
 ```
 
 ## Math utilities
@@ -401,14 +421,27 @@ const weiAmount = new Money({
 ### Accounting & bookkeeping
 ```typescript
 // Allocate amounts without losing precision
-const total = new Money({
-  asset: USD,
-  amount: { amount: 10000n, decimals: 2n } // $100.00
-})
+const revenue = Money("$12,345.67")
 
-const [main, change] = total.concretize() // Separate whole currency from sub-units
-console.log(main.toString()) // "$100.00"
-console.log(change.toString()) // "$0.00"
+// Proportional allocation by department budgets
+const [marketing, engineering, sales, operations] = revenue.allocate([2, 5, 2, 1])
+// Results: [$2,469.13, $6,172.84, $2,469.13, $1,234.57] (2:5:2:1 ratio)
+
+// Even distribution among team members
+const bonus = Money("$10,000")
+const [alice, bob, charlie] = bonus.distribute(3)
+// Results: [$3,333.34, $3,333.33, $3,333.33] (remainder to first recipient)
+
+// Handle fractional units for precision accounting
+const preciseAmount = Money("$1,000.00123") // High-precision amount
+const parts = preciseAmount.allocate([1, 1, 1], { distributeFractionalUnits: false })
+// Results: [$333.33, $333.33, $333.34, $0.00123] 
+// Main allocations clean, fractional $0.00123 can go to a separate ledger
+
+// Traditional concretization for currency sub-units
+const [main, change] = preciseAmount.concretize() 
+console.log(main.toString())   // "$1,000.00" (standard currency precision)
+console.log(change.toString()) // "$0.00123" (sub-unit precision)
 ```
 
 ## API reference
@@ -437,17 +470,37 @@ console.log(change.toString()) // "$0.00"
 
 ### `Money`
 
+**Arithmetic Operations:**
 - `add(other)` - Add money amounts (same currency)
 - `subtract(other)` - Subtract money amounts (same currency)
 - `multiply(scalar)` - Multiply by number or FixedPoint
+- `absolute()` - Get absolute value
+- `negate()` - Flip sign (multiply by -1)
+
+**Allocation & Distribution:**
+- `allocate(ratios, options?)` - Split proportionally by ratios with optional fractional unit separation
+- `distribute(parts, options?)` - Split evenly into N parts with optional fractional unit separation
 - `concretize()` - Split into concrete amount and change
+
+**Comparison Methods:**
 - `equals(other)` - Check equality
-- `lessThan(other)` - Comparison methods
-- `greaterThan(other)` - Comparison methods
+- `lessThan(other)` - Less than comparison
+- `greaterThan(other)` - Greater than comparison
+- `lessThanOrEqual(other)` - Less than or equal comparison
+- `greaterThanOrEqual(other)` - Greater than or equal comparison
+- `max(other | others[])` - Return maximum value
+- `min(other | others[])` - Return minimum value
+
+**State Checks:**
 - `isZero()` - Check if amount is zero
 - `isPositive()` - Check if amount is positive
+- `isNegative()` - Check if amount is negative
 - `hasChange()` - Check if has fractional part
-- `toString(options)` - Format for display
+- `hasSubUnits()` - Check if has sub-units beyond currency precision
+
+**Conversion & Formatting:**
+- `convert(price)` - Convert to another currency using price/exchange rate
+- `toString(options)` - Format for display with locale, precision, and unit options
 - `toJSON()` - Serialize to JSON
 - `fromJSON(json)` - Deserialize from JSON
 
@@ -495,6 +548,7 @@ console.log(change.toString()) // "$0.00"
 | **Precision** | Arbitrary (BigInt) | Limited (Number) |
 | **Max Value** | Unlimited | ~9 quadrillion |
 | **Crypto Support** | Native (8-18 decimals) | Limited |
+| **Allocation/Distribution** | Advanced with fractional unit separation | Basic |
 | **Exact Division** | Guaranteed* | No |
 | **Type Safety** | Full TypeScript | Partial |
 | **Immutability** | Yes | Yes |
