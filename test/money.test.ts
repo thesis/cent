@@ -2264,4 +2264,202 @@ describe('Money', () => {
       })
     })
   })
+
+  describe('String argument support', () => {
+    const usd100 = new Money({
+      asset: usdCurrency,
+      amount: { amount: 10000n, decimals: 2n } // $100.00
+    })
+
+    const usd25 = new Money({
+      asset: usdCurrency,
+      amount: { amount: 2500n, decimals: 2n } // $25.00
+    })
+
+    describe('add', () => {
+      it('should add string currency amounts', () => {
+        const result = usd100.add('$25.00')
+        expect(result.equals(new Money({
+          asset: usdCurrency,
+          amount: { amount: 12500n, decimals: 2n } // $125.00
+        }))).toBe(true)
+      })
+
+      it('should add string amounts with different formats', () => {
+        const result = usd100.add('USD 25')
+        expect(result.equals(new Money({
+          asset: usdCurrency,
+          amount: { amount: 12500n, decimals: 2n } // $125.00
+        }))).toBe(true)
+      })
+
+      it('should throw on currency mismatch', () => {
+        expect(() => usd100.add('€25.00')).toThrow('Currency mismatch')
+      })
+
+      it('should handle negative string amounts', () => {
+        const result = usd100.add('-$25.00')
+        expect(result.equals(new Money({
+          asset: usdCurrency,
+          amount: { amount: 7500n, decimals: 2n } // $75.00
+        }))).toBe(true)
+      })
+    })
+
+    describe('subtract', () => {
+      it('should subtract string currency amounts', () => {
+        const result = usd100.subtract('$25.00')
+        expect(result.equals(new Money({
+          asset: usdCurrency,
+          amount: { amount: 7500n, decimals: 2n } // $75.00
+        }))).toBe(true)
+      })
+
+      it('should subtract string amounts with currency codes', () => {
+        const result = usd100.subtract('USD 25')
+        expect(result.equals(new Money({
+          asset: usdCurrency,
+          amount: { amount: 7500n, decimals: 2n } // $75.00
+        }))).toBe(true)
+      })
+
+      it('should throw on currency mismatch', () => {
+        expect(() => usd100.subtract('€25.00')).toThrow('Currency mismatch')
+      })
+    })
+
+    describe('equals', () => {
+      it('should compare with string amounts', () => {
+        expect(usd100.equals('$100.00')).toBe(true)
+        expect(usd100.equals('USD 100')).toBe(true)
+        expect(usd100.equals('$100.01')).toBe(false)
+      })
+
+      it('should handle high precision comparisons', () => {
+        const precise = new Money({
+          asset: usdCurrency,
+          amount: { amount: 10012345n, decimals: 5n } // $100.12345
+        })
+        expect(precise.equals('$100.12345')).toBe(true)
+        expect(precise.equals('$100.12346')).toBe(false)
+      })
+
+      it('should throw on currency mismatch', () => {
+        expect(() => usd100.equals('€100.00')).toThrow('Currency mismatch')
+      })
+    })
+
+    describe('lessThan', () => {
+      it('should compare with string amounts', () => {
+        expect(usd25.lessThan('$100.00')).toBe(true)
+        expect(usd100.lessThan('$25.00')).toBe(false)
+        expect(usd100.lessThan('$100.00')).toBe(false)
+      })
+
+      it('should throw on currency mismatch', () => {
+        expect(() => usd100.lessThan('€100.00')).toThrow('Currency mismatch')
+      })
+    })
+
+    describe('lessThanOrEqual', () => {
+      it('should compare with string amounts', () => {
+        expect(usd25.lessThanOrEqual('$100.00')).toBe(true)
+        expect(usd100.lessThanOrEqual('$100.00')).toBe(true)
+        expect(usd100.lessThanOrEqual('$25.00')).toBe(false)
+      })
+
+      it('should throw on currency mismatch', () => {
+        expect(() => usd100.lessThanOrEqual('€100.00')).toThrow('Currency mismatch')
+      })
+    })
+
+    describe('greaterThan', () => {
+      it('should compare with string amounts', () => {
+        expect(usd100.greaterThan('$25.00')).toBe(true)
+        expect(usd25.greaterThan('$100.00')).toBe(false)
+        expect(usd100.greaterThan('$100.00')).toBe(false)
+      })
+
+      it('should throw on currency mismatch', () => {
+        expect(() => usd100.greaterThan('€25.00')).toThrow('Currency mismatch')
+      })
+    })
+
+    describe('greaterThanOrEqual', () => {
+      it('should compare with string amounts', () => {
+        expect(usd100.greaterThanOrEqual('$25.00')).toBe(true)
+        expect(usd100.greaterThanOrEqual('$100.00')).toBe(true)
+        expect(usd25.greaterThanOrEqual('$100.00')).toBe(false)
+      })
+
+      it('should throw on currency mismatch', () => {
+        expect(() => usd100.greaterThanOrEqual('€25.00')).toThrow('Currency mismatch')
+      })
+    })
+
+    describe('max', () => {
+      it('should handle string arguments', () => {
+        const result = usd25.max('$100.00')
+        expect(result.equals(usd100)).toBe(true)
+      })
+
+      it('should handle array of strings', () => {
+        const result = usd25.max(['$50.00', '$100.00', '$75.00'])
+        expect(result.equals(usd100)).toBe(true)
+      })
+
+      it('should handle mixed string and Money arguments', () => {
+        const result = usd25.max([usd100, '$75.00'])
+        expect(result.equals(usd100)).toBe(true)
+      })
+
+      it('should throw on currency mismatch', () => {
+        expect(() => usd100.max('€100.00')).toThrow('Currency mismatch')
+      })
+    })
+
+    describe('min', () => {
+      it('should handle string arguments', () => {
+        const result = usd100.min('$25.00')
+        expect(result.equals(usd25)).toBe(true)
+      })
+
+      it('should handle array of strings', () => {
+        const result = usd100.min(['$50.00', '$25.00', '$75.00'])
+        expect(result.equals(usd25)).toBe(true)
+      })
+
+      it('should handle mixed string and Money arguments', () => {
+        const result = usd100.min([usd25, '$75.00'])
+        expect(result.equals(usd25)).toBe(true)
+      })
+
+      it('should throw on currency mismatch', () => {
+        expect(() => usd100.min('€25.00')).toThrow('Currency mismatch')
+      })
+    })
+
+    describe('Edge cases and error handling', () => {
+      it('should preserve Money instance when passed instead of string', () => {
+        const result = usd100.add(usd25)
+        expect(result.equals(new Money({
+          asset: usdCurrency,
+          amount: { amount: 12500n, decimals: 2n } // $125.00
+        }))).toBe(true)
+      })
+
+      it('should handle invalid string formats', () => {
+        expect(() => usd100.add('invalid string')).toThrow('Invalid money string format')
+      })
+
+      it('should handle unknown currency codes', () => {
+        expect(() => usd100.add('INVALID 100')).toThrow('Invalid money string format')
+      })
+
+      it('should handle cryptocurrency strings', () => {
+        // This would need BTC currency setup - placeholder for now
+        // expect(() => usd100.add('1000 sat')).toThrow('Currency mismatch')
+      })
+    })
+  })
 })

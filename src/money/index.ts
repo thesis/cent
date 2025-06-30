@@ -146,12 +146,14 @@ export class Money {
   /**
    * Add money or an asset amount to this Money instance
    *
-   * @param other - The Money or AssetAmount to add
+   * @param other - The Money, AssetAmount, or string representation to add
    * @returns A new Money instance with the sum
    * @throws Error if the assets are not the same type
    */
-  add(other: Money | AssetAmount): Money {
-    const otherMoney = other instanceof Money ? other : new Money(other)
+  add(other: Money | AssetAmount | string): Money {
+    const otherMoney = typeof other === 'string' 
+      ? parseStringToMoney(other, this.currency)
+      : other instanceof Money ? other : new Money(other)
 
     if (!assetsEqual(this.currency, otherMoney.currency)) {
       throw new Error("Cannot add Money with different asset types")
@@ -179,12 +181,14 @@ export class Money {
   /**
    * Subtract money or an asset amount from this Money instance
    *
-   * @param other - The Money or AssetAmount to subtract
+   * @param other - The Money, AssetAmount, or string representation to subtract
    * @returns A new Money instance with the difference
    * @throws Error if the assets are not the same type
    */
-  subtract(other: Money | AssetAmount): Money {
-    const otherMoney = other instanceof Money ? other : new Money(other)
+  subtract(other: Money | AssetAmount | string): Money {
+    const otherMoney = typeof other === 'string'
+      ? parseStringToMoney(other, this.currency)
+      : other instanceof Money ? other : new Money(other)
 
     if (!assetsEqual(this.currency, otherMoney.currency)) {
       throw new Error("Cannot subtract Money with different asset types")
@@ -299,12 +303,15 @@ export class Money {
   /**
    * Check if this Money instance is less than another Money or AssetAmount
    *
-   * @param other - The Money or AssetAmount to compare with
+   * @param other - The Money, AssetAmount, or string representation to compare with
    * @returns true if this money is less than other, false otherwise
    * @throws Error if the assets are not the same type
    */
-  lessThan(other: Money | AssetAmount): boolean {
-    const otherAmount = other instanceof Money ? other.balance : other
+  lessThan(other: Money | AssetAmount | string): boolean {
+    const otherMoney = typeof other === 'string'
+      ? parseStringToMoney(other, this.currency)
+      : other instanceof Money ? other : new Money(other)
+    const otherAmount = otherMoney.balance
 
     if (!assetsEqual(this.balance.asset, otherAmount.asset)) {
       throw new Error("Cannot compare Money with different asset types")
@@ -325,12 +332,15 @@ export class Money {
   /**
    * Check if this Money instance is less than or equal to another Money or AssetAmount
    *
-   * @param other - The Money or AssetAmount to compare with
+   * @param other - The Money, AssetAmount, or string representation to compare with
    * @returns true if this money is less than or equal to other, false otherwise
    * @throws Error if the assets are not the same type
    */
-  lessThanOrEqual(other: Money | AssetAmount): boolean {
-    const otherAmount = other instanceof Money ? other.balance : other
+  lessThanOrEqual(other: Money | AssetAmount | string): boolean {
+    const otherMoney = typeof other === 'string'
+      ? parseStringToMoney(other, this.currency)
+      : other instanceof Money ? other : new Money(other)
+    const otherAmount = otherMoney.balance
 
     if (!assetsEqual(this.balance.asset, otherAmount.asset)) {
       throw new Error("Cannot compare Money with different asset types")
@@ -351,12 +361,15 @@ export class Money {
   /**
    * Check if this Money instance is greater than another Money or AssetAmount
    *
-   * @param other - The Money or AssetAmount to compare with
+   * @param other - The Money, AssetAmount, or string representation to compare with
    * @returns true if this money is greater than other, false otherwise
    * @throws Error if the assets are not the same type
    */
-  greaterThan(other: Money | AssetAmount): boolean {
-    const otherAmount = other instanceof Money ? other.balance : other
+  greaterThan(other: Money | AssetAmount | string): boolean {
+    const otherMoney = typeof other === 'string'
+      ? parseStringToMoney(other, this.currency)
+      : other instanceof Money ? other : new Money(other)
+    const otherAmount = otherMoney.balance
 
     if (!assetsEqual(this.balance.asset, otherAmount.asset)) {
       throw new Error("Cannot compare Money with different asset types")
@@ -377,12 +390,15 @@ export class Money {
   /**
    * Check if this Money instance is greater than or equal to another Money or AssetAmount
    *
-   * @param other - The Money or AssetAmount to compare with
+   * @param other - The Money, AssetAmount, or string representation to compare with
    * @returns true if this money is greater than or equal to other, false otherwise
    * @throws Error if the assets are not the same type
    */
-  greaterThanOrEqual(other: Money | AssetAmount): boolean {
-    const otherAmount = other instanceof Money ? other.balance : other
+  greaterThanOrEqual(other: Money | AssetAmount | string): boolean {
+    const otherMoney = typeof other === 'string'
+      ? parseStringToMoney(other, this.currency)
+      : other instanceof Money ? other : new Money(other)
+    const otherAmount = otherMoney.balance
 
     if (!assetsEqual(this.balance.asset, otherAmount.asset)) {
       throw new Error("Cannot compare Money with different asset types")
@@ -621,12 +637,15 @@ export class Money {
   /**
    * Return the maximum of this Money and other(s)
    *
-   * @param other - The other Money instance(s) to compare with
+   * @param other - The other Money instance(s) or string(s) to compare with
    * @returns The Money instance with the largest value
    * @throws Error if any assets are not the same type
    */
-  max(other: Money | Money[]): Money {
-    const others = Array.isArray(other) ? other : [other]
+  max(other: Money | Money[] | string | string[]): Money {
+    const otherArray = Array.isArray(other) ? other : [other]
+    const others = otherArray.map(item => 
+      typeof item === 'string' ? parseStringToMoney(item, this.currency) : item
+    )
     let maxValue: Money = this
 
     for (const money of others) {
@@ -645,12 +664,15 @@ export class Money {
   /**
    * Return the minimum of this Money and other(s)
    *
-   * @param other - The other Money instance(s) to compare with
+   * @param other - The other Money instance(s) or string(s) to compare with
    * @returns The Money instance with the smallest value
    * @throws Error if any assets are not the same type
    */
-  min(other: Money | Money[]): Money {
-    const others = Array.isArray(other) ? other : [other]
+  min(other: Money | Money[] | string | string[]): Money {
+    const otherArray = Array.isArray(other) ? other : [other]
+    const others = otherArray.map(item => 
+      typeof item === 'string' ? parseStringToMoney(item, this.currency) : item
+    )
     let minValue: Money = this
 
     for (const money of others) {
@@ -758,31 +780,35 @@ export class Money {
   /**
    * Check if this Money instance is equal to another Money instance
    *
-   * @param other - The other Money instance to compare with
+   * @param other - The other Money instance or string representation to compare with
    * @returns true if both Money instances have the same asset and amount, false otherwise
    */
-  equals(other: Money): boolean {
+  equals(other: Money | string): boolean {
+    const otherMoney = typeof other === 'string'
+      ? parseStringToMoney(other, this.currency)
+      : other
+
     // Check if currencies are equal
-    if (!assetsEqual(this.currency, other.currency)) {
+    if (!assetsEqual(this.currency, otherMoney.currency)) {
       return false
     }
 
     // If both are the same type, use direct comparison
-    if ((isFixedPointNumber(this.amount) && isFixedPointNumber(other.amount))) {
-      return this.amount.equals(other.amount)
+    if ((isFixedPointNumber(this.amount) && isFixedPointNumber(otherMoney.amount))) {
+      return this.amount.equals(otherMoney.amount)
     }
     
-    if ((isRationalNumber(this.amount) && isRationalNumber(other.amount))) {
-      return this.amount.p === other.amount.p && this.amount.q === other.amount.q
+    if ((isRationalNumber(this.amount) && isRationalNumber(otherMoney.amount))) {
+      return this.amount.p === otherMoney.amount.p && this.amount.q === otherMoney.amount.q
     }
 
     // Mixed types - convert both to comparable decimal strings
     const thisDecimal = isFixedPointNumber(this.amount) 
       ? this.amount.toString() 
       : this.amount.toDecimalString(50n)
-    const otherDecimal = isFixedPointNumber(other.amount)
-      ? other.amount.toString()
-      : other.amount.toDecimalString(50n)
+    const otherDecimal = isFixedPointNumber(otherMoney.amount)
+      ? otherMoney.amount.toString()
+      : otherMoney.amount.toDecimalString(50n)
     
     return thisDecimal === otherDecimal
   }
@@ -1270,6 +1296,37 @@ export function pluralizeFractionalUnit(unitName: string): string {
   }
 }
 
+
+/**
+ * Helper function to convert string arguments to Money instances
+ * 
+ * @param value - String representation or existing Money instance
+ * @param referenceCurrency - Currency to validate against if value is a string
+ * @returns Money instance
+ * @throws Error if string parsing fails or currencies don't match
+ */
+function parseStringToMoney(value: string | Money, referenceCurrency: Currency): Money {
+  if (value instanceof Money) {
+    return value
+  }
+
+  // Parse the string to get a Money instance
+  const parseResult = parseMoneyString(value)
+  const parsed = new Money({
+    asset: parseResult.currency,
+    amount: {
+      amount: parseResult.amount.amount,
+      decimals: parseResult.amount.decimals
+    }
+  })
+
+  // Validate that currencies match
+  if (!assetsEqual(parsed.currency, referenceCurrency)) {
+    throw new Error(`Currency mismatch: expected ${referenceCurrency.code || referenceCurrency.name}, got ${parsed.currency.code || parsed.currency.name}`)
+  }
+
+  return parsed
+}
 
 /**
  * Factory function for creating Money instances from string representations
