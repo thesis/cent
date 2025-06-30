@@ -109,15 +109,12 @@ const dollars = new Money({
 })
 
 // Basic arithmetic (same currency only)
-const sum = euros.add(new Money({
-  asset: EUR,
-  amount: { amount: 25050n, decimals: 2n } // €250.50
-}))
+const sum = euros.add("€250.50")
 console.log(sum.toString()) // "€750.75"
 
 // Multiplication and division
-const doubled = euros.multiply(2n)
-const half = euros.divide(2n) // Only works with factors of 2 and 5
+const doubled = euros.multiply("2")
+const half = euros.divide("2") // Only works with factors of 2 and 5
 
 // Comparisons
 console.log(euros.greaterThan(dollars)) // Error: Different currencies
@@ -167,20 +164,20 @@ const price = FixedPoint('1255.50')  // Auto-detects 2 decimals
 const rate = FixedPoint('0.875')     // Auto-detects 3 decimals
 
 // Arithmetic operations with automatic precision handling
-const product = price.multiply(rate)
-console.log(product.toString()) // "1098.562"
+const product = price.multiply("0.875")
+console.log(product.toString()) // "1098.5625"
 
 // Precise division (only multiples of 2 and 5)
-const half = price.divide(2n)
-const fifth = price.divide(5n)
-const tenth = price.divide(10n)
+const half = price.divide("2")
+const fifth = price.divide("5")
+const tenth = price.divide("10")
 
 // Comparison operations
-console.log(price.greaterThan(rate)) // true
-console.log(price.lessThanOrEqual(rate)) // false
+console.log(price.greaterThan("0.875")) // true
+console.log(price.lessThanOrEqual("0.875")) // false
 
 // Also supports original constructor for explicit control
-const explicit = FixedPoint(125550n, 2n) // Same as FixedPoint('1255.50')
+const explicit = new FixedPointNumber(125550n, 2n) // Same as FixedPoint('1255.50')
 
 // Rational - fractions and exact arithmetic
 
@@ -197,10 +194,10 @@ const pi = Rational(22n, 7n) // 22/7 approximation of π
 const oneThird = Rational(1n, 3n) // 1/3
 
 // Exact arithmetic
-const sum = oneThird.add(twoFifths) // (1/3) + (2/5) = 11/15
+const sum = oneThird.add("2/5") // (1/3) + (2/5) = 11/15
 console.log(sum.toString()) // "11/15"
 
-const product = oneThird.multiply(twoFifths) // (1/3) * (2/5) = 2/15
+const product = oneThird.multiply("2/5") // (1/3) * (2/5) = 2/15
 console.log(product.toString()) // "2/15"
 
 // Automatic simplification
@@ -208,7 +205,7 @@ const simplified = Rational('6/9')
 console.log(simplified.toString()) // "2/3"
 
 // Also supports original constructor
-const explicit = Rational({ p: 1n, q: 10n }) // Same as Rational('1/10')
+const explicit = new RationalNumber({ p: 1n, q: 10n }) // Same as Rational('1/10')
 
 // Seamless conversion between types
 const rational = Rational('3/8')
@@ -224,15 +221,30 @@ console.log(fixedPoint.toString()) // "0.375"
 ```typescript
 import { Price, ExchangeRate } from '@your-org/cent'
 
+// Define custom assets (for demonstration purposes)
+const APPLE = {
+  name: 'Apple',
+  code: 'APPLE',
+  decimals: 0n,
+  symbol: '🍎'
+}
+
+const ORANGE = {
+  name: 'Orange', 
+  code: 'ORANGE',
+  decimals: 0n,
+  symbol: '🍊'
+}
+
 // Create price ratios
 const usdPerApple = new Price(
-  { asset: USD, amount: { amount: 500n, decimals: 2n } }, // $5.00
-  { asset: APPLE, amount: { amount: 1n, decimals: 0n } }  // 1 apple
+  Money("$5.00"), // $5.00
+  { asset: APPLE, amount: { amount: 1n, decimals: 0n } }  // 1 apple (custom asset)
 )
 
 const applesPerBtc = new Price(
   { asset: APPLE, amount: { amount: 10000n, decimals: 0n } }, // 10,000 apples
-  { asset: BTC, amount: { amount: 100000000n, decimals: 8n } } // 1.00000000 BTC
+  Money("1 BTC") // 1.00000000 BTC
 )
 
 // Price-to-Price multiplication (assets must share a common unit)
@@ -243,13 +255,13 @@ console.log(usdPerBtc.amounts[0].amount.amount) // 5000000n ($50,000.00)
 
 // Real-world FX example: Calculate USD/BTC from USD/EUR and BTC/EUR rates
 const usdPerEur = new ExchangeRate(
-  { asset: USD, amount: { amount: 108n, decimals: 2n } }, // $1.08
-  { asset: EUR, amount: { amount: 100n, decimals: 2n } }  // €1.00
+  Money("$1.08"), // $1.08
+  Money("€1.00")  // €1.00
 )
 
 const btcPerEur = new ExchangeRate(
-  { asset: BTC, amount: { amount: 100000000n, decimals: 8n } }, // 1.00000000 BTC
-  { asset: EUR, amount: { amount: 4500000n, decimals: 2n } }    // €45,000.00
+  Money("1 BTC"), // 1.00000000 BTC
+  Money("€45,000.00")    // €45,000.00
 )
 
 // USD/EUR × EUR/BTC = USD/BTC (EUR cancels out)
@@ -263,21 +275,24 @@ console.log(usdPerBtcFx.amounts[0].amount.amount) // 4860000n ($48,600.00)
 const calculatedApplesPerBtc = usdPerBtc.divide(usdPerApple)
 
 // Scalar operations (multiply/divide by numbers)
-const doubledPrice = usdPerApple.multiply(2n) // $10.00/apple
-const halfPrice = usdPerApple.divide(2n)      // $2.50/apple
+const doubledPrice = usdPerApple.multiply("2") // $10.00/apple
+const halfPrice = usdPerApple.divide("2")      // $2.50/apple
 
 // Convert to mathematical ratio
 const ratio = usdPerApple.asRatio() // RationalNumber: 500/1
 
 // Exchange rates with timestamps
 const exchangeRate = new ExchangeRate(
-  { asset: USD, amount: { amount: 117n, decimals: 2n } }, // $1.17
-  { asset: EUR, amount: { amount: 100n, decimals: 2n } }  // €1.00
+  Money("$1.17"), // $1.17
+  Money("€1.00")  // €1.00
 ) // Automatically timestamped
 
 // Price operations validate shared assets
 try {
-  const orangesPerBtc = new Price(orange5000, btc1)
+  const orangesPerBtc = new Price(
+    { asset: ORANGE, amount: { amount: 5000n, decimals: 0n } },
+    Money("1 BTC")
+  )
   usdPerApple.multiply(orangesPerBtc) // Error: no shared asset!
 } catch (error) {
   console.log(error.message)
@@ -312,10 +327,7 @@ console.log(JPY.decimals) // 0n
 Safe serialization for APIs and storage:
 
 ```typescript
-const money = new Money({
-  asset: USD,
-  amount: { amount: 123456789012345n, decimals: 2n }
-})
+const money = Money("$1,234,567,890,123.45")
 
 // Serialize (BigInt becomes string)
 const json = money.toJSON()
@@ -333,10 +345,10 @@ console.log(restored.equals(money)) // true
 
 ```typescript
 // Different decimal places are automatically normalized
-const fp1 = new FixedPointNumber(100n, 1n) // 10.0
-const fp2 = new FixedPointNumber(500n, 2n) // 5.00
+const fp1 = FixedPoint("10.0") // 1 decimal
+const fp2 = FixedPoint("5.00") // 2 decimals
 
-const sum = fp1.add(fp2) // Normalized to 2 decimals
+const sum = fp1.add("5.00") // Normalized to 2 decimals
 console.log(sum.toString()) // "15.00"
 ```
 
@@ -345,16 +357,16 @@ console.log(sum.toString()) // "15.00"
 Unlike floating-point arithmetic, `cent` ensures exact division results:
 
 ```typescript
-const number = new FixedPointNumber(100n, 0n) // 100
+const number = FixedPoint("100") // 100
 
-console.log(number.divide(2n).toString()) // "50.0"
-console.log(number.divide(4n).toString()) // "25.00"
-console.log(number.divide(5n).toString()) // "20.0"
-console.log(number.divide(10n).toString()) // "10.0"
+console.log(number.divide("2").toString()) // "50.0"
+console.log(number.divide("4").toString()) // "25.00"
+console.log(number.divide("5").toString()) // "20.0"
+console.log(number.divide("10").toString()) // "10.0"
 
 // throws an exception (3 cannot be represented exactly in decimal)
 try {
-  number.divide(3n)
+  number.divide("3")
 } catch (error) {
   console.log(error.message) // "divisor must be composed only of factors of 2 and 5"
 }
@@ -364,7 +376,10 @@ If you need division that would break out of what's possible to represent in
 fixed point, you can mix `FixedPointNumber` and `RationalNumber`.
 
 ```typescript
-(new RationalNumber("1/3")).multiply(new FixedPointNumber(100n, 0n)) // 100/3
+Rational("1/3").multiply(FixedPoint("100")) // Can mix types when needed
+
+// Also supports original constructor for explicit control
+const explicit = new FixedPointNumber(100n, 0n) // Same as FixedPoint("100")
 ```
 
 ## Use cases
@@ -372,35 +387,31 @@ fixed point, you can mix `FixedPointNumber` and `RationalNumber`.
 ### FinTech
 ```typescript
 // handle large transfers with perfect precision
-const wireTransfer = new Money({
-  asset: USD,
-  amount: { amount: 999999999999n, decimals: 2n } // $9,999,999,999.99
-})
+const wireTransfer = Money("$9,999,999,999.99")
 
-const fee = wireTransfer.multiply({ amount: 5n, decimals: 3n }) // 0.5% fee
+const fee = wireTransfer.multiply("0.005") // 0.5% fee
 const afterFee = wireTransfer.subtract(fee)
 ```
 
 ### Cryptocurrencies
 ```typescript
 // handle Bitcoin with satoshi and sub-satoshi precision
-const satoshiAmount = new Money({
-  asset: BTC,
-  amount: { amount: 100000000n, decimals: 8n } // 1.00000000 BTC
-})
+const satoshiAmount = Money("1 BTC")
 
 console.log(satoshiAmount.toString({ preferredUnit: 'satoshi' }))
 // "100,000,000 satoshis"
 
-satoshiAmount.equals(Money("1 BTC")) // true
+satoshiAmount.equals(Money("100000000 sat")) // true
 
 // ethereum with wei precision (18 decimals)
-const weiAmount = new Money({
+const weiAmount = Money("1 ETH")
+
+// Also supports original constructor for explicit control
+const explicit = new Money({
   asset: ETH,
-  amount: { amount: 1000000000000000000n, decimals: 18n } // 1.0 ETH
+  amount: { amount: 1000000000000000000n, decimals: 18n } // Same as Money("1 ETH")
 })
 
-weiAmount.equals(Money("1 ETH") // true
 weiAmount.equals(Money("Ξ1.0")) // true
 ```
 
@@ -457,10 +468,10 @@ console.log(change.toString()) // "$0.00123" (sub-unit precision)
 
 ### `Money`
 
-**Arithmetic Operations:**
+**Arithmetic Operations (add/subtract accept Money objects or currency strings):**
 - `add(other)` - Add money amounts (same currency)
 - `subtract(other)` - Subtract money amounts (same currency)
-- `multiply(scalar)` - Multiply by number or FixedPoint
+- `multiply(scalar)` - Multiply by number, FixedPoint, or string
 - `absolute()` - Get absolute value
 - `negate()` - Flip sign (multiply by -1)
 
@@ -469,7 +480,7 @@ console.log(change.toString()) // "$0.00123" (sub-unit precision)
 - `distribute(parts, options?)` - Split evenly into N parts with optional fractional unit separation
 - `concretize()` - Split into concrete amount and change
 
-**Comparison Methods:**
+**Comparison Methods (accept Money objects or currency strings):**
 - `equals(other)` - Check equality
 - `lessThan(other)` - Less than comparison
 - `greaterThan(other)` - Greater than comparison
@@ -493,22 +504,41 @@ console.log(change.toString()) // "$0.00123" (sub-unit precision)
 
 ### `FixedPointNumber`
 
+**Arithmetic Operations (accepts FixedPoint objects or string arguments):**
 - `add(other)` - Addition
 - `subtract(other)` - Subtraction
 - `multiply(other)` - Multiplication
 - `divide(other)` - Safe division
 - `normalize(target)` - Change decimal precision
+
+**Comparison Methods (accepts FixedPoint objects or string arguments):**
 - `equals(other)` - Equality check
+- `greaterThan(other)` - Greater than comparison
+- `lessThan(other)` - Less than comparison
+- `max(other | others[])` - Return maximum value
+- `min(other | others[])` - Return minimum value
+
+**Utility Methods:**
 - `toString()` - DecimalString representation
 - `parseString(str, decimals)` - Parse from string with explicit decimals
 - `fromDecimalString(str)` - Parse from DecimalString with auto-detected decimals
 
 ### `RationalNumber`
 
+**Arithmetic Operations (accepts Ratio objects, fraction strings, or decimal strings):**
 - `add(other)` - Exact addition
 - `subtract(other)` - Exact subtraction
 - `multiply(other)` - Exact multiplication
 - `divide(other)` - Exact division
+
+**Comparison Methods (accepts Ratio objects, fraction strings, or decimal strings):**
+- `equals(other)` - Equality check
+- `greaterThan(other)` - Greater than comparison
+- `lessThan(other)` - Less than comparison
+- `max(other | others[])` - Return maximum value
+- `min(other | others[])` - Return minimum value
+
+**Utility Methods:**
 - `simplify()` - Reduce to lowest terms
 - `toString()` - Convert to simplified "p/q" string format
 - `toDecimalString(precision?)` - Convert to DecimalString (default 50 digits)
