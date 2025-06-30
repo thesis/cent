@@ -478,4 +478,308 @@ describe('Rational factory function', () => {
       }).toThrow('q parameter is required when creating Rational with bigint p')
     })
   })
+
+  describe('String argument support', () => {
+    const oneThird = new RationalNumber({ p: 1n, q: 3n })       // 1/3
+    const twoFifths = new RationalNumber({ p: 2n, q: 5n })     // 2/5
+    const quarter = new RationalNumber({ p: 1n, q: 4n })       // 1/4
+
+    describe('add', () => {
+      it('should add fraction strings', () => {
+        const result = oneThird.add('2/5')
+        // 1/3 + 2/5 = 5/15 + 6/15 = 11/15
+        expect(result.p).toBe(11n)
+        expect(result.q).toBe(15n)
+        expect(result.toString()).toBe('11/15')
+      })
+
+      it('should add decimal strings', () => {
+        const result = quarter.add('0.25') // 1/4 + 1/4 = 1/2
+        const simplified = result.simplify()
+        expect(simplified.p).toBe(1n)
+        expect(simplified.q).toBe(2n)
+        expect(simplified.toString()).toBe('1/2')
+      })
+
+      it('should handle mixed fraction and decimal strings', () => {
+        const result = oneThird.add('0.5') // 1/3 + 1/2 = 2/6 + 3/6 = 5/6
+        const simplified = result.simplify()
+        expect(simplified.p).toBe(5n)
+        expect(simplified.q).toBe(6n)
+      })
+
+      it('should handle negative fraction strings', () => {
+        const result = oneThird.add('-1/6') // 1/3 - 1/6 = 2/6 - 1/6 = 1/6
+        const simplified = result.simplify()
+        expect(simplified.p).toBe(1n)
+        expect(simplified.q).toBe(6n)
+      })
+
+      it('should handle integer strings', () => {
+        const result = oneThird.add('1') // 1/3 + 1 = 1/3 + 3/3 = 4/3
+        expect(result.p).toBe(4n)
+        expect(result.q).toBe(3n)
+      })
+    })
+
+    describe('subtract', () => {
+      it('should subtract fraction strings', () => {
+        const result = twoFifths.subtract('1/5') // 2/5 - 1/5 = 1/5
+        expect(result.p).toBe(1n)
+        expect(result.q).toBe(5n)
+        expect(result.toString()).toBe('1/5')
+      })
+
+      it('should subtract decimal strings', () => {
+        const result = quarter.subtract('0.125') // 1/4 - 1/8 = 2/8 - 1/8 = 1/8
+        const simplified = result.simplify()
+        expect(simplified.p).toBe(1n)
+        expect(simplified.q).toBe(8n)
+      })
+
+      it('should handle negative results', () => {
+        const result = quarter.subtract('0.5') // 1/4 - 1/2 = 1/4 - 2/4 = -1/4
+        const simplified = result.simplify()
+        expect(simplified.p).toBe(-1n)
+        expect(simplified.q).toBe(4n)
+      })
+    })
+
+    describe('multiply', () => {
+      it('should multiply by fraction strings', () => {
+        const result = oneThird.multiply('3/4') // 1/3 * 3/4 = 3/12 = 1/4
+        const simplified = result.simplify()
+        expect(simplified.p).toBe(1n)
+        expect(simplified.q).toBe(4n)
+      })
+
+      it('should multiply by decimal strings', () => {
+        const result = twoFifths.multiply('2.5') // 2/5 * 5/2 = 10/10 = 1
+        const simplified = result.simplify()
+        expect(simplified.p).toBe(1n)
+        expect(simplified.q).toBe(1n)
+      })
+
+      it('should multiply by integer strings', () => {
+        const result = oneThird.multiply('6') // 1/3 * 6 = 6/3 = 2
+        const simplified = result.simplify()
+        expect(simplified.p).toBe(2n)
+        expect(simplified.q).toBe(1n)
+      })
+    })
+
+    describe('divide', () => {
+      it('should divide by fraction strings', () => {
+        const result = oneThird.divide('1/6') // 1/3 ÷ 1/6 = 1/3 * 6/1 = 6/3 = 2
+        const simplified = result.simplify()
+        expect(simplified.p).toBe(2n)
+        expect(simplified.q).toBe(1n)
+      })
+
+      it('should divide by decimal strings', () => {
+        const result = quarter.divide('0.5') // 1/4 ÷ 1/2 = 1/4 * 2/1 = 2/4 = 1/2
+        const simplified = result.simplify()
+        expect(simplified.p).toBe(1n)
+        expect(simplified.q).toBe(2n)
+      })
+
+      it('should throw on division by zero string', () => {
+        expect(() => oneThird.divide('0')).toThrow('Cannot divide by zero')
+        expect(() => oneThird.divide('0/1')).toThrow('Cannot divide by zero')
+      })
+    })
+
+    describe('equals', () => {
+      it('should compare with fraction strings', () => {
+        expect(oneThird.equals('1/3')).toBe(true)
+        expect(oneThird.equals('2/6')).toBe(true) // Equivalent fraction
+        expect(oneThird.equals('1/4')).toBe(false)
+      })
+
+      it('should compare with decimal strings', () => {
+        expect(quarter.equals('0.25')).toBe(true)
+        expect(quarter.equals('0.250')).toBe(true) // Trailing zeros
+        expect(quarter.equals('0.26')).toBe(false)
+      })
+
+      it('should handle improper fractions', () => {
+        const improper = new RationalNumber({ p: 7n, q: 3n }) // 7/3
+        expect(improper.equals('7/3')).toBe(true)
+        // Note: 2.333333333333333 is not exactly equal to 7/3 due to precision limits
+        expect(improper.equals('2.333333333333333')).toBe(false)
+        // 7/3 is a repeating decimal, so finite decimal approximations won't be exactly equal
+        // But we can test that a simple fraction like 1/2 works correctly
+        const half = new RationalNumber({ p: 1n, q: 2n })
+        expect(half.equals(half.toDecimalString())).toBe(true)
+      })
+
+      it('should handle negative comparisons', () => {
+        const negative = new RationalNumber({ p: -1n, q: 4n }) // -1/4
+        expect(negative.equals('-1/4')).toBe(true)
+        expect(negative.equals('-0.25')).toBe(true)
+      })
+    })
+
+    describe('greaterThan', () => {
+      it('should compare with fraction strings', () => {
+        expect(twoFifths.greaterThan('1/3')).toBe(true)  // 2/5 = 0.4 > 1/3 ≈ 0.333
+        expect(oneThird.greaterThan('2/5')).toBe(false)
+        expect(oneThird.greaterThan('1/3')).toBe(false)  // Equal
+      })
+
+      it('should compare with decimal strings', () => {
+        expect(twoFifths.greaterThan('0.3')).toBe(true)  // 2/5 = 0.4 > 0.3
+        expect(quarter.greaterThan('0.3')).toBe(false)   // 1/4 = 0.25 < 0.3
+      })
+    })
+
+    describe('greaterThanOrEqual', () => {
+      it('should handle equal values', () => {
+        expect(oneThird.greaterThanOrEqual('1/3')).toBe(true)
+        expect(oneThird.greaterThanOrEqual('2/6')).toBe(true) // Equivalent
+      })
+
+      it('should handle greater values', () => {
+        expect(twoFifths.greaterThanOrEqual('1/3')).toBe(true)
+      })
+
+      it('should handle lesser values', () => {
+        expect(quarter.greaterThanOrEqual('1/2')).toBe(false)
+      })
+    })
+
+    describe('lessThan', () => {
+      it('should compare with fraction strings', () => {
+        expect(oneThird.lessThan('2/5')).toBe(true)
+        expect(twoFifths.lessThan('1/3')).toBe(false)
+        expect(oneThird.lessThan('1/3')).toBe(false) // Equal
+      })
+
+      it('should compare with decimal strings', () => {
+        expect(quarter.lessThan('0.3')).toBe(true)    // 1/4 = 0.25 < 0.3
+        expect(twoFifths.lessThan('0.3')).toBe(false) // 2/5 = 0.4 > 0.3
+      })
+    })
+
+    describe('lessThanOrEqual', () => {
+      it('should handle equal values', () => {
+        expect(oneThird.lessThanOrEqual('1/3')).toBe(true)
+        expect(quarter.lessThanOrEqual('0.25')).toBe(true)
+      })
+
+      it('should handle lesser values', () => {
+        expect(quarter.lessThanOrEqual('1/2')).toBe(true)
+      })
+
+      it('should handle greater values', () => {
+        expect(twoFifths.lessThanOrEqual('1/4')).toBe(false)
+      })
+    })
+
+    describe('max', () => {
+      it('should handle string arguments', () => {
+        const result = quarter.max('1/2')
+        expect(result.p).toBe(1n)
+        expect(result.q).toBe(2n)
+      })
+
+      it('should handle array of strings', () => {
+        const result = quarter.max(['1/8', '1/2', '1/3'])
+        expect(result.p).toBe(1n)
+        expect(result.q).toBe(2n)
+      })
+
+      it('should handle mixed string and Ratio arguments', () => {
+        const half = { p: 1n, q: 2n }
+        const result = quarter.max([half, '1/3'])
+        expect(result.p).toBe(1n)
+        expect(result.q).toBe(2n)
+      })
+
+      it('should handle decimal strings', () => {
+        const result = quarter.max('0.3') // 0.3 = 3/10 > 1/4
+        expect(result.p).toBe(3n)
+        expect(result.q).toBe(10n)
+      })
+    })
+
+    describe('min', () => {
+      it('should handle string arguments', () => {
+        const result = twoFifths.min('1/6')
+        expect(result.p).toBe(1n)
+        expect(result.q).toBe(6n)
+      })
+
+      it('should handle array of strings', () => {
+        const result = twoFifths.min(['1/2', '1/6', '1/3'])
+        expect(result.p).toBe(1n)
+        expect(result.q).toBe(6n)
+      })
+
+      it('should handle mixed string and Ratio arguments', () => {
+        const sixth = { p: 1n, q: 6n }
+        const result = twoFifths.min([sixth, '1/3'])
+        expect(result.p).toBe(1n)
+        expect(result.q).toBe(6n)
+      })
+
+      it('should handle decimal strings', () => {
+        const result = quarter.min('0.1') // 0.1 = 1/10 < 1/4
+        expect(result.p).toBe(1n)
+        expect(result.q).toBe(10n)
+      })
+    })
+
+    describe('Edge cases and error handling', () => {
+      it('should preserve Ratio instance when passed instead of string', () => {
+        const result = oneThird.add(twoFifths)
+        expect(result.p).toBe(11n)
+        expect(result.q).toBe(15n)
+      })
+
+      it('should handle complex fraction strings', () => {
+        const result = oneThird.add('22/7') // Adding pi approximation
+        const simplified = result.simplify()
+        expect(simplified.p).toBe(73n)
+        expect(simplified.q).toBe(21n)
+      })
+
+      it('should handle very precise decimal strings', () => {
+        const result = quarter.add('0.123456789')
+        // Should convert decimal to fraction and add: 1/4 + 123456789/1000000000 = 373456789/1000000000
+        expect(result.toString()).toBe('373456789/1000000000')
+      })
+
+      it('should handle negative fractions', () => {
+        const negative = new RationalNumber({ p: -1n, q: 4n })
+        const result = negative.add('-1/4')
+        expect(result.p).toBe(-1n)
+        expect(result.q).toBe(2n)
+      })
+
+      it('should throw on invalid fraction strings', () => {
+        expect(() => oneThird.add('invalid')).toThrow()
+        expect(() => oneThird.add('1/0')).toThrow()
+        expect(() => oneThird.add('1/')).toThrow()
+      })
+
+      it('should handle zero strings', () => {
+        expect(oneThird.add('0').equals('1/3')).toBe(true)
+        expect(oneThird.add('0/1').equals('1/3')).toBe(true)
+        expect(oneThird.multiply('0').equals('0/1')).toBe(true)
+      })
+
+      it('should handle integer strings as fractions', () => {
+        const result = oneThird.add('2') // 1/3 + 2 = 1/3 + 6/3 = 7/3
+        expect(result.p).toBe(7n)
+        expect(result.q).toBe(3n)
+      })
+
+      it('should maintain precision with high precision decimals', () => {
+        const result = oneThird.multiply('3.141592653589793')
+        // Should maintain full precision in fraction form: (1/3) * (3141592653589793/1000000000000000)
+        expect(result.toDecimalString(15)).toBe('1.047197551196597')
+      })
+    })
+  })
 })

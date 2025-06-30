@@ -45,13 +45,14 @@ export class RationalNumber implements Ratio {
    *
    * Formula: (a/b) * (c/d) = (a*c)/(b*d)
    *
-   * @param other - The ratio to multiply by
+   * @param other - The ratio to multiply by (Ratio or string)
    * @returns A new RationalNumber instance with the product
    */
-  multiply(other: Ratio): RationalNumber {
+  multiply(other: Ratio | string): RationalNumber {
+    const otherRational = typeof other === 'string' ? parseStringToRational(other) : other
     return new RationalNumber({
-      p: this.p * other.p,
-      q: this.q * other.q
+      p: this.p * otherRational.p,
+      q: this.q * otherRational.q
     })
   }
 
@@ -60,18 +61,19 @@ export class RationalNumber implements Ratio {
    *
    * Formula: (a/b) / (c/d) = (a/b) * (d/c) = (a*d)/(b*c)
    *
-   * @param other - The ratio to divide by
+   * @param other - The ratio to divide by (Ratio or string)
    * @returns A new RationalNumber instance with the quotient
    * @throws Error if the divisor numerator is zero
    */
-  divide(other: Ratio): RationalNumber {
-    if (other.p === 0n) {
+  divide(other: Ratio | string): RationalNumber {
+    const otherRational = typeof other === 'string' ? parseStringToRational(other) : other
+    if (otherRational.p === 0n) {
       throw new Error("Cannot divide by zero")
     }
 
     return new RationalNumber({
-      p: this.p * other.q,
-      q: this.q * other.p
+      p: this.p * otherRational.q,
+      q: this.q * otherRational.p
     })
   }
 
@@ -83,13 +85,14 @@ export class RationalNumber implements Ratio {
    * The result is automatically simplified to keep the ratio in lowest terms,
    * preventing numerators and denominators from growing unnecessarily large.
    *
-   * @param other - The ratio to add
+   * @param other - The ratio to add (Ratio or string)
    * @returns A new RationalNumber instance with the sum in simplified form
    */
-  add(other: Ratio): RationalNumber {
+  add(other: Ratio | string): RationalNumber {
+    const otherRational = typeof other === 'string' ? parseStringToRational(other) : other
     return new RationalNumber({
-      p: this.p * other.q + this.q * other.p,
-      q: this.q * other.q
+      p: this.p * otherRational.q + this.q * otherRational.p,
+      q: this.q * otherRational.q
     }).simplify()
   }
 
@@ -101,14 +104,29 @@ export class RationalNumber implements Ratio {
    * The result is automatically simplified to keep the ratio in lowest terms,
    * preventing numerators and denominators from growing unnecessarily large.
    *
-   * @param other - The ratio to subtract
+   * @param other - The ratio to subtract (Ratio or string)
    * @returns A new RationalNumber instance with the difference in simplified form
    */
-  subtract(other: Ratio): RationalNumber {
+  subtract(other: Ratio | string): RationalNumber {
+    const otherRational = typeof other === 'string' ? parseStringToRational(other) : other
     return new RationalNumber({
-      p: this.p * other.q - this.q * other.p,
-      q: this.q * other.q
+      p: this.p * otherRational.q - this.q * otherRational.p,
+      q: this.q * otherRational.q
     }).simplify()
+  }
+
+  /**
+   * Check if this RationalNumber is equal to another ratio
+   *
+   * @param other - The ratio to compare with (Ratio or string)
+   * @returns true if both ratios are equal, false otherwise
+   */
+  equals(other: Ratio | string): boolean {
+    const otherRational = typeof other === 'string' ? parseStringToRational(other) : other
+    // Simplify both ratios to compare them in lowest terms
+    const thisSimplified = this.simplify()
+    const otherSimplified = new RationalNumber(otherRational).simplify()
+    return thisSimplified.p === otherSimplified.p && thisSimplified.q === otherSimplified.q
   }
 
   /**
@@ -116,21 +134,23 @@ export class RationalNumber implements Ratio {
    *
    * Formula: (a/b) > (c/d) iff a*d > b*c
    *
-   * @param other - The ratio to compare with
+   * @param other - The ratio to compare with (Ratio or string)
    * @returns true if this number is greater than other, false otherwise
    */
-  greaterThan(other: Ratio): boolean {
-    return this.p * other.q > this.q * other.p
+  greaterThan(other: Ratio | string): boolean {
+    const otherRational = typeof other === 'string' ? parseStringToRational(other) : other
+    return this.p * otherRational.q > this.q * otherRational.p
   }
 
   /**
    * Check if this RationalNumber is greater than or equal to another ratio
    *
-   * @param other - The ratio to compare with
+   * @param other - The ratio to compare with (Ratio or string)
    * @returns true if this number is greater than or equal to other, false otherwise
    */
-  greaterThanOrEqual(other: Ratio): boolean {
-    return this.p * other.q >= this.q * other.p
+  greaterThanOrEqual(other: Ratio | string): boolean {
+    const otherRational = typeof other === 'string' ? parseStringToRational(other) : other
+    return this.p * otherRational.q >= this.q * otherRational.p
   }
 
   /**
@@ -169,21 +189,69 @@ export class RationalNumber implements Ratio {
    *
    * Formula: (a/b) < (c/d) iff a*d < b*c
    *
-   * @param other - The ratio to compare with
+   * @param other - The ratio to compare with (Ratio or string)
    * @returns true if this number is less than other, false otherwise
    */
-  lessThan(other: Ratio): boolean {
-    return this.p * other.q < this.q * other.p
+  lessThan(other: Ratio | string): boolean {
+    const otherRational = typeof other === 'string' ? parseStringToRational(other) : other
+    return this.p * otherRational.q < this.q * otherRational.p
   }
 
   /**
    * Check if this RationalNumber is less than or equal to another ratio
    *
-   * @param other - The ratio to compare with
+   * @param other - The ratio to compare with (Ratio or string)
    * @returns true if this number is less than or equal to other, false otherwise
    */
-  lessThanOrEqual(other: Ratio): boolean {
-    return this.p * other.q <= this.q * other.p
+  lessThanOrEqual(other: Ratio | string): boolean {
+    const otherRational = typeof other === 'string' ? parseStringToRational(other) : other
+    return this.p * otherRational.q <= this.q * otherRational.p
+  }
+
+  /**
+   * Return the maximum of this RationalNumber and other(s)
+   *
+   * @param other - The other RationalNumber(s) or string(s) to compare with
+   * @returns The RationalNumber with the largest value
+   */
+  max(other: Ratio | Ratio[] | string | string[]): RationalNumber {
+    const otherArray = Array.isArray(other) ? other : [other]
+    const others = otherArray.map(item => 
+      typeof item === 'string' ? parseStringToRational(item) : new RationalNumber(item)
+    )
+
+    let maxValue: RationalNumber = this
+
+    for (const rational of others) {
+      if (maxValue.lessThan(rational)) {
+        maxValue = rational
+      }
+    }
+
+    return maxValue
+  }
+
+  /**
+   * Return the minimum of this RationalNumber and other(s)
+   *
+   * @param other - The other RationalNumber(s) or string(s) to compare with
+   * @returns The RationalNumber with the smallest value
+   */
+  min(other: Ratio | Ratio[] | string | string[]): RationalNumber {
+    const otherArray = Array.isArray(other) ? other : [other]
+    const others = otherArray.map(item => 
+      typeof item === 'string' ? parseStringToRational(item) : new RationalNumber(item)
+    )
+
+    let minValue: RationalNumber = this
+
+    for (const rational of others) {
+      if (minValue.greaterThan(rational)) {
+        minValue = rational
+      }
+    }
+
+    return minValue
   }
 
   /**
@@ -332,6 +400,32 @@ export class RationalNumber implements Ratio {
 }
 
 /**
+ * Helper function to convert string arguments to RationalNumber instances
+ * 
+ * @param value - String representation (fraction or decimal) or existing Ratio instance
+ * @returns RationalNumber instance
+ * @throws Error if string parsing fails
+ */
+function parseStringToRational(value: string | Ratio): RationalNumber {
+  if (typeof value === 'object' && 'p' in value && 'q' in value) {
+    return new RationalNumber(value)
+  }
+
+  // Parse the string using the existing factory function logic
+  const stringType = getRationalStringType(value as string)
+
+  if (stringType === 'fraction') {
+    // Parse fraction format using utility function
+    const ratio = parseFraction(value as string)
+    return new RationalNumber(ratio)
+  } else {
+    // Parse decimal format "12234.352453" - convert to fraction
+    const fp = FixedPointNumber.fromDecimalString(value as string)
+    return new RationalNumber({ p: fp.amount, q: fp.q })
+  }
+}
+
+/**
  * Factory function for creating RationalNumber instances
  * Supports fraction strings, decimal strings, bigint p/q arguments, and original constructor signature
  */
@@ -346,18 +440,8 @@ export function Rational(ratioOrStrOrP: Ratio | string | DecimalString | Rationa
     }
     return new RationalNumber({ p: ratioOrStrOrP, q })
   } else if (typeof ratioOrStrOrP === 'string') {
-    // String parsing mode
-    const stringType = getRationalStringType(ratioOrStrOrP)
-
-    if (stringType === 'fraction') {
-      // Parse fraction format using utility function
-      const ratio = parseFraction(ratioOrStrOrP)
-      return new RationalNumber(ratio)
-    } else {
-      // Parse decimal format "12234.352453" - convert to fraction
-      const fp = FixedPointNumber.fromDecimalString(ratioOrStrOrP)
-      return new RationalNumber({ p: fp.amount, q: fp.q })
-    }
+    // String parsing mode - use helper function
+    return parseStringToRational(ratioOrStrOrP)
   } else {
     // Original constructor mode
     return new RationalNumber(ratioOrStrOrP)
