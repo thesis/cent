@@ -1248,4 +1248,280 @@ describe('FixedPoint factory function', () => {
       expect(factory.equals(method)).toBe(true)
     })
   })
+
+  describe('String argument support', () => {
+    const fp100 = new FixedPointNumber(10000n, 2n) // 100.00
+    const fp25 = new FixedPointNumber(2500n, 2n)   // 25.00
+
+    describe('add', () => {
+      it('should add string decimal numbers', () => {
+        const result = fp100.add('25.50')
+        expect(result.amount).toBe(12550n) // 125.50
+        expect(result.decimals).toBe(2n)
+      })
+
+      it('should handle different precision strings', () => {
+        const result = fp100.add('0.123') // 3 decimals
+        expect(result.amount).toBe(100123n) // 100.123
+        expect(result.decimals).toBe(3n)
+      })
+
+      it('should handle integer strings', () => {
+        const result = fp100.add('25')
+        expect(result.amount).toBe(12500n) // 125.00
+        expect(result.decimals).toBe(2n)
+      })
+
+      it('should handle negative string amounts', () => {
+        const result = fp100.add('-25.00')
+        expect(result.amount).toBe(7500n) // 75.00
+        expect(result.decimals).toBe(2n)
+      })
+
+      it('should throw on invalid string formats', () => {
+        expect(() => fp100.add('invalid')).toThrow('Invalid number format')
+      })
+    })
+
+    describe('subtract', () => {
+      it('should subtract string decimal numbers', () => {
+        const result = fp100.subtract('25.50')
+        expect(result.amount).toBe(7450n) // 74.50
+        expect(result.decimals).toBe(2n)
+      })
+
+      it('should handle different precision strings', () => {
+        const result = fp100.subtract('0.123') // 3 decimals
+        expect(result.amount).toBe(99877n) // 99.877
+        expect(result.decimals).toBe(3n)
+      })
+
+      it('should handle negative string amounts', () => {
+        const result = fp100.subtract('-25.00')
+        expect(result.amount).toBe(12500n) // 125.00
+        expect(result.decimals).toBe(2n)
+      })
+    })
+
+    describe('multiply', () => {
+      it('should multiply by string decimal numbers', () => {
+        const result = fp25.multiply('2.5')
+        expect(result.amount).toBe(6250n) // 62.50
+        expect(result.decimals).toBe(2n)
+      })
+
+      it('should handle high precision strings', () => {
+        const result = fp25.multiply('1.125') // 3 decimals
+        expect(result.amount).toBe(28125n) // 28.125
+        expect(result.decimals).toBe(3n)
+      })
+
+      it('should handle integer strings', () => {
+        const result = fp25.multiply('3')
+        expect(result.amount).toBe(7500n) // 75.00
+        expect(result.decimals).toBe(2n)
+      })
+
+      it('should preserve FixedPoint behavior with bigint', () => {
+        const result = fp25.multiply(3n)
+        expect(result.amount).toBe(7500n) // 75.00
+        expect(result.decimals).toBe(2n)
+      })
+    })
+
+    describe('divide', () => {
+      it('should divide by string decimal numbers (factors of 2 and 5)', () => {
+        const result = fp100.divide('2.5')
+        expect(result.amount).toBe(400000n) // 40.00000 (higher precision)
+        expect(result.decimals).toBe(5n)
+        expect(result.toString()).toBe('4.00000')
+      })
+
+      it('should divide by string integers', () => {
+        const result = fp100.divide('4')
+        expect(result.amount).toBe(250000n) // 25.0000 (higher precision)
+        expect(result.decimals).toBe(4n)
+        expect(result.toString()).toBe('25.0000')
+      })
+
+      it('should throw on division by invalid factors', () => {
+        expect(() => fp100.divide('3.0')).toThrow('divisor numerator must be composed only of factors of 2 and 5')
+      })
+
+      it('should throw on division by zero string', () => {
+        expect(() => fp100.divide('0')).toThrow('Cannot divide by zero')
+      })
+
+      it('should preserve FixedPoint behavior with bigint', () => {
+        const result = fp100.divide(4n)
+        expect(result.amount).toBe(250000n) // 25.0000 (higher precision due to calculation)
+        expect(result.decimals).toBe(4n)
+      })
+    })
+
+    describe('equals', () => {
+      it('should compare with string decimal numbers', () => {
+        expect(fp100.equals('100.00')).toBe(true)
+        expect(fp100.equals('100.0')).toBe(true)
+        expect(fp100.equals('100')).toBe(true)
+        expect(fp100.equals('100.01')).toBe(false)
+      })
+
+      it('should handle high precision comparisons', () => {
+        const precise = new FixedPointNumber(10012345n, 5n) // 100.12345
+        expect(precise.equals('100.12345')).toBe(true)
+        expect(precise.equals('100.12346')).toBe(false)
+      })
+
+      it('should handle negative comparisons', () => {
+        const negative = new FixedPointNumber(-10000n, 2n) // -100.00
+        expect(negative.equals('-100.00')).toBe(true)
+        expect(negative.equals('-100.01')).toBe(false)
+      })
+    })
+
+    describe('lessThan', () => {
+      it('should compare with string numbers', () => {
+        expect(fp25.lessThan('100.00')).toBe(true)
+        expect(fp100.lessThan('25.00')).toBe(false)
+        expect(fp100.lessThan('100.00')).toBe(false)
+      })
+
+      it('should handle different precision strings', () => {
+        expect(fp25.lessThan('25.001')).toBe(true)
+        expect(fp25.lessThan('24.999')).toBe(false)
+      })
+    })
+
+    describe('lessThanOrEqual', () => {
+      it('should compare with string numbers', () => {
+        expect(fp25.lessThanOrEqual('100.00')).toBe(true)
+        expect(fp100.lessThanOrEqual('100.00')).toBe(true)
+        expect(fp100.lessThanOrEqual('25.00')).toBe(false)
+      })
+    })
+
+    describe('greaterThan', () => {
+      it('should compare with string numbers', () => {
+        expect(fp100.greaterThan('25.00')).toBe(true)
+        expect(fp25.greaterThan('100.00')).toBe(false)
+        expect(fp100.greaterThan('100.00')).toBe(false)
+      })
+
+      it('should handle different precision strings', () => {
+        expect(fp25.greaterThan('24.999')).toBe(true)
+        expect(fp25.greaterThan('25.001')).toBe(false)
+      })
+    })
+
+    describe('greaterThanOrEqual', () => {
+      it('should compare with string numbers', () => {
+        expect(fp100.greaterThanOrEqual('25.00')).toBe(true)
+        expect(fp100.greaterThanOrEqual('100.00')).toBe(true)
+        expect(fp25.greaterThanOrEqual('100.00')).toBe(false)
+      })
+    })
+
+    describe('max', () => {
+      it('should handle string arguments', () => {
+        const result = fp25.max('100.00')
+        expect(result.equals(fp100)).toBe(true)
+      })
+
+      it('should handle array of strings', () => {
+        const result = fp25.max(['50.00', '100.00', '75.00'])
+        expect(result.equals(fp100)).toBe(true)
+      })
+
+      it('should handle mixed string and FixedPoint arguments', () => {
+        const result = fp25.max([fp100, '75.00'])
+        expect(result.equals(fp100)).toBe(true)
+      })
+
+      it('should handle different precision strings', () => {
+        const result = fp25.max('25.001')
+        expect(result.amount).toBe(25001n)
+        expect(result.decimals).toBe(3n)
+      })
+    })
+
+    describe('min', () => {
+      it('should handle string arguments', () => {
+        const result = fp100.min('25.00')
+        expect(result.equals(fp25)).toBe(true)
+      })
+
+      it('should handle array of strings', () => {
+        const result = fp100.min(['50.00', '25.00', '75.00'])
+        expect(result.equals(fp25)).toBe(true)
+      })
+
+      it('should handle mixed string and FixedPoint arguments', () => {
+        const result = fp100.min([fp25, '75.00'])
+        expect(result.equals(fp25)).toBe(true)
+      })
+
+      it('should handle different precision strings', () => {
+        const result = fp25.min('24.999')
+        expect(result.amount).toBe(24999n)
+        expect(result.decimals).toBe(3n)
+      })
+    })
+
+    describe('normalize', () => {
+      it('should normalize to string target precision', () => {
+        const fp = new FixedPointNumber(12345n, 3n) // 12.345
+        const result = fp.normalize('100.00') // 2 decimals, safe mode
+        expect(result.amount).toBe(12345n) // Keeps original precision when would lose data
+        expect(result.decimals).toBe(3n)
+      })
+
+      it('should scale up to higher precision string', () => {
+        const fp = new FixedPointNumber(1234n, 2n) // 12.34
+        const result = fp.normalize('100.000') // 3 decimals
+        expect(result.amount).toBe(12340n) // 12.340
+        expect(result.decimals).toBe(3n)
+      })
+
+      it('should preserve precision when unsafe=true', () => {
+        const fp = new FixedPointNumber(12345n, 3n) // 12.345
+        const result = fp.normalize('100.00', true) // 2 decimals, unsafe
+        expect(result.amount).toBe(1234n) // 12.34 (precision lost)
+        expect(result.decimals).toBe(2n)
+      })
+
+      it('should keep original precision when would lose data and unsafe=false', () => {
+        const fp = new FixedPointNumber(12345n, 3n) // 12.345
+        const result = fp.normalize('100.00', false) // 2 decimals, safe
+        expect(result.amount).toBe(12345n) // Keep original
+        expect(result.decimals).toBe(3n)
+      })
+    })
+
+    describe('Edge cases and error handling', () => {
+      it('should preserve FixedPoint instance when passed instead of string', () => {
+        const result = fp100.add(fp25)
+        expect(result.amount).toBe(12500n) // 125.00
+        expect(result.decimals).toBe(2n)
+      })
+
+      it('should handle very high precision strings', () => {
+        const result = fp100.add('0.123456789')
+        expect(result.amount).toBe(100123456789n)
+        expect(result.decimals).toBe(9n)
+      })
+
+      it('should handle zero strings', () => {
+        const result = fp100.add('0.0')
+        expect(result.equals(fp100)).toBe(true)
+      })
+
+      it('should handle very large numbers', () => {
+        const large = new FixedPointNumber(123456789012345n, 5n) // 1234567890.12345
+        const result = large.add('1000000.0') // Add 1000000.0
+        expect(result.amount).toBe(123556789012345n) // 1235567890.12345
+        expect(result.decimals).toBe(5n)
+      })
+    })
+  })
 })
