@@ -4,8 +4,8 @@
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
-    "lint": "eslint \"**/*.ts*\" --max-warnings 0",
-    "lint:fix": "eslint \"**/*.ts\" --fix",
+    "lint": "eslint \"src/**/*.ts*\" --max-warnings 0",
+    "lint:fix": "eslint \"src/**/*.ts\" --fix",
     "build": "tsc",
     "test": "jest"
   },
