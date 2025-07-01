@@ -5,6 +5,7 @@
   "types": "dist/index.d.ts",
   "scripts": {
     "lint": "eslint \"**/*.ts*\" --max-warnings 0",
+    "lint:fix": "eslint \"**/*.ts\" --fix",
     "build": "tsc",
     "test": "jest"
   },
