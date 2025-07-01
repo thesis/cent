@@ -7,6 +7,7 @@ import { nowUNIXTime, toUNIXTime } from "./time"
 
 export class Price implements PricePoint {
   readonly amounts: [AssetAmount, AssetAmount]
+
   readonly time: UNIXTime
 
   /**
@@ -16,7 +17,11 @@ export class Price implements PricePoint {
    * @param b - The second asset amount or Money instance
    * @param time - Optional UNIX timestamp (string or UNIXTime). Defaults to current time
    */
-  constructor(a: AssetAmount | MoneyClass, b: AssetAmount | MoneyClass, time?: UNIXTime | string) {
+  constructor(
+    a: AssetAmount | MoneyClass,
+    b: AssetAmount | MoneyClass,
+    time?: UNIXTime | string,
+  ) {
     // Convert Money instances to AssetAmount
     const amountA = a instanceof MoneyClass ? a.balance : a
     const amountB = b instanceof MoneyClass ? b.balance : b
@@ -25,7 +30,7 @@ export class Price implements PricePoint {
 
     // Set time - if provided as string, convert to UNIXTime, otherwise use current time
     if (time) {
-      this.time = typeof time === 'string' ? toUNIXTime(time) : time
+      this.time = typeof time === "string" ? toUNIXTime(time) : time
     } else {
       this.time = nowUNIXTime()
     }
@@ -53,7 +58,7 @@ export class Price implements PricePoint {
   asRatio(): RationalNumber {
     return new RationalNumber({
       p: this.amounts[0].amount.amount,
-      q: this.amounts[1].amount.amount
+      q: this.amounts[1].amount.amount,
     })
   }
 
@@ -75,10 +80,10 @@ export class Price implements PricePoint {
     let multiplierP: bigint
     let multiplierQ: bigint
 
-    if (typeof scalar === 'bigint') {
+    if (typeof scalar === "bigint") {
       multiplierP = scalar
       multiplierQ = 1n
-    } else if ('amount' in scalar && 'decimals' in scalar) {
+    } else if ("amount" in scalar && "decimals" in scalar) {
       // FixedPoint: treat as p/q where q = 10^decimals
       multiplierP = scalar.amount
       multiplierQ = 10n ** scalar.decimals
@@ -92,17 +97,19 @@ export class Price implements PricePoint {
     const newAmountA = {
       asset: this.amounts[0].asset,
       amount: {
-        amount: (BigInt(this.amounts[0].amount.amount) * BigInt(multiplierP)) / BigInt(multiplierQ),
-        decimals: this.amounts[0].amount.decimals
-      }
+        amount:
+          (BigInt(this.amounts[0].amount.amount) * BigInt(multiplierP)) /
+          BigInt(multiplierQ),
+        decimals: this.amounts[0].amount.decimals,
+      },
     }
 
     const newAmountB = {
       asset: this.amounts[1].asset,
       amount: {
         amount: this.amounts[1].amount.amount,
-        decimals: this.amounts[1].amount.decimals
-      }
+        decimals: this.amounts[1].amount.decimals,
+      },
     }
 
     return new Price(newAmountA, newAmountB, this.time)
@@ -125,12 +132,12 @@ export class Price implements PricePoint {
     // Division is multiplication by the inverted ratio
     let invertedRatio: Ratio
 
-    if (typeof divisor === 'bigint') {
+    if (typeof divisor === "bigint") {
       if (divisor === 0n) {
         throw new Error("Cannot divide by zero")
       }
       invertedRatio = { p: 1n, q: divisor }
-    } else if ('amount' in divisor && 'decimals' in divisor) {
+    } else if ("amount" in divisor && "decimals" in divisor) {
       // FixedPoint: invert p/q to q/p where q = 10^decimals
       if (divisor.amount === 0n) {
         throw new Error("Cannot divide by zero")
@@ -190,17 +197,19 @@ export class Price implements PricePoint {
       const newAmountA = {
         asset: this.amounts[0].asset,
         amount: {
-          amount: (this.amounts[0].amount.amount * other.amounts[0].amount.amount) / this.amounts[1].amount.amount,
-          decimals: this.amounts[0].amount.decimals
-        }
+          amount:
+            (this.amounts[0].amount.amount * other.amounts[0].amount.amount) /
+            this.amounts[1].amount.amount,
+          decimals: this.amounts[0].amount.decimals,
+        },
       }
 
       const newAmountB = {
         asset: other.amounts[1].asset,
         amount: {
           amount: other.amounts[1].amount.amount,
-          decimals: other.amounts[1].amount.decimals
-        }
+          decimals: other.amounts[1].amount.decimals,
+        },
       }
 
       return new Price(newAmountA, newAmountB, this.time)
@@ -211,24 +220,29 @@ export class Price implements PricePoint {
       const newAmountA = {
         asset: other.amounts[0].asset,
         amount: {
-          amount: (other.amounts[0].amount.amount * this.amounts[0].amount.amount) / other.amounts[1].amount.amount,
-          decimals: other.amounts[0].amount.decimals
-        }
+          amount:
+            (other.amounts[0].amount.amount * this.amounts[0].amount.amount) /
+            other.amounts[1].amount.amount,
+          decimals: other.amounts[0].amount.decimals,
+        },
       }
 
       const newAmountB = {
         asset: this.amounts[1].asset,
         amount: {
           amount: this.amounts[1].amount.amount,
-          decimals: this.amounts[1].amount.decimals
-        }
+          decimals: this.amounts[1].amount.decimals,
+        },
       }
 
       return new Price(newAmountA, newAmountB, this.time)
     }
 
     // No shared asset found
-    const getAssetName = (asset: any) => asset.name || asset.code || 'Unknown Asset'
-    throw new Error(`Cannot multiply prices: no shared asset found between ${getAssetName(this.amounts[0].asset)}/${getAssetName(this.amounts[1].asset)} and ${getAssetName(other.amounts[0].asset)}/${getAssetName(other.amounts[1].asset)}`)
+    const getAssetName = (asset: any) =>
+      asset.name || asset.code || "Unknown Asset"
+    throw new Error(
+      `Cannot multiply prices: no shared asset found between ${getAssetName(this.amounts[0].asset)}/${getAssetName(this.amounts[1].asset)} and ${getAssetName(other.amounts[0].asset)}/${getAssetName(other.amounts[1].asset)}`,
+    )
   }
 }

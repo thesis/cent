@@ -1,17 +1,18 @@
+import { z } from "zod"
 import { Ratio, FixedPoint, DecimalString, RationalString } from "./types"
 import { gcd } from "./math-utils"
 import { BigIntStringSchema } from "./validation-schemas"
 import { FixedPointNumber } from "./fixed-point"
 import { parseFraction, getRationalStringType } from "./rational-strings"
-import { z } from "zod"
 
 export const RationalNumberJSONSchema = z.object({
   p: BigIntStringSchema,
-  q: BigIntStringSchema
+  q: BigIntStringSchema,
 })
 
 export class RationalNumber implements Ratio {
   #p: bigint
+
   #q: bigint
 
   /**
@@ -49,10 +50,11 @@ export class RationalNumber implements Ratio {
    * @returns A new RationalNumber instance with the product
    */
   multiply(other: Ratio | string): RationalNumber {
-    const otherRational = typeof other === 'string' ? parseStringToRational(other) : other
+    const otherRational =
+      typeof other === "string" ? parseStringToRational(other) : other
     return new RationalNumber({
       p: this.p * otherRational.p,
-      q: this.q * otherRational.q
+      q: this.q * otherRational.q,
     })
   }
 
@@ -66,14 +68,15 @@ export class RationalNumber implements Ratio {
    * @throws Error if the divisor numerator is zero
    */
   divide(other: Ratio | string): RationalNumber {
-    const otherRational = typeof other === 'string' ? parseStringToRational(other) : other
+    const otherRational =
+      typeof other === "string" ? parseStringToRational(other) : other
     if (otherRational.p === 0n) {
       throw new Error("Cannot divide by zero")
     }
 
     return new RationalNumber({
       p: this.p * otherRational.q,
-      q: this.q * otherRational.p
+      q: this.q * otherRational.p,
     })
   }
 
@@ -81,7 +84,7 @@ export class RationalNumber implements Ratio {
    * Add another ratio to this rational number
    *
    * Formula: (a/b) + (c/d) = (a*d + b*c)/(b*d)
-   * 
+   *
    * The result is automatically simplified to keep the ratio in lowest terms,
    * preventing numerators and denominators from growing unnecessarily large.
    *
@@ -89,10 +92,11 @@ export class RationalNumber implements Ratio {
    * @returns A new RationalNumber instance with the sum in simplified form
    */
   add(other: Ratio | string): RationalNumber {
-    const otherRational = typeof other === 'string' ? parseStringToRational(other) : other
+    const otherRational =
+      typeof other === "string" ? parseStringToRational(other) : other
     return new RationalNumber({
       p: this.p * otherRational.q + this.q * otherRational.p,
-      q: this.q * otherRational.q
+      q: this.q * otherRational.q,
     }).simplify()
   }
 
@@ -100,7 +104,7 @@ export class RationalNumber implements Ratio {
    * Subtract another ratio from this rational number
    *
    * Formula: (a/b) - (c/d) = (a*d - b*c)/(b*d)
-   * 
+   *
    * The result is automatically simplified to keep the ratio in lowest terms,
    * preventing numerators and denominators from growing unnecessarily large.
    *
@@ -108,10 +112,11 @@ export class RationalNumber implements Ratio {
    * @returns A new RationalNumber instance with the difference in simplified form
    */
   subtract(other: Ratio | string): RationalNumber {
-    const otherRational = typeof other === 'string' ? parseStringToRational(other) : other
+    const otherRational =
+      typeof other === "string" ? parseStringToRational(other) : other
     return new RationalNumber({
       p: this.p * otherRational.q - this.q * otherRational.p,
-      q: this.q * otherRational.q
+      q: this.q * otherRational.q,
     }).simplify()
   }
 
@@ -122,11 +127,15 @@ export class RationalNumber implements Ratio {
    * @returns true if both ratios are equal, false otherwise
    */
   equals(other: Ratio | string): boolean {
-    const otherRational = typeof other === 'string' ? parseStringToRational(other) : other
+    const otherRational =
+      typeof other === "string" ? parseStringToRational(other) : other
     // Simplify both ratios to compare them in lowest terms
     const thisSimplified = this.simplify()
     const otherSimplified = new RationalNumber(otherRational).simplify()
-    return thisSimplified.p === otherSimplified.p && thisSimplified.q === otherSimplified.q
+    return (
+      thisSimplified.p === otherSimplified.p &&
+      thisSimplified.q === otherSimplified.q
+    )
   }
 
   /**
@@ -138,7 +147,8 @@ export class RationalNumber implements Ratio {
    * @returns true if this number is greater than other, false otherwise
    */
   greaterThan(other: Ratio | string): boolean {
-    const otherRational = typeof other === 'string' ? parseStringToRational(other) : other
+    const otherRational =
+      typeof other === "string" ? parseStringToRational(other) : other
     return this.p * otherRational.q > this.q * otherRational.p
   }
 
@@ -149,7 +159,8 @@ export class RationalNumber implements Ratio {
    * @returns true if this number is greater than or equal to other, false otherwise
    */
   greaterThanOrEqual(other: Ratio | string): boolean {
-    const otherRational = typeof other === 'string' ? parseStringToRational(other) : other
+    const otherRational =
+      typeof other === "string" ? parseStringToRational(other) : other
     return this.p * otherRational.q >= this.q * otherRational.p
   }
 
@@ -193,7 +204,8 @@ export class RationalNumber implements Ratio {
    * @returns true if this number is less than other, false otherwise
    */
   lessThan(other: Ratio | string): boolean {
-    const otherRational = typeof other === 'string' ? parseStringToRational(other) : other
+    const otherRational =
+      typeof other === "string" ? parseStringToRational(other) : other
     return this.p * otherRational.q < this.q * otherRational.p
   }
 
@@ -204,7 +216,8 @@ export class RationalNumber implements Ratio {
    * @returns true if this number is less than or equal to other, false otherwise
    */
   lessThanOrEqual(other: Ratio | string): boolean {
-    const otherRational = typeof other === 'string' ? parseStringToRational(other) : other
+    const otherRational =
+      typeof other === "string" ? parseStringToRational(other) : other
     return this.p * otherRational.q <= this.q * otherRational.p
   }
 
@@ -216,8 +229,10 @@ export class RationalNumber implements Ratio {
    */
   max(other: Ratio | Ratio[] | string | string[]): RationalNumber {
     const otherArray = Array.isArray(other) ? other : [other]
-    const others = otherArray.map(item => 
-      typeof item === 'string' ? parseStringToRational(item) : new RationalNumber(item)
+    const others = otherArray.map((item) =>
+      typeof item === "string"
+        ? parseStringToRational(item)
+        : new RationalNumber(item),
     )
 
     let maxValue: RationalNumber = this
@@ -239,8 +254,10 @@ export class RationalNumber implements Ratio {
    */
   min(other: Ratio | Ratio[] | string | string[]): RationalNumber {
     const otherArray = Array.isArray(other) ? other : [other]
-    const others = otherArray.map(item => 
-      typeof item === 'string' ? parseStringToRational(item) : new RationalNumber(item)
+    const others = otherArray.map((item) =>
+      typeof item === "string"
+        ? parseStringToRational(item)
+        : new RationalNumber(item),
     )
 
     let minValue: RationalNumber = this
@@ -290,7 +307,9 @@ export class RationalNumber implements Ratio {
     let decimals = 0n
 
     if (temp === 0n) {
-      throw new Error("Cannot convert ratio with zero denominator to fixed point")
+      throw new Error(
+        "Cannot convert ratio with zero denominator to fixed point",
+      )
     }
 
     // Handle negative denominators by making them positive
@@ -301,15 +320,17 @@ export class RationalNumber implements Ratio {
 
     while (temp > 1n) {
       if (temp % 10n !== 0n) {
-        throw new Error(`Cannot convert ratio to fixed point: denominator ${this.q} is not a power of 10`)
+        throw new Error(
+          `Cannot convert ratio to fixed point: denominator ${this.q} is not a power of 10`,
+        )
       }
-      temp = temp / 10n
-      decimals++
+      temp /= 10n
+      decimals += 1n
     }
 
     return {
       amount: this.q < 0n ? -this.p : this.p,
-      decimals
+      decimals,
     }
   }
 
@@ -335,7 +356,7 @@ export class RationalNumber implements Ratio {
     }
 
     // Handle sign
-    const negative = (this.p < 0n) !== (this.q < 0n)
+    const negative = this.p < 0n !== this.q < 0n
     const numerator = this.p < 0n ? -this.p : this.p
     const denominator = this.q < 0n ? -this.q : this.q
 
@@ -348,13 +369,13 @@ export class RationalNumber implements Ratio {
     }
 
     // Build decimal part
-    let result = (negative ? "-" : "") + integerPart.toString() + "."
+    let result = `${(negative ? "-" : "") + integerPart.toString()}.`
 
-    for (let i = 0n; i < precision && remainder !== 0n; i++) {
+    for (let i = 0n; i < precision && remainder !== 0n; i += 1n) {
       remainder *= 10n
       const digit = remainder / denominator
       result += digit.toString()
-      remainder = remainder % denominator
+      remainder %= denominator
     }
 
     // Remove trailing zeros
@@ -378,7 +399,7 @@ export class RationalNumber implements Ratio {
   toJSON(): { p: string; q: string } {
     return {
       p: this.p.toString(),
-      q: this.q.toString()
+      q: this.q.toString(),
     }
   }
 
@@ -394,56 +415,62 @@ export class RationalNumber implements Ratio {
 
     return new RationalNumber({
       p: BigInt(parsed.p),
-      q: BigInt(parsed.q)
+      q: BigInt(parsed.q),
     })
   }
 }
 
 /**
  * Helper function to convert string arguments to RationalNumber instances
- * 
+ *
  * @param value - String representation (fraction or decimal) or existing Ratio instance
  * @returns RationalNumber instance
  * @throws Error if string parsing fails
  */
 function parseStringToRational(value: string | Ratio): RationalNumber {
-  if (typeof value === 'object' && 'p' in value && 'q' in value) {
+  if (typeof value === "object" && "p" in value && "q" in value) {
     return new RationalNumber(value)
   }
 
   // Parse the string using the existing factory function logic
   const stringType = getRationalStringType(value as string)
 
-  if (stringType === 'fraction') {
+  if (stringType === "fraction") {
     // Parse fraction format using utility function
     const ratio = parseFraction(value as string)
     return new RationalNumber(ratio)
-  } else {
-    // Parse decimal format "12234.352453" - convert to fraction
-    const fp = FixedPointNumber.fromDecimalString(value as string)
-    return new RationalNumber({ p: fp.amount, q: fp.q })
   }
+  // Parse decimal format "12234.352453" - convert to fraction
+  const fp = FixedPointNumber.fromDecimalString(value as string)
+  return new RationalNumber({ p: fp.amount, q: fp.q })
 }
 
 /**
  * Factory function for creating RationalNumber instances
  * Supports fraction strings, decimal strings, bigint p/q arguments, and original constructor signature
  */
-export function Rational(str: string | DecimalString | RationalString): RationalNumber
+export function Rational(
+  str: string | DecimalString | RationalString,
+): RationalNumber
 export function Rational(ratio: Ratio): RationalNumber
 export function Rational(p: bigint, q: bigint): RationalNumber
-export function Rational(ratioOrStrOrP: Ratio | string | DecimalString | RationalString | bigint, q?: bigint): RationalNumber {
-  if (typeof ratioOrStrOrP === 'bigint') {
+export function Rational(
+  ratioOrStrOrP: Ratio | string | DecimalString | RationalString | bigint,
+  q?: bigint,
+): RationalNumber {
+  if (typeof ratioOrStrOrP === "bigint") {
     // BigInt p, q mode
     if (q === undefined) {
-      throw new Error('q parameter is required when creating Rational with bigint p')
+      throw new Error(
+        "q parameter is required when creating Rational with bigint p",
+      )
     }
     return new RationalNumber({ p: ratioOrStrOrP, q })
-  } else if (typeof ratioOrStrOrP === 'string') {
+  }
+  if (typeof ratioOrStrOrP === "string") {
     // String parsing mode - use helper function
     return parseStringToRational(ratioOrStrOrP)
-  } else {
-    // Original constructor mode
-    return new RationalNumber(ratioOrStrOrP)
   }
+  // Original constructor mode
+  return new RationalNumber(ratioOrStrOrP)
 }

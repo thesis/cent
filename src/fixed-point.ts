@@ -1,15 +1,19 @@
-import type { FixedPoint, Ratio, DecimalString } from "./types"
-import { BigIntStringSchema, NonNegativeBigIntStringSchema } from "./validation-schemas"
-import { isOnlyFactorsOf2And5 } from "./math-utils"
 import { z } from "zod"
+import type { FixedPoint, Ratio, DecimalString } from "./types"
+import {
+  BigIntStringSchema,
+  NonNegativeBigIntStringSchema,
+} from "./validation-schemas"
+import { isOnlyFactorsOf2And5 } from "./math-utils"
 
 export const FixedPointJSONSchema = z.object({
   amount: BigIntStringSchema,
-  decimals: NonNegativeBigIntStringSchema
+  decimals: NonNegativeBigIntStringSchema,
 })
 
 export class FixedPointNumber implements FixedPoint, Ratio {
   #amount: bigint
+
   #decimals: bigint
 
   /**
@@ -55,6 +59,19 @@ export class FixedPointNumber implements FixedPoint, Ratio {
     this.#decimals = decimals ?? 0n
   }
 
+  /**
+   * Helper method to convert string or FixedPoint to FixedPointNumber
+   */
+  private static parseOther(other: FixedPoint | string): FixedPointNumber {
+    if (typeof other === "string") {
+      return FixedPointNumber.fromDecimalString(other)
+    }
+    if (typeof other === "object" && "amount" in other && "decimals" in other) {
+      return FixedPointNumber.fromFixedPoint(other)
+    }
+    return other as FixedPointNumber
+  }
+
   static fromFixedPoint(fp: FixedPoint) {
     return new FixedPointNumber(fp.amount, fp.decimals)
   }
@@ -66,14 +83,24 @@ export class FixedPointNumber implements FixedPoint, Ratio {
    * @returns A new FixedPointNumber instance with the sum
    */
   add(other: FixedPoint | string): FixedPointNumber {
-    const otherFP = typeof other === 'string' ? parseStringToFixedPoint(other) : other
-    const maxDecimals = this.decimals > otherFP.decimals ? this.decimals : otherFP.decimals
-    const normalizedThis = this.decimals === maxDecimals ? this : this.normalize({ amount: 0n, decimals: maxDecimals })
-    const normalizedOther = otherFP.decimals === maxDecimals ? otherFP : FixedPointNumber.fromFixedPoint(otherFP).normalize({ amount: 0n, decimals: maxDecimals })
+    const otherFP = FixedPointNumber.parseOther(other)
+    const maxDecimals =
+      this.decimals > otherFP.decimals ? this.decimals : otherFP.decimals
+    const normalizedThis =
+      this.decimals === maxDecimals
+        ? this
+        : this.normalize({ amount: 0n, decimals: maxDecimals })
+    const normalizedOther =
+      otherFP.decimals === maxDecimals
+        ? otherFP
+        : FixedPointNumber.fromFixedPoint(otherFP).normalize({
+            amount: 0n,
+            decimals: maxDecimals,
+          })
 
     return new FixedPointNumber(
       normalizedThis.amount + normalizedOther.amount,
-      maxDecimals
+      maxDecimals,
     )
   }
 
@@ -84,14 +111,24 @@ export class FixedPointNumber implements FixedPoint, Ratio {
    * @returns A new FixedPointNumber instance with the difference
    */
   subtract(other: FixedPoint | string): FixedPointNumber {
-    const otherFP = typeof other === 'string' ? parseStringToFixedPoint(other) : other
-    const maxDecimals = this.decimals > otherFP.decimals ? this.decimals : otherFP.decimals
-    const normalizedThis = this.decimals === maxDecimals ? this : this.normalize({ amount: 0n, decimals: maxDecimals })
-    const normalizedOther = otherFP.decimals === maxDecimals ? otherFP : FixedPointNumber.fromFixedPoint(otherFP).normalize({ amount: 0n, decimals: maxDecimals })
+    const otherFP = FixedPointNumber.parseOther(other)
+    const maxDecimals =
+      this.decimals > otherFP.decimals ? this.decimals : otherFP.decimals
+    const normalizedThis =
+      this.decimals === maxDecimals
+        ? this
+        : this.normalize({ amount: 0n, decimals: maxDecimals })
+    const normalizedOther =
+      otherFP.decimals === maxDecimals
+        ? otherFP
+        : FixedPointNumber.fromFixedPoint(otherFP).normalize({
+            amount: 0n,
+            decimals: maxDecimals,
+          })
 
     return new FixedPointNumber(
       normalizedThis.amount - normalizedOther.amount,
-      maxDecimals
+      maxDecimals,
     )
   }
 
@@ -102,27 +139,30 @@ export class FixedPointNumber implements FixedPoint, Ratio {
    * @returns A new FixedPointNumber instance with the product
    */
   multiply(other: FixedPoint | bigint | string): FixedPointNumber {
-    if (typeof other === 'bigint') {
-      return new FixedPointNumber(
-        this.amount * other,
-        this.decimals
-      )
+    if (typeof other === "bigint") {
+      return new FixedPointNumber(this.amount * other, this.decimals)
     }
 
-    const otherFP = typeof other === 'string' ? parseStringToFixedPoint(other) : other
-    const maxDecimals = this.decimals > otherFP.decimals ? this.decimals : otherFP.decimals
-    const normalizedThis = this.decimals === maxDecimals ? this : this.normalize({ amount: 0n, decimals: maxDecimals })
-    const normalizedOther = otherFP.decimals === maxDecimals ? otherFP : FixedPointNumber.fromFixedPoint(otherFP).normalize({ amount: 0n, decimals: maxDecimals })
+    const otherFP = FixedPointNumber.parseOther(other)
+    const maxDecimals =
+      this.decimals > otherFP.decimals ? this.decimals : otherFP.decimals
+    const normalizedThis =
+      this.decimals === maxDecimals
+        ? this
+        : this.normalize({ amount: 0n, decimals: maxDecimals })
+    const normalizedOther =
+      otherFP.decimals === maxDecimals
+        ? otherFP
+        : FixedPointNumber.fromFixedPoint(otherFP).normalize({
+            amount: 0n,
+            decimals: maxDecimals,
+          })
 
     const factor = 10n ** maxDecimals
     const result = (normalizedThis.amount * normalizedOther.amount) / factor
 
-    return new FixedPointNumber(
-      result,
-      maxDecimals
-    )
+    return new FixedPointNumber(result, maxDecimals)
   }
-
 
   /**
    * Divide this fixed-point number by another value and return the result.
@@ -134,101 +174,105 @@ export class FixedPointNumber implements FixedPoint, Ratio {
    * @throws Error if the divisor contains factors other than 2 and 5, or if dividing by zero
    */
   divide(other: FixedPoint | bigint | string): FixedPointNumber {
-    if (typeof other === 'bigint') {
+    if (typeof other === "bigint") {
       if (other === 0n) {
         throw new Error("Cannot divide by zero")
       }
-      
+
       const divisor = other < 0n ? -other : other
       if (!isOnlyFactorsOf2And5(divisor)) {
-        throw new Error(`Cannot divide by ${other}: divisor must be composed only of factors of 2 and 5`)
+        throw new Error(
+          `Cannot divide by ${other}: divisor must be composed only of factors of 2 and 5`,
+        )
       }
-      
+
       // To divide by a number exactly in decimal, we need to determine
-      // how many decimal places are needed. For a number that's only 
+      // how many decimal places are needed. For a number that's only
       // factors of 2 and 5, we can represent 1/n exactly.
-      
+
       // Find the power of 10 that makes the division exact
       let tempDivisor = divisor
       let powerOf10Needed = 1n
-      
+
       // For each factor of 2, we need a factor of 5 in the power of 10
       // For each factor of 5, we need a factor of 2 in the power of 10
       let factorsOf2 = 0n
       let factorsOf5 = 0n
-      
+
       while (tempDivisor % 2n === 0n) {
-        tempDivisor = tempDivisor / 2n
-        factorsOf2++
+        tempDivisor /= 2n
+        factorsOf2 += 1n
       }
-      
+
       while (tempDivisor % 5n === 0n) {
-        tempDivisor = tempDivisor / 5n
-        factorsOf5++
+        tempDivisor /= 5n
+        factorsOf5 += 1n
       }
-      
+
       // We need enough factors of both 2 and 5 to balance the divisor
       const neededFactors = factorsOf2 > factorsOf5 ? factorsOf2 : factorsOf5
       powerOf10Needed = 10n ** neededFactors
-      
+
       // Scale up the dividend and perform integer division
       const scaledDividend = this.amount * powerOf10Needed
       const result = scaledDividend / divisor
-      
+
       return new FixedPointNumber(
         other < 0n ? -result : result,
-        this.decimals + neededFactors
+        this.decimals + neededFactors,
       )
     }
 
     // Division by FixedPoint
-    const otherFP = typeof other === 'string' ? parseStringToFixedPoint(other) : other
+    const otherFP = FixedPointNumber.parseOther(other)
     if (otherFP.amount === 0n) {
       throw new Error("Cannot divide by zero")
     }
-    
+
     // Check if the divisor (otherFP.amount) is composed only of factors of 2 and 5
     const divisorAmount = otherFP.amount < 0n ? -otherFP.amount : otherFP.amount
     if (!isOnlyFactorsOf2And5(divisorAmount)) {
-      throw new Error(`Cannot divide by ${otherFP.amount}/${10n ** otherFP.decimals}: divisor numerator must be composed only of factors of 2 and 5`)
+      throw new Error(
+        `Cannot divide by ${otherFP.amount}/${10n ** otherFP.decimals}: divisor numerator must be composed only of factors of 2 and 5`,
+      )
     }
-    
+
     // Convert to rational form and use the same logic as bigint division
     // (a/10^m) ÷ (b/10^n) = (a/10^m) * (10^n/b) = (a * 10^n) / (b * 10^m)
     // But we can simplify this to: multiply by (10^n) then divide by b, then scale appropriately
-    
+
     // Scale up the dividend by the divisor's denominator
-    const scaledDividend = this.amount * (10n ** otherFP.decimals)
-    
+    const scaledDividend = this.amount * 10n ** otherFP.decimals
+
     // Now we need to divide by otherFP.amount and figure out the right number of decimals
     const divisor = otherFP.amount < 0n ? -otherFP.amount : otherFP.amount
-    
+
     // Find the power of 10 needed for exact division by the divisor
     let tempDivisor = divisor
     let factorsOf2 = 0n
     let factorsOf5 = 0n
-    
+
     while (tempDivisor % 2n === 0n) {
-      tempDivisor = tempDivisor / 2n
-      factorsOf2++
+      tempDivisor /= 2n
+      factorsOf2 += 1n
     }
-    
+
     while (tempDivisor % 5n === 0n) {
-      tempDivisor = tempDivisor / 5n
-      factorsOf5++
+      tempDivisor /= 5n
+      factorsOf5 += 1n
     }
-    
+
     // We need enough factors of both 2 and 5 to balance the divisor
     const neededFactors = factorsOf2 > factorsOf5 ? factorsOf2 : factorsOf5
     const powerOf10Needed = 10n ** neededFactors
-    
+
     // Scale up the dividend further and perform integer division
     const finalDividend = scaledDividend * powerOf10Needed
     const result = finalDividend / divisor
-    
+
     return new FixedPointNumber(
       otherFP.amount < 0n ? -result : result,
-      this.decimals + otherFP.decimals + neededFactors
+      this.decimals + otherFP.decimals + neededFactors,
     )
   }
 
@@ -255,19 +299,19 @@ export class FixedPointNumber implements FixedPoint, Ratio {
       let fractionStr = absFractionPart.toString()
       const padding = Number(this.decimals) - fractionStr.length
       if (padding > 0) {
-        fractionStr = '0'.repeat(padding) + fractionStr
+        fractionStr = "0".repeat(padding) + fractionStr
       }
       return `-0.${fractionStr}` as DecimalString
-    } else {
-      // For positive numbers or negative numbers with non-zero whole part
-      // convert fraction part to string and pad with leading zeros if needed
-      let fractionStr = fractionPart < 0n ? (-fractionPart).toString() : fractionPart.toString()
-      const padding = Number(this.decimals) - fractionStr.length
-      if (padding > 0) {
-        fractionStr = '0'.repeat(padding) + fractionStr
-      }
-      return `${wholePart.toString()}.${fractionStr}` as DecimalString
     }
+    // For positive numbers or negative numbers with non-zero whole part
+    // convert fraction part to string and pad with leading zeros if needed
+    let fractionStr =
+      fractionPart < 0n ? (-fractionPart).toString() : fractionPart.toString()
+    const padding = Number(this.decimals) - fractionStr.length
+    if (padding > 0) {
+      fractionStr = "0".repeat(padding) + fractionStr
+    }
+    return `${wholePart.toString()}.${fractionStr}` as DecimalString
   }
 
   /**
@@ -277,17 +321,18 @@ export class FixedPointNumber implements FixedPoint, Ratio {
    * @returns true if the numbers are equal when normalized, false otherwise
    */
   equals(other: FixedPoint | string): boolean {
-    const otherFP = typeof other === 'string' ? parseStringToFixedPoint(other) : other
+    const otherFP = FixedPointNumber.parseOther(other)
     // If both have the same decimals, just compare the amounts
     if (this.decimals === otherFP.decimals) {
       return this.amount === otherFP.amount
     }
-    else if (this.decimals > otherFP.decimals) {
-      return FixedPointNumber.fromFixedPoint(otherFP).normalize(this).equals(this)
+    if (this.decimals > otherFP.decimals) {
+      return FixedPointNumber.fromFixedPoint(otherFP)
+        .normalize(this)
+        .equals(this)
     }
-    else {
-      return this.normalize(otherFP).equals(otherFP)
-    }
+
+    return this.normalize(otherFP).equals(otherFP)
   }
 
   /**
@@ -297,8 +342,11 @@ export class FixedPointNumber implements FixedPoint, Ratio {
    * @param unsafe - If true, allows precision loss when scaling down (default: false)
    * @returns A new FixedPointNumber with the same decimal count as other (or original if unsafe=false and precision would be lost)
    */
-  normalize(other: FixedPoint | string, unsafe: boolean = false): FixedPointNumber {
-    const otherFP = typeof other === 'string' ? parseStringToFixedPoint(other) : other
+  normalize(
+    other: FixedPoint | string,
+    unsafe: boolean = false,
+  ): FixedPointNumber {
+    const otherFP = FixedPointNumber.parseOther(other)
     if (this.decimals === otherFP.decimals) {
       return new FixedPointNumber(this.amount, this.decimals)
     }
@@ -307,24 +355,21 @@ export class FixedPointNumber implements FixedPoint, Ratio {
       // Scale up: multiply by 10^(otherFP.decimals - this.decimals)
       const scaleFactor = 10n ** (otherFP.decimals - this.decimals)
       return new FixedPointNumber(this.amount * scaleFactor, otherFP.decimals)
-    } else {
-      // Scale down: divide by 10^(this.decimals - otherFP.decimals)
-      const scaleFactor = 10n ** (this.decimals - otherFP.decimals)
-      
-      if (unsafe) {
-        // Allow precision loss
-        return new FixedPointNumber(this.amount / scaleFactor, otherFP.decimals)
-      } else {
-        // Only scale down if no precision is lost
-        if (this.amount % scaleFactor === 0n) {
-          // No precision lost, can scale down
-          return new FixedPointNumber(this.amount / scaleFactor, otherFP.decimals)
-        } else {
-          // Would lose precision, keep original precision
-          return new FixedPointNumber(this.amount, this.decimals)
-        }
-      }
     }
+    // Scale down: divide by 10^(this.decimals - otherFP.decimals)
+    const scaleFactor = 10n ** (this.decimals - otherFP.decimals)
+
+    if (unsafe) {
+      // Allow precision loss
+      return new FixedPointNumber(this.amount / scaleFactor, otherFP.decimals)
+    }
+    // Only scale down if no precision is lost
+    if (this.amount % scaleFactor === 0n) {
+      // No precision lost, can scale down
+      return new FixedPointNumber(this.amount / scaleFactor, otherFP.decimals)
+    }
+    // Would lose precision, keep original precision
+    return new FixedPointNumber(this.amount, this.decimals)
   }
 
   /**
@@ -335,19 +380,24 @@ export class FixedPointNumber implements FixedPoint, Ratio {
    * @returns A new FixedPointNumber instance
    * @throws Error if the string format is invalid
    */
-  static parseString(str: string | DecimalString, decimals: bigint): FixedPointNumber {
+  static parseString(
+    str: string | DecimalString,
+    decimals: bigint,
+  ): FixedPointNumber {
     // validate the string format using a regex pattern that supports negative numbers
     const validNumberPattern = /^-?\d+(\.\d+)?$/
     if (!validNumberPattern.test(str)) {
-      throw new Error(`Invalid number format: "${str}". Expected format: digits with optional decimal point and fractional part.`)
+      throw new Error(
+        `Invalid number format: "${str}". Expected format: digits with optional decimal point and fractional part.`,
+      )
     }
 
     // check if the number is negative
-    const isNegative = str.startsWith('-')
+    const isNegative = str.startsWith("-")
     const absoluteStr = isNegative ? str.slice(1) : str
 
     // split the string into whole and fractional parts
-    const [wholePart, fractionPart = ''] = absoluteStr.split('.')
+    const [wholePart, fractionPart = ""] = absoluteStr.split(".")
 
     // calculate the factor for the specified number of decimals
     const factor = 10n ** decimals
@@ -358,7 +408,9 @@ export class FixedPointNumber implements FixedPoint, Ratio {
     // if there's a fraction part, handle it
     if (fractionPart) {
       // truncate or pad the fraction part to match the required decimals
-      const adjustedFraction = fractionPart.padEnd(Number(decimals), '0').slice(0, Number(decimals))
+      const adjustedFraction = fractionPart
+        .padEnd(Number(decimals), "0")
+        .slice(0, Number(decimals))
       // add the fraction part to the amount
       amount += BigInt(adjustedFraction)
     }
@@ -382,15 +434,17 @@ export class FixedPointNumber implements FixedPoint, Ratio {
     // validate the string format using a regex pattern that supports negative numbers
     const validNumberPattern = /^-?\d+(\.\d+)?$/
     if (!validNumberPattern.test(str)) {
-      throw new Error(`Invalid number format: "${str}". Expected format: digits with optional decimal point and fractional part.`)
+      throw new Error(
+        `Invalid number format: "${str}". Expected format: digits with optional decimal point and fractional part.`,
+      )
     }
 
     // check if the number is negative
-    const isNegative = str.startsWith('-')
+    const isNegative = str.startsWith("-")
     const absoluteStr = isNegative ? str.slice(1) : str
 
     // split the string into whole and fractional parts
-    const [wholePart, fractionPart = ''] = absoluteStr.split('.')
+    const [wholePart, fractionPart = ""] = absoluteStr.split(".")
 
     // determine decimals from the fractional part length
     const decimals = BigInt(fractionPart.length)
@@ -428,14 +482,24 @@ export class FixedPointNumber implements FixedPoint, Ratio {
    * @returns true if this number is less than other, false otherwise
    */
   lessThan(other: FixedPoint | string): boolean {
-    const otherFP = typeof other === 'string' ? parseStringToFixedPoint(other) : other
+    const otherFP = FixedPointNumber.parseOther(other)
     if (this.decimals === otherFP.decimals) {
       return this.amount < otherFP.amount
     }
 
-    const maxDecimals = this.decimals > otherFP.decimals ? this.decimals : otherFP.decimals
-    const normalizedThis = this.decimals === maxDecimals ? this : this.normalize({ amount: 0n, decimals: maxDecimals })
-    const normalizedOther = otherFP.decimals === maxDecimals ? otherFP : FixedPointNumber.fromFixedPoint(otherFP).normalize({ amount: 0n, decimals: maxDecimals })
+    const maxDecimals =
+      this.decimals > otherFP.decimals ? this.decimals : otherFP.decimals
+    const normalizedThis =
+      this.decimals === maxDecimals
+        ? this
+        : this.normalize({ amount: 0n, decimals: maxDecimals })
+    const normalizedOther =
+      otherFP.decimals === maxDecimals
+        ? otherFP
+        : FixedPointNumber.fromFixedPoint(otherFP).normalize({
+            amount: 0n,
+            decimals: maxDecimals,
+          })
 
     return normalizedThis.amount < normalizedOther.amount
   }
@@ -457,14 +521,24 @@ export class FixedPointNumber implements FixedPoint, Ratio {
    * @returns true if this number is greater than other, false otherwise
    */
   greaterThan(other: FixedPoint | string): boolean {
-    const otherFP = typeof other === 'string' ? parseStringToFixedPoint(other) : other
+    const otherFP = FixedPointNumber.parseOther(other)
     if (this.decimals === otherFP.decimals) {
       return this.amount > otherFP.amount
     }
 
-    const maxDecimals = this.decimals > otherFP.decimals ? this.decimals : otherFP.decimals
-    const normalizedThis = this.decimals === maxDecimals ? this : this.normalize({ amount: 0n, decimals: maxDecimals })
-    const normalizedOther = otherFP.decimals === maxDecimals ? otherFP : FixedPointNumber.fromFixedPoint(otherFP).normalize({ amount: 0n, decimals: maxDecimals })
+    const maxDecimals =
+      this.decimals > otherFP.decimals ? this.decimals : otherFP.decimals
+    const normalizedThis =
+      this.decimals === maxDecimals
+        ? this
+        : this.normalize({ amount: 0n, decimals: maxDecimals })
+    const normalizedOther =
+      otherFP.decimals === maxDecimals
+        ? otherFP
+        : FixedPointNumber.fromFixedPoint(otherFP).normalize({
+            amount: 0n,
+            decimals: maxDecimals,
+          })
 
     return normalizedThis.amount > normalizedOther.amount
   }
@@ -505,8 +579,8 @@ export class FixedPointNumber implements FixedPoint, Ratio {
    */
   max(other: FixedPoint | FixedPoint[] | string | string[]): FixedPointNumber {
     const otherArray = Array.isArray(other) ? other : [other]
-    const others = otherArray.map(item => 
-      typeof item === 'string' ? parseStringToFixedPoint(item) : item
+    const others = otherArray.map((item) =>
+      typeof item === "string" ? parseStringToFixedPoint(item) : item,
     )
     let maxValue: FixedPointNumber = this
 
@@ -527,8 +601,8 @@ export class FixedPointNumber implements FixedPoint, Ratio {
    */
   min(other: FixedPoint | FixedPoint[] | string | string[]): FixedPointNumber {
     const otherArray = Array.isArray(other) ? other : [other]
-    const others = otherArray.map(item => 
-      typeof item === 'string' ? parseStringToFixedPoint(item) : item
+    const others = otherArray.map((item) =>
+      typeof item === "string" ? parseStringToFixedPoint(item) : item,
     )
     let minValue: FixedPointNumber = this
 
@@ -549,7 +623,7 @@ export class FixedPointNumber implements FixedPoint, Ratio {
   toJSON(): { amount: string; decimals: string } {
     return {
       amount: this.amount.toString(),
-      decimals: this.decimals.toString()
+      decimals: this.decimals.toString(),
     }
   }
 
@@ -568,40 +642,33 @@ export class FixedPointNumber implements FixedPoint, Ratio {
 }
 
 /**
- * Helper function to convert string arguments to FixedPointNumber instances
- * 
- * @param value - String representation or existing FixedPoint instance
- * @returns FixedPointNumber instance
- * @throws Error if string parsing fails
- */
-function parseStringToFixedPoint(value: string | FixedPoint): FixedPointNumber {
-  if (typeof value === 'object' && 'amount' in value && 'decimals' in value) {
-    return FixedPointNumber.fromFixedPoint(value)
-  }
-
-  // Parse the string to get a FixedPointNumber instance
-  return FixedPointNumber.fromDecimalString(value as string)
-}
-
-/**
  * Factory function for creating FixedPointNumber instances
  * Supports string parsing, FixedPoint objects, and original constructor signatures
  */
 export function FixedPoint(str: string | DecimalString): FixedPointNumber
 export function FixedPoint(fixedPoint: FixedPoint): FixedPointNumber
 export function FixedPoint(amount: bigint, decimals: bigint): FixedPointNumber
-export function FixedPoint(amountOrStrOrFixedPoint: bigint | string | DecimalString | FixedPoint, decimals?: bigint): FixedPointNumber {
-  if (typeof amountOrStrOrFixedPoint === 'string') {
+export function FixedPoint(
+  amountOrStrOrFixedPoint: bigint | string | DecimalString | FixedPoint,
+  decimals?: bigint,
+): FixedPointNumber {
+  if (typeof amountOrStrOrFixedPoint === "string") {
     // String parsing mode
     return FixedPointNumber.fromDecimalString(amountOrStrOrFixedPoint)
-  } else if (typeof amountOrStrOrFixedPoint === 'object' && 'amount' in amountOrStrOrFixedPoint && 'decimals' in amountOrStrOrFixedPoint) {
+  }
+  if (
+    typeof amountOrStrOrFixedPoint === "object" &&
+    "amount" in amountOrStrOrFixedPoint &&
+    "decimals" in amountOrStrOrFixedPoint
+  ) {
     // FixedPoint object mode
     return FixedPointNumber.fromFixedPoint(amountOrStrOrFixedPoint)
-  } else {
-    // Original constructor mode (bigint)
-    if (decimals === undefined) {
-      throw new Error('decimals parameter is required when creating FixedPoint with bigint amount')
-    }
-    return new FixedPointNumber(amountOrStrOrFixedPoint as bigint, decimals)
   }
+  // Original constructor mode (bigint)
+  if (decimals === undefined) {
+    throw new Error(
+      "decimals parameter is required when creating FixedPoint with bigint amount",
+    )
+  }
+  return new FixedPointNumber(amountOrStrOrFixedPoint as bigint, decimals)
 }

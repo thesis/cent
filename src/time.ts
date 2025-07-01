@@ -123,12 +123,12 @@ export const UTCTimeSchema = z
       if (Number.isNaN(date.getTime())) {
         return false
       }
-      
+
       // For timestamps without milliseconds, normalize for comparison
-      const expectedIso = value.includes('.') 
-        ? date.toISOString() 
-        : date.toISOString().replace(/\.\d{3}Z$/, 'Z')
-      
+      const expectedIso = value.includes(".")
+        ? date.toISOString()
+        : date.toISOString().replace(/\.\d{3}Z$/, "Z")
+
       return expectedIso === value
     },
     {

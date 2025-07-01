@@ -5,14 +5,18 @@ import type { MoneyAmount } from "./types"
 /**
  * Type guard to check if a MoneyAmount is a FixedPointNumber
  */
-export function isFixedPointNumber(amount: MoneyAmount): amount is FixedPointNumber {
+export function isFixedPointNumber(
+  amount: MoneyAmount,
+): amount is FixedPointNumber {
   return amount instanceof FixedPointNumber
 }
 
 /**
- * Type guard to check if a MoneyAmount is a RationalNumber  
+ * Type guard to check if a MoneyAmount is a RationalNumber
  */
-export function isRationalNumber(amount: MoneyAmount): amount is RationalNumber {
+export function isRationalNumber(
+  amount: MoneyAmount,
+): amount is RationalNumber {
   return amount instanceof RationalNumber
 }
 
@@ -21,11 +25,14 @@ export function isRationalNumber(amount: MoneyAmount): amount is RationalNumber 
  * - If already FixedPointNumber, returns as-is
  * - If RationalNumber, converts via toDecimalString() with specified precision
  */
-export function toFixedPointNumber(amount: MoneyAmount, precision: bigint = 18n): FixedPointNumber {
+export function toFixedPointNumber(
+  amount: MoneyAmount,
+  precision: bigint = 18n,
+): FixedPointNumber {
   if (isFixedPointNumber(amount)) {
     return amount
   }
-  
+
   // Convert RationalNumber to decimal string then parse as FixedPointNumber
   const decimalString = amount.toDecimalString(precision)
   return FixedPointNumber.fromDecimalString(decimalString)
@@ -38,9 +45,8 @@ export function toFixedPointNumber(amount: MoneyAmount, precision: bigint = 18n)
 export function getComparableValue(amount: MoneyAmount): string {
   if (isFixedPointNumber(amount)) {
     return amount.toString()
-  } else {
-    return amount.toDecimalString(50n)
   }
+  return amount.toDecimalString(50n)
 }
 
 /**
@@ -49,9 +55,8 @@ export function getComparableValue(amount: MoneyAmount): string {
 export function isZero(amount: MoneyAmount): boolean {
   if (isFixedPointNumber(amount)) {
     return amount.isZero()
-  } else {
-    return amount.isZero()
   }
+  return amount.isZero()
 }
 
 /**
@@ -60,9 +65,8 @@ export function isZero(amount: MoneyAmount): boolean {
 export function isPositive(amount: MoneyAmount): boolean {
   if (isFixedPointNumber(amount)) {
     return amount.isPositive()
-  } else {
-    return amount.isPositive()
   }
+  return amount.isPositive()
 }
 
 /**
@@ -71,7 +75,6 @@ export function isPositive(amount: MoneyAmount): boolean {
 export function isNegative(amount: MoneyAmount): boolean {
   if (isFixedPointNumber(amount)) {
     return amount.isNegative()
-  } else {
-    return amount.isNegative()
   }
+  return amount.isNegative()
 }

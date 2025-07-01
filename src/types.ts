@@ -44,7 +44,7 @@ export type Currency = FungibleAsset & {
   iso4217Support?: boolean
 }
 
-export type AnyAsset = ( Asset | FungibleAsset | Currency )
+export type AnyAsset = Asset | FungibleAsset | Currency
 
 export type AssetAmount = {
   asset: AnyAsset
@@ -53,7 +53,6 @@ export type AssetAmount = {
   amount: FixedPoint
 }
 
-
 /**
  * Rounding modes for number formatting, corresponding to Intl.NumberFormat roundingMode options
  */
@@ -61,7 +60,7 @@ export enum RoundingMode {
   /** Round toward positive infinity */
   CEIL = "ceil",
   /** Round toward negative infinity */
-  FLOOR = "floor", 
+  FLOOR = "floor",
   /** Round away from zero */
   EXPAND = "expand",
   /** Round toward zero */
@@ -75,19 +74,19 @@ export enum RoundingMode {
   /** Round to nearest, ties toward zero */
   HALF_TRUNC = "halfTrunc",
   /** Round to nearest, ties toward even */
-  HALF_EVEN = "halfEven"
+  HALF_EVEN = "halfEven",
 }
 
 // Export individual rounding mode constants
-export const CEIL = RoundingMode.CEIL
-export const FLOOR = RoundingMode.FLOOR
-export const EXPAND = RoundingMode.EXPAND
-export const TRUNC = RoundingMode.TRUNC
-export const HALF_CEIL = RoundingMode.HALF_CEIL
-export const HALF_FLOOR = RoundingMode.HALF_FLOOR
-export const HALF_EXPAND = RoundingMode.HALF_EXPAND
-export const HALF_TRUNC = RoundingMode.HALF_TRUNC
-export const HALF_EVEN = RoundingMode.HALF_EVEN
+export const { CEIL } = RoundingMode
+export const { FLOOR } = RoundingMode
+export const { EXPAND } = RoundingMode
+export const { TRUNC } = RoundingMode
+export const { HALF_CEIL } = RoundingMode
+export const { HALF_FLOOR } = RoundingMode
+export const { HALF_EXPAND } = RoundingMode
+export const { HALF_TRUNC } = RoundingMode
+export const { HALF_EVEN } = RoundingMode
 
 // "tag" types that allow us to emulate nominal typing
 declare const OpaqueTagSymbol: unique symbol

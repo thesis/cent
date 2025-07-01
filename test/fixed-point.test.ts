@@ -1,22 +1,26 @@
-import { FixedPointNumber, FixedPointJSONSchema, FixedPoint } from '../src/fixed-point'
+import {
+  FixedPointNumber,
+  FixedPointJSONSchema,
+  FixedPoint,
+} from "../src/fixed-point"
 
-describe('FixedPointNumber', () => {
-  describe('constructor', () => {
-    it('should create a FixedPointNumber with the provided values', () => {
+describe("FixedPointNumber", () => {
+  describe("constructor", () => {
+    it("should create a FixedPointNumber with the provided values", () => {
       const fp = new FixedPointNumber(123n, 2n)
       expect(fp.amount).toBe(123n)
       expect(fp.decimals).toBe(2n)
     })
 
-    it('should create a FixedPointNumber with default values when none are provided', () => {
+    it("should create a FixedPointNumber with default values when none are provided", () => {
       const fp = new FixedPointNumber()
       expect(fp.amount).toBe(0n)
       expect(fp.decimals).toBe(0n)
     })
   })
 
-  describe('add', () => {
-    it('should add two FixedPointNumbers with the same decimals', () => {
+  describe("add", () => {
+    it("should add two FixedPointNumbers with the same decimals", () => {
       const fp1 = new FixedPointNumber(123n, 2n)
       const fp2 = new FixedPointNumber(456n, 2n)
       const result = fp1.add(fp2)
@@ -25,7 +29,7 @@ describe('FixedPointNumber', () => {
       expect(result.decimals).toBe(2n)
     })
 
-    it('should add numbers with different decimals by normalizing to higher precision', () => {
+    it("should add numbers with different decimals by normalizing to higher precision", () => {
       const fp1 = new FixedPointNumber(123n, 2n) // 1.23
       const fp2 = new FixedPointNumber(456n, 3n) // 0.456
       const result = fp1.add(fp2)
@@ -34,7 +38,7 @@ describe('FixedPointNumber', () => {
       expect(result.decimals).toBe(3n)
     })
 
-    it('should handle adding zero', () => {
+    it("should handle adding zero", () => {
       const fp = new FixedPointNumber(123n, 2n)
       const zero = new FixedPointNumber(0n, 2n)
       const result = fp.add(zero)
@@ -43,7 +47,7 @@ describe('FixedPointNumber', () => {
       expect(result.decimals).toBe(2n)
     })
 
-    it('should add any FixedPoint-compatible object', () => {
+    it("should add any FixedPoint-compatible object", () => {
       const fp = new FixedPointNumber()
       const result = fp.add({ amount: 2n, decimals: 0n })
 
@@ -53,8 +57,8 @@ describe('FixedPointNumber', () => {
     })
   })
 
-  describe('subtract', () => {
-    it('should subtract two FixedPointNumbers with the same decimals', () => {
+  describe("subtract", () => {
+    it("should subtract two FixedPointNumbers with the same decimals", () => {
       const fp1 = new FixedPointNumber(456n, 2n)
       const fp2 = new FixedPointNumber(123n, 2n)
       const result = fp1.subtract(fp2)
@@ -63,7 +67,7 @@ describe('FixedPointNumber', () => {
       expect(result.decimals).toBe(2n)
     })
 
-    it('should subtract numbers with different decimals by normalizing to higher precision', () => {
+    it("should subtract numbers with different decimals by normalizing to higher precision", () => {
       const fp1 = new FixedPointNumber(456n, 2n) // 4.56
       const fp2 = new FixedPointNumber(123n, 3n) // 0.123
       const result = fp1.subtract(fp2)
@@ -73,8 +77,8 @@ describe('FixedPointNumber', () => {
     })
   })
 
-  describe('multiply', () => {
-    it('should multiply by a bigint', () => {
+  describe("multiply", () => {
+    it("should multiply by a bigint", () => {
       const fp = new FixedPointNumber(123n, 2n)
       const result = fp.multiply(2n)
 
@@ -82,7 +86,7 @@ describe('FixedPointNumber', () => {
       expect(result.decimals).toBe(2n)
     })
 
-    it('should multiply two FixedPointNumbers with the same decimals', () => {
+    it("should multiply two FixedPointNumbers with the same decimals", () => {
       const fp1 = new FixedPointNumber(123n, 2n) // 1.23
       const fp2 = new FixedPointNumber(234n, 2n) // 2.34
       const result = fp1.multiply(fp2)
@@ -92,7 +96,7 @@ describe('FixedPointNumber', () => {
       expect(result.decimals).toBe(2n)
     })
 
-    it('should multiply FixedPoints with different decimals by normalizing to higher precision', () => {
+    it("should multiply FixedPoints with different decimals by normalizing to higher precision", () => {
       const fp1 = new FixedPointNumber(123n, 2n) // 1.23
       const fp2 = new FixedPointNumber(234n, 3n) // 0.234
       const result = fp1.multiply(fp2)
@@ -103,114 +107,124 @@ describe('FixedPointNumber', () => {
     })
   })
 
-  describe('divide', () => {
-    describe('division by bigint', () => {
-      it('should divide by powers of 2', () => {
+  describe("divide", () => {
+    describe("division by bigint", () => {
+      it("should divide by powers of 2", () => {
         const fp = new FixedPointNumber(100n, 0n) // 100
         const result = fp.divide(4n) // 100 / 4 = 25.00 (needs 2 decimals for 4=2^2)
-        
+
         expect(result.amount).toBe(2500n) // 25.00 as 2500 with 2 decimals
         expect(result.decimals).toBe(2n) // 4 = 2^2, needs 2 decimal places
       })
 
-      it('should divide by powers of 5', () => {
+      it("should divide by powers of 5", () => {
         const fp = new FixedPointNumber(100n, 0n) // 100
         const result = fp.divide(25n) // 100 / 25 = 4.00 (needs 2 decimals for 25=5^2)
-        
+
         expect(result.amount).toBe(400n) // 4.00 as 400 with 2 decimals
         expect(result.decimals).toBe(2n) // 25 = 5^2, needs 2 decimal places
       })
 
-      it('should divide by powers of 10', () => {
+      it("should divide by powers of 10", () => {
         const fp = new FixedPointNumber(100n, 0n) // 100
         const result = fp.divide(10n) // 100 / 10 = 10.0 (needs 1 decimal for 10=2*5)
-        
+
         expect(result.amount).toBe(100n) // 10.0 as 100 with 1 decimal
         expect(result.decimals).toBe(1n) // 10 = 2*5, needs 1 decimal place
       })
 
-      it('should divide by combinations of 2 and 5', () => {
+      it("should divide by combinations of 2 and 5", () => {
         const fp = new FixedPointNumber(200n, 1n) // 20.0
         const result = fp.divide(8n) // 20.0 / 8 = 2.500 (original 1 + 3 for 8=2^3)
-        
+
         expect(result.amount).toBe(25000n) // 2.500 as 25000 with 4 decimals
         expect(result.decimals).toBe(4n) // original 1 + 3 for 8=2^3
       })
 
-      it('should handle negative divisors', () => {
+      it("should handle negative divisors", () => {
         const fp = new FixedPointNumber(100n, 0n) // 100
         const result = fp.divide(-4n) // 100 / -4 = -25.00
-        
+
         expect(result.amount).toBe(-2500n) // -25.00 as -2500 with 2 decimals
         expect(result.decimals).toBe(2n)
       })
 
-      it('should handle negative dividends', () => {
+      it("should handle negative dividends", () => {
         const fp = new FixedPointNumber(-100n, 0n) // -100
         const result = fp.divide(4n) // -100 / 4 = -25.00
-        
+
         expect(result.amount).toBe(-2500n) // -25.00 as -2500 with 2 decimals
         expect(result.decimals).toBe(2n)
       })
 
-      it('should throw when dividing by zero', () => {
+      it("should throw when dividing by zero", () => {
         const fp = new FixedPointNumber(100n, 0n)
-        
-        expect(() => fp.divide(0n)).toThrow('Cannot divide by zero')
+
+        expect(() => fp.divide(0n)).toThrow("Cannot divide by zero")
       })
 
-      it('should throw when dividing by numbers with factors other than 2 and 5', () => {
+      it("should throw when dividing by numbers with factors other than 2 and 5", () => {
         const fp = new FixedPointNumber(100n, 0n)
-        
-        expect(() => fp.divide(3n)).toThrow('divisor must be composed only of factors of 2 and 5')
-        expect(() => fp.divide(6n)).toThrow('divisor must be composed only of factors of 2 and 5')
-        expect(() => fp.divide(7n)).toThrow('divisor must be composed only of factors of 2 and 5')
-        expect(() => fp.divide(12n)).toThrow('divisor must be composed only of factors of 2 and 5')
+
+        expect(() => fp.divide(3n)).toThrow(
+          "divisor must be composed only of factors of 2 and 5",
+        )
+        expect(() => fp.divide(6n)).toThrow(
+          "divisor must be composed only of factors of 2 and 5",
+        )
+        expect(() => fp.divide(7n)).toThrow(
+          "divisor must be composed only of factors of 2 and 5",
+        )
+        expect(() => fp.divide(12n)).toThrow(
+          "divisor must be composed only of factors of 2 and 5",
+        )
       })
     })
 
-    describe('division by FixedPoint', () => {
-      it('should divide by FixedPoint with factors of 2 and 5 only', () => {
+    describe("division by FixedPoint", () => {
+      it("should divide by FixedPoint with factors of 2 and 5 only", () => {
         const fp1 = new FixedPointNumber(100n, 1n) // 10.0
-        const fp2 = new FixedPointNumber(25n, 1n) // 2.5 
+        const fp2 = new FixedPointNumber(25n, 1n) // 2.5
         const result = fp1.divide(fp2) // 10.0 / 2.5 = 4.000
-        
+
         // 10.0 / 2.5: (100*10) / 25 * 10^2 = 1000 / 25 * 100 = 40 * 100 = 4000
         // Decimals: 1 + 1 + 2 = 4 (for 25 = 5^2)
         expect(result.amount).toBe(4000n) // 4.0000 as 4000 with 4 decimals
         expect(result.decimals).toBe(4n) // 1 + 1 + 2 for 25=5^2
       })
 
-      it('should handle division resulting in decimal expansion', () => {
+      it("should handle division resulting in decimal expansion", () => {
         const fp1 = new FixedPointNumber(1n, 0n) // 1
         const fp2 = new FixedPointNumber(8n, 0n) // 8
         const result = fp1.divide(fp2) // 1 / 8 = 0.125
-        
+
         // 1 / 8: (1*1) / 8 * 10^3 = 1 / 8 * 1000 = 1000 / 8 = 125
         // Decimals: 0 + 0 + 3 = 3 (for 8 = 2^3)
         expect(result.amount).toBe(125n) // 0.125 as 125 with 3 decimals
         expect(result.decimals).toBe(3n) // 0 + 0 + 3 for 8=2^3
       })
 
-      it('should throw when dividing by zero FixedPoint', () => {
+      it("should throw when dividing by zero FixedPoint", () => {
         const fp1 = new FixedPointNumber(100n, 0n)
         const fp2 = new FixedPointNumber(0n, 1n)
-        
-        expect(() => fp1.divide(fp2)).toThrow('Cannot divide by zero')
+
+        expect(() => fp1.divide(fp2)).toThrow("Cannot divide by zero")
       })
 
-      it('should throw when FixedPoint divisor has factors other than 2 and 5', () => {
+      it("should throw when FixedPoint divisor has factors other than 2 and 5", () => {
         const fp1 = new FixedPointNumber(100n, 0n)
         const fp2 = new FixedPointNumber(3n, 0n) // 3
-        
-        expect(() => fp1.divide(fp2)).toThrow('divisor numerator must be composed only of factors of 2 and 5')
+
+        expect(() => fp1.divide(fp2)).toThrow(
+          "divisor numerator must be composed only of factors of 2 and 5",
+        )
       })
 
-      it('should handle negative FixedPoint divisors', () => {
+      it("should handle negative FixedPoint divisors", () => {
         const fp1 = new FixedPointNumber(100n, 0n) // 100
         const fp2 = new FixedPointNumber(-4n, 0n) // -4
         const result = fp1.divide(fp2) // 100 / -4 = -25.00
-        
+
         // 100 / -4: (100*1) / 4 * 10^2 = 100 / 4 * 100 = 25 * 100 = 2500, then negate
         // Decimals: 0 + 0 + 2 = 2 (for 4 = 2^2)
         expect(result.amount).toBe(-2500n) // -25.00 as -2500 with 2 decimals
@@ -219,346 +233,369 @@ describe('FixedPointNumber', () => {
     })
   })
 
-  describe('toString', () => {
-    it('should convert a whole number to string', () => {
+  describe("toString", () => {
+    it("should convert a whole number to string", () => {
       const fp = new FixedPointNumber(123n, 0n)
-      expect(fp.toString()).toBe('123')
+      expect(fp.toString()).toBe("123")
     })
 
-    it('should convert a decimal number to string', () => {
+    it("should convert a decimal number to string", () => {
       const fp = new FixedPointNumber(12345n, 2n)
-      expect(fp.toString()).toBe('123.45')
+      expect(fp.toString()).toBe("123.45")
     })
 
-    it('should handle zero', () => {
+    it("should handle zero", () => {
       const fp = new FixedPointNumber(0n, 2n)
-      expect(fp.toString()).toBe('0.00')
+      expect(fp.toString()).toBe("0.00")
     })
 
-    it('should handle leading zeros in fractional part', () => {
+    it("should handle leading zeros in fractional part", () => {
       const fp = new FixedPointNumber(1005n, 3n)
-      expect(fp.toString()).toBe('1.005')
+      expect(fp.toString()).toBe("1.005")
     })
 
-    describe('negative numbers', () => {
-      it('should handle negative decimal numbers', () => {
+    describe("negative numbers", () => {
+      it("should handle negative decimal numbers", () => {
         const fp = new FixedPointNumber(-12345n, 2n)
-        expect(fp.toString()).toBe('-123.45')
+        expect(fp.toString()).toBe("-123.45")
       })
 
-      it('should handle negative whole numbers', () => {
+      it("should handle negative whole numbers", () => {
         const fp = new FixedPointNumber(-123n, 0n)
-        expect(fp.toString()).toBe('-123')
+        expect(fp.toString()).toBe("-123")
       })
 
-      it('should handle negative numbers with leading zeros in fractional part', () => {
+      it("should handle negative numbers with leading zeros in fractional part", () => {
         const fp = new FixedPointNumber(-1005n, 3n)
-        expect(fp.toString()).toBe('-1.005')
+        expect(fp.toString()).toBe("-1.005")
       })
 
-      it('should handle small negative fractional numbers', () => {
+      it("should handle small negative fractional numbers", () => {
         const fp = new FixedPointNumber(-5n, 1n) // -0.5
-        expect(fp.toString()).toBe('-0.5')
+        expect(fp.toString()).toBe("-0.5")
       })
 
-      it('should handle negative zero', () => {
+      it("should handle negative zero", () => {
         const fp = new FixedPointNumber(-0n, 2n)
-        expect(fp.toString()).toBe('0.00')
+        expect(fp.toString()).toBe("0.00")
       })
 
-      it('should handle very large negative numbers', () => {
+      it("should handle very large negative numbers", () => {
         const fp = new FixedPointNumber(-12345678901234567890n, 5n)
-        expect(fp.toString()).toBe('-123456789012345.67890')
+        expect(fp.toString()).toBe("-123456789012345.67890")
       })
     })
 
-    describe('trailing zeros preservation', () => {
-      it('should preserve trailing zeros in fractional part', () => {
+    describe("trailing zeros preservation", () => {
+      it("should preserve trailing zeros in fractional part", () => {
         const fp = new FixedPointNumber(12300n, 2n)
-        expect(fp.toString()).toBe('123.00')
+        expect(fp.toString()).toBe("123.00")
       })
 
-      it('should handle amounts with all fractional digits as zeros', () => {
+      it("should handle amounts with all fractional digits as zeros", () => {
         const fp = new FixedPointNumber(12000n, 3n)
-        expect(fp.toString()).toBe('12.000')
+        expect(fp.toString()).toBe("12.000")
       })
 
-      it('should preserve single trailing zero', () => {
+      it("should preserve single trailing zero", () => {
         const fp = new FixedPointNumber(1230n, 2n)
-        expect(fp.toString()).toBe('12.30')
+        expect(fp.toString()).toBe("12.30")
       })
 
-      it('should preserve multiple trailing zeros', () => {
+      it("should preserve multiple trailing zeros", () => {
         const fp = new FixedPointNumber(100000n, 4n)
-        expect(fp.toString()).toBe('10.0000')
+        expect(fp.toString()).toBe("10.0000")
       })
     })
 
-    describe('high precision scenarios', () => {
-      it('should handle very high decimal precision', () => {
+    describe("high precision scenarios", () => {
+      it("should handle very high decimal precision", () => {
         const fp = new FixedPointNumber(123456789012345n, 15n)
-        expect(fp.toString()).toBe('0.123456789012345')
+        expect(fp.toString()).toBe("0.123456789012345")
       })
 
-      it('should handle extensive padding requirements', () => {
+      it("should handle extensive padding requirements", () => {
         const fp = new FixedPointNumber(1n, 10n)
-        expect(fp.toString()).toBe('0.0000000001')
+        expect(fp.toString()).toBe("0.0000000001")
       })
 
-      it('should handle maximum padding case', () => {
+      it("should handle maximum padding case", () => {
         const fp = new FixedPointNumber(1n, 20n)
-        expect(fp.toString()).toBe('0.00000000000000000001')
+        expect(fp.toString()).toBe("0.00000000000000000001")
       })
 
-      it('should handle numbers requiring both integer and fractional precision', () => {
+      it("should handle numbers requiring both integer and fractional precision", () => {
         const fp = new FixedPointNumber(123456789012345678901234567890n, 15n)
-        expect(fp.toString()).toBe('123456789012345.678901234567890')
+        expect(fp.toString()).toBe("123456789012345.678901234567890")
       })
     })
 
-    describe('boundary values', () => {
-      it('should handle powers of 10 as whole numbers', () => {
+    describe("boundary values", () => {
+      it("should handle powers of 10 as whole numbers", () => {
         const fp = new FixedPointNumber(1000n, 0n)
-        expect(fp.toString()).toBe('1000')
+        expect(fp.toString()).toBe("1000")
       })
 
-      it('should handle powers of 10 with decimals', () => {
+      it("should handle powers of 10 with decimals", () => {
         const fp = new FixedPointNumber(1000n, 3n)
-        expect(fp.toString()).toBe('1.000')
+        expect(fp.toString()).toBe("1.000")
       })
 
-      it('should handle very large amounts with no decimals', () => {
+      it("should handle very large amounts with no decimals", () => {
         const fp = new FixedPointNumber(BigInt(Number.MAX_SAFE_INTEGER), 0n)
         expect(fp.toString()).toBe(Number.MAX_SAFE_INTEGER.toString())
       })
 
-      it('should handle very large amounts with decimals', () => {
+      it("should handle very large amounts with decimals", () => {
         const fp = new FixedPointNumber(BigInt(Number.MAX_SAFE_INTEGER), 3n)
-        expect(fp.toString()).toBe('9007199254740.991')
+        expect(fp.toString()).toBe("9007199254740.991")
       })
 
-      it('should handle minimum safe integer', () => {
+      it("should handle minimum safe integer", () => {
         const fp = new FixedPointNumber(BigInt(Number.MIN_SAFE_INTEGER), 0n)
         expect(fp.toString()).toBe(Number.MIN_SAFE_INTEGER.toString())
       })
 
-      it('should handle amounts at decimal boundaries', () => {
+      it("should handle amounts at decimal boundaries", () => {
         const fp = new FixedPointNumber(999999999n, 9n)
-        expect(fp.toString()).toBe('0.999999999')
+        expect(fp.toString()).toBe("0.999999999")
       })
     })
 
-    describe('edge cases', () => {
-      it('should handle single digit amounts', () => {
+    describe("edge cases", () => {
+      it("should handle single digit amounts", () => {
         const fp = new FixedPointNumber(5n, 0n)
-        expect(fp.toString()).toBe('5')
+        expect(fp.toString()).toBe("5")
       })
 
-      it('should handle single digit with high precision', () => {
+      it("should handle single digit with high precision", () => {
         const fp = new FixedPointNumber(5n, 8n)
-        expect(fp.toString()).toBe('0.00000005')
+        expect(fp.toString()).toBe("0.00000005")
       })
 
-      it('should handle fractional amounts close to 1', () => {
+      it("should handle fractional amounts close to 1", () => {
         const fp = new FixedPointNumber(999n, 3n)
-        expect(fp.toString()).toBe('0.999')
+        expect(fp.toString()).toBe("0.999")
       })
 
-      it('should handle fractional amounts just over 1', () => {
+      it("should handle fractional amounts just over 1", () => {
         const fp = new FixedPointNumber(1001n, 3n)
-        expect(fp.toString()).toBe('1.001')
+        expect(fp.toString()).toBe("1.001")
       })
 
-      it('should handle maximum precision with large numbers', () => {
+      it("should handle maximum precision with large numbers", () => {
         const fp = new FixedPointNumber(987654321098765432109876543210n, 18n)
-        expect(fp.toString()).toBe('987654321098.765432109876543210')
+        expect(fp.toString()).toBe("987654321098.765432109876543210")
       })
     })
 
-    describe('consistency with parseString round-trip', () => {
-      it('should round-trip correctly for simple decimals', () => {
+    describe("consistency with parseString round-trip", () => {
+      it("should round-trip correctly for simple decimals", () => {
         const original = new FixedPointNumber(12345n, 2n)
         const str = original.toString()
         const parsed = FixedPointNumber.parseString(str, 2n)
         expect(parsed.equals(original)).toBe(true)
       })
 
-      it('should round-trip correctly for negative numbers', () => {
+      it("should round-trip correctly for negative numbers", () => {
         const original = new FixedPointNumber(-12345n, 3n)
         const str = original.toString()
         const parsed = FixedPointNumber.parseString(str, 3n)
         expect(parsed.equals(original)).toBe(true)
       })
 
-      it('should round-trip correctly for high precision numbers', () => {
+      it("should round-trip correctly for high precision numbers", () => {
         const original = new FixedPointNumber(123456789012345n, 10n)
         const str = original.toString()
         const parsed = FixedPointNumber.parseString(str, 10n)
         expect(parsed.equals(original)).toBe(true)
       })
 
-      it('should round-trip correctly for numbers with trailing zeros', () => {
+      it("should round-trip correctly for numbers with trailing zeros", () => {
         const original = new FixedPointNumber(12300n, 2n)
         const str = original.toString()
-        expect(str).toBe('123.00')
+        expect(str).toBe("123.00")
         const parsed = FixedPointNumber.parseString(str, 2n)
         expect(parsed.equals(original)).toBe(true)
       })
     })
   })
 
-  describe('parseString', () => {
-    it('should parse a whole number', () => {
-      const fp = FixedPointNumber.parseString('123', 0n)
+  describe("parseString", () => {
+    it("should parse a whole number", () => {
+      const fp = FixedPointNumber.parseString("123", 0n)
       expect(fp.amount).toBe(123n)
       expect(fp.decimals).toBe(0n)
     })
 
-    it('should parse a decimal number with exact decimal places', () => {
-      const fp = FixedPointNumber.parseString('123.45', 2n)
+    it("should parse a decimal number with exact decimal places", () => {
+      const fp = FixedPointNumber.parseString("123.45", 2n)
       expect(fp.amount).toBe(12345n)
       expect(fp.decimals).toBe(2n)
     })
 
-    it('should parse a decimal number with fewer decimal places than specified', () => {
-      const fp = FixedPointNumber.parseString('123.4', 2n)
+    it("should parse a decimal number with fewer decimal places than specified", () => {
+      const fp = FixedPointNumber.parseString("123.4", 2n)
       expect(fp.amount).toBe(12340n)
       expect(fp.decimals).toBe(2n)
     })
 
-    it('should parse a decimal number with more decimal places than specified (truncating)', () => {
-      const fp = FixedPointNumber.parseString('123.456', 2n)
+    it("should parse a decimal number with more decimal places than specified (truncating)", () => {
+      const fp = FixedPointNumber.parseString("123.456", 2n)
       expect(fp.amount).toBe(12345n) // Truncated to 2 decimal places
       expect(fp.decimals).toBe(2n)
     })
 
-    it('should parse negative numbers', () => {
-      const fp = FixedPointNumber.parseString('-123.45', 2n)
+    it("should parse negative numbers", () => {
+      const fp = FixedPointNumber.parseString("-123.45", 2n)
       expect(fp.amount).toBe(-12345n)
       expect(fp.decimals).toBe(2n)
     })
 
-    it('should parse negative whole numbers', () => {
-      const fp = FixedPointNumber.parseString('-123', 0n)
+    it("should parse negative whole numbers", () => {
+      const fp = FixedPointNumber.parseString("-123", 0n)
       expect(fp.amount).toBe(-123n)
       expect(fp.decimals).toBe(0n)
     })
 
-    it('should parse negative numbers with fewer decimal places than specified', () => {
-      const fp = FixedPointNumber.parseString('-123.4', 2n)
+    it("should parse negative numbers with fewer decimal places than specified", () => {
+      const fp = FixedPointNumber.parseString("-123.4", 2n)
       expect(fp.amount).toBe(-12340n)
       expect(fp.decimals).toBe(2n)
     })
 
-    it('should throw an error for invalid number format', () => {
-      expect(() => FixedPointNumber.parseString('123.', 2n)).toThrow('Invalid number format')
-      expect(() => FixedPointNumber.parseString('.123', 2n)).toThrow('Invalid number format')
-      expect(() => FixedPointNumber.parseString('abc', 2n)).toThrow('Invalid number format')
-      expect(() => FixedPointNumber.parseString('--123', 2n)).toThrow('Invalid number format')
-      expect(() => FixedPointNumber.parseString('-', 2n)).toThrow('Invalid number format')
+    it("should throw an error for invalid number format", () => {
+      expect(() => FixedPointNumber.parseString("123.", 2n)).toThrow(
+        "Invalid number format",
+      )
+      expect(() => FixedPointNumber.parseString(".123", 2n)).toThrow(
+        "Invalid number format",
+      )
+      expect(() => FixedPointNumber.parseString("abc", 2n)).toThrow(
+        "Invalid number format",
+      )
+      expect(() => FixedPointNumber.parseString("--123", 2n)).toThrow(
+        "Invalid number format",
+      )
+      expect(() => FixedPointNumber.parseString("-", 2n)).toThrow(
+        "Invalid number format",
+      )
     })
   })
 
-  describe('fromDecimalString', () => {
-    it('should parse a whole number', () => {
-      const fp = FixedPointNumber.fromDecimalString('123')
+  describe("fromDecimalString", () => {
+    it("should parse a whole number", () => {
+      const fp = FixedPointNumber.fromDecimalString("123")
       expect(fp.amount).toBe(123n)
       expect(fp.decimals).toBe(0n)
     })
 
-    it('should parse a decimal number and auto-detect decimals', () => {
-      const fp = FixedPointNumber.fromDecimalString('123.45')
+    it("should parse a decimal number and auto-detect decimals", () => {
+      const fp = FixedPointNumber.fromDecimalString("123.45")
       expect(fp.amount).toBe(12345n)
       expect(fp.decimals).toBe(2n)
     })
 
-    it('should parse a decimal number with more decimal places', () => {
-      const fp = FixedPointNumber.fromDecimalString('123.456789')
+    it("should parse a decimal number with more decimal places", () => {
+      const fp = FixedPointNumber.fromDecimalString("123.456789")
       expect(fp.amount).toBe(123456789n)
       expect(fp.decimals).toBe(6n)
     })
 
-    it('should parse negative numbers', () => {
-      const fp = FixedPointNumber.fromDecimalString('-123.45')
+    it("should parse negative numbers", () => {
+      const fp = FixedPointNumber.fromDecimalString("-123.45")
       expect(fp.amount).toBe(-12345n)
       expect(fp.decimals).toBe(2n)
     })
 
-    it('should parse negative whole numbers', () => {
-      const fp = FixedPointNumber.fromDecimalString('-123')
+    it("should parse negative whole numbers", () => {
+      const fp = FixedPointNumber.fromDecimalString("-123")
       expect(fp.amount).toBe(-123n)
       expect(fp.decimals).toBe(0n)
     })
 
-    it('should handle zero', () => {
-      const fp = FixedPointNumber.fromDecimalString('0')
+    it("should handle zero", () => {
+      const fp = FixedPointNumber.fromDecimalString("0")
       expect(fp.amount).toBe(0n)
       expect(fp.decimals).toBe(0n)
     })
 
-    it('should handle zero with decimals', () => {
-      const fp = FixedPointNumber.fromDecimalString('0.00')
+    it("should handle zero with decimals", () => {
+      const fp = FixedPointNumber.fromDecimalString("0.00")
       expect(fp.amount).toBe(0n)
       expect(fp.decimals).toBe(2n)
     })
 
-    it('should handle single decimal place', () => {
-      const fp = FixedPointNumber.fromDecimalString('1.5')
+    it("should handle single decimal place", () => {
+      const fp = FixedPointNumber.fromDecimalString("1.5")
       expect(fp.amount).toBe(15n)
       expect(fp.decimals).toBe(1n)
     })
 
-    it('should throw error for invalid number format', () => {
-      expect(() => FixedPointNumber.fromDecimalString('123.')).toThrow('Invalid number format')
-      expect(() => FixedPointNumber.fromDecimalString('.123')).toThrow('Invalid number format')
-      expect(() => FixedPointNumber.fromDecimalString('abc')).toThrow('Invalid number format')
-      expect(() => FixedPointNumber.fromDecimalString('--123')).toThrow('Invalid number format')
-      expect(() => FixedPointNumber.fromDecimalString('-')).toThrow('Invalid number format')
+    it("should throw error for invalid number format", () => {
+      expect(() => FixedPointNumber.fromDecimalString("123.")).toThrow(
+        "Invalid number format",
+      )
+      expect(() => FixedPointNumber.fromDecimalString(".123")).toThrow(
+        "Invalid number format",
+      )
+      expect(() => FixedPointNumber.fromDecimalString("abc")).toThrow(
+        "Invalid number format",
+      )
+      expect(() => FixedPointNumber.fromDecimalString("--123")).toThrow(
+        "Invalid number format",
+      )
+      expect(() => FixedPointNumber.fromDecimalString("-")).toThrow(
+        "Invalid number format",
+      )
     })
 
-    it('should round-trip with toString', () => {
+    it("should round-trip with toString", () => {
       const original = new FixedPointNumber(12345n, 3n) // 12.345
       const str = original.toString()
       const parsed = FixedPointNumber.fromDecimalString(str)
       expect(parsed.equals(original)).toBe(true)
     })
 
-    it('should work with DecimalString type', () => {
-      const rational = new (require('../src/rationals')).RationalNumber({ p: 1n, q: 2n })
+    it("should work with DecimalString type", () => {
+      const rational = new (require("../src/rationals").RationalNumber)({
+        p: 1n,
+        q: 2n,
+      })
       const decimalStr = rational.toDecimalString() // Returns DecimalString
       const fp = FixedPointNumber.fromDecimalString(decimalStr)
       expect(fp.amount).toBe(5n)
       expect(fp.decimals).toBe(1n)
-      expect(fp.toString()).toBe('0.5')
+      expect(fp.toString()).toBe("0.5")
     })
   })
 
-  describe('equals', () => {
-    it('should return true for identical FixedPointNumbers', () => {
+  describe("equals", () => {
+    it("should return true for identical FixedPointNumbers", () => {
       const fp1 = new FixedPointNumber(123n, 2n)
       const fp2 = new FixedPointNumber(123n, 2n)
       expect(fp1.equals(fp2)).toBe(true)
     })
 
-    it('should return false for FixedPointNumbers with different amounts but same decimals', () => {
+    it("should return false for FixedPointNumbers with different amounts but same decimals", () => {
       const fp1 = new FixedPointNumber(123n, 2n)
       const fp2 = new FixedPointNumber(124n, 2n)
       expect(fp1.equals(fp2)).toBe(false)
     })
 
-    it('should return true for equivalent FixedPointNumbers with different decimal places', () => {
-      const fp1 = new FixedPointNumber(123n, 2n)  // 1.23
+    it("should return true for equivalent FixedPointNumbers with different decimal places", () => {
+      const fp1 = new FixedPointNumber(123n, 2n) // 1.23
       const fp2 = new FixedPointNumber(1230n, 3n) // 1.230
       expect(fp1.equals(fp2)).toBe(true)
     })
 
-    it('should return false for non-equivalent FixedPointNumbers with different decimal places', () => {
-      const fp1 = new FixedPointNumber(123n, 2n)  // 1.23
+    it("should return false for non-equivalent FixedPointNumbers with different decimal places", () => {
+      const fp1 = new FixedPointNumber(123n, 2n) // 1.23
       const fp2 = new FixedPointNumber(1231n, 3n) // 1.231
       expect(fp1.equals(fp2)).toBe(false)
     })
 
-    it('should work with FixedPoint-compatible objects', () => {
+    it("should work with FixedPoint-compatible objects", () => {
       const fp = new FixedPointNumber(123n, 2n)
       expect(fp.equals({ amount: 123n, decimals: 2n })).toBe(true)
       expect(fp.equals({ amount: 1230n, decimals: 3n })).toBe(true)
@@ -566,8 +603,8 @@ describe('FixedPointNumber', () => {
     })
   })
 
-  describe('normalize', () => {
-    it('should return a copy when decimal places are the same', () => {
+  describe("normalize", () => {
+    it("should return a copy when decimal places are the same", () => {
       const fp1 = new FixedPointNumber(123n, 2n)
       const fp2 = new FixedPointNumber(456n, 2n)
       const result = fp1.normalize(fp2)
@@ -577,25 +614,25 @@ describe('FixedPointNumber', () => {
       expect(result).not.toBe(fp1) // Should be a new instance
     })
 
-    it('should scale up when normalizing to higher decimal places', () => {
+    it("should scale up when normalizing to higher decimal places", () => {
       const fp1 = new FixedPointNumber(10n, 1n) // 1.0
-      const fp2 = new FixedPointNumber(0n, 2n)  // Target 2 decimals
+      const fp2 = new FixedPointNumber(0n, 2n) // Target 2 decimals
       const result = fp1.normalize(fp2)
 
       expect(result.amount).toBe(100n) // 10 * 10^(2-1) = 100
       expect(result.decimals).toBe(2n)
     })
 
-    it('should scale down when normalizing to lower decimal places', () => {
+    it("should scale down when normalizing to lower decimal places", () => {
       const fp1 = new FixedPointNumber(1000n, 3n) // 1.000
-      const fp2 = new FixedPointNumber(0n, 1n)    // Target 1 decimal
+      const fp2 = new FixedPointNumber(0n, 1n) // Target 1 decimal
       const result = fp1.normalize(fp2)
 
       expect(result.amount).toBe(10n) // 1000 / 10^(3-1) = 10
       expect(result.decimals).toBe(1n)
     })
 
-    it('should work with the example from the user request', () => {
+    it("should work with the example from the user request", () => {
       const fp = new FixedPointNumber(10n, 1n)
       const target = { amount: 0n, decimals: 2n }
       const result = fp.normalize(target)
@@ -604,7 +641,7 @@ describe('FixedPointNumber', () => {
       expect(result.decimals).toBe(2n)
     })
 
-    it('should work with FixedPoint-compatible objects', () => {
+    it("should work with FixedPoint-compatible objects", () => {
       const fp = new FixedPointNumber(123n, 2n)
       const result = fp.normalize({ amount: 456n, decimals: 3n })
 
@@ -613,468 +650,468 @@ describe('FixedPointNumber', () => {
     })
   })
 
-  describe('isZero', () => {
-    it('should return true for zero amounts', () => {
+  describe("isZero", () => {
+    it("should return true for zero amounts", () => {
       const zero = new FixedPointNumber(0n, 2n)
       expect(zero.isZero()).toBe(true)
     })
 
-    it('should return false for non-zero amounts', () => {
+    it("should return false for non-zero amounts", () => {
       const nonZero = new FixedPointNumber(100n, 2n)
       expect(nonZero.isZero()).toBe(false)
     })
 
-    it('should return true for zero regardless of decimals', () => {
+    it("should return true for zero regardless of decimals", () => {
       const zeroNoDecimals = new FixedPointNumber(0n, 0n)
       const zeroWithDecimals = new FixedPointNumber(0n, 5n)
-      
+
       expect(zeroNoDecimals.isZero()).toBe(true)
       expect(zeroWithDecimals.isZero()).toBe(true)
     })
   })
 
-  describe('lessThan', () => {
-    it('should return true when this number is less than other with same decimals', () => {
+  describe("lessThan", () => {
+    it("should return true when this number is less than other with same decimals", () => {
       const fp1 = new FixedPointNumber(100n, 2n) // 1.00
       const fp2 = new FixedPointNumber(200n, 2n) // 2.00
-      
+
       expect(fp1.lessThan(fp2)).toBe(true)
       expect(fp2.lessThan(fp1)).toBe(false)
     })
 
-    it('should return false when numbers are equal', () => {
+    it("should return false when numbers are equal", () => {
       const fp1 = new FixedPointNumber(100n, 2n)
       const fp2 = new FixedPointNumber(100n, 2n)
-      
+
       expect(fp1.lessThan(fp2)).toBe(false)
     })
 
-    it('should handle different decimal places', () => {
-      const fp1 = new FixedPointNumber(100n, 2n)  // 1.00
+    it("should handle different decimal places", () => {
+      const fp1 = new FixedPointNumber(100n, 2n) // 1.00
       const fp2 = new FixedPointNumber(1500n, 3n) // 1.500
-      
+
       expect(fp1.lessThan(fp2)).toBe(true)
       expect(fp2.lessThan(fp1)).toBe(false)
     })
 
-    it('should work with FixedPoint-compatible objects', () => {
+    it("should work with FixedPoint-compatible objects", () => {
       const fp = new FixedPointNumber(100n, 2n)
-      
+
       expect(fp.lessThan({ amount: 200n, decimals: 2n })).toBe(true)
       expect(fp.lessThan({ amount: 50n, decimals: 2n })).toBe(false)
     })
   })
 
-  describe('lessThanOrEqual', () => {
-    it('should return true when this number is less than other', () => {
+  describe("lessThanOrEqual", () => {
+    it("should return true when this number is less than other", () => {
       const fp1 = new FixedPointNumber(100n, 2n)
       const fp2 = new FixedPointNumber(200n, 2n)
-      
+
       expect(fp1.lessThanOrEqual(fp2)).toBe(true)
     })
 
-    it('should return true when numbers are equal', () => {
+    it("should return true when numbers are equal", () => {
       const fp1 = new FixedPointNumber(100n, 2n)
       const fp2 = new FixedPointNumber(100n, 2n)
-      
+
       expect(fp1.lessThanOrEqual(fp2)).toBe(true)
     })
 
-    it('should return false when this number is greater than other', () => {
+    it("should return false when this number is greater than other", () => {
       const fp1 = new FixedPointNumber(200n, 2n)
       const fp2 = new FixedPointNumber(100n, 2n)
-      
+
       expect(fp1.lessThanOrEqual(fp2)).toBe(false)
     })
 
-    it('should handle equivalent numbers with different decimal places', () => {
-      const fp1 = new FixedPointNumber(100n, 2n)  // 1.00
+    it("should handle equivalent numbers with different decimal places", () => {
+      const fp1 = new FixedPointNumber(100n, 2n) // 1.00
       const fp2 = new FixedPointNumber(1000n, 3n) // 1.000
-      
+
       expect(fp1.lessThanOrEqual(fp2)).toBe(true)
       expect(fp2.lessThanOrEqual(fp1)).toBe(true)
     })
   })
 
-  describe('greaterThan', () => {
-    it('should return true when this number is greater than other with same decimals', () => {
+  describe("greaterThan", () => {
+    it("should return true when this number is greater than other with same decimals", () => {
       const fp1 = new FixedPointNumber(200n, 2n) // 2.00
       const fp2 = new FixedPointNumber(100n, 2n) // 1.00
-      
+
       expect(fp1.greaterThan(fp2)).toBe(true)
       expect(fp2.greaterThan(fp1)).toBe(false)
     })
 
-    it('should return false when numbers are equal', () => {
+    it("should return false when numbers are equal", () => {
       const fp1 = new FixedPointNumber(100n, 2n)
       const fp2 = new FixedPointNumber(100n, 2n)
-      
+
       expect(fp1.greaterThan(fp2)).toBe(false)
     })
 
-    it('should handle different decimal places', () => {
+    it("should handle different decimal places", () => {
       const fp1 = new FixedPointNumber(1500n, 3n) // 1.500
-      const fp2 = new FixedPointNumber(100n, 2n)  // 1.00
-      
+      const fp2 = new FixedPointNumber(100n, 2n) // 1.00
+
       expect(fp1.greaterThan(fp2)).toBe(true)
       expect(fp2.greaterThan(fp1)).toBe(false)
     })
 
-    it('should work with FixedPoint-compatible objects', () => {
+    it("should work with FixedPoint-compatible objects", () => {
       const fp = new FixedPointNumber(200n, 2n)
-      
+
       expect(fp.greaterThan({ amount: 100n, decimals: 2n })).toBe(true)
       expect(fp.greaterThan({ amount: 300n, decimals: 2n })).toBe(false)
     })
   })
 
-  describe('greaterThanOrEqual', () => {
-    it('should return true when this number is greater than other', () => {
+  describe("greaterThanOrEqual", () => {
+    it("should return true when this number is greater than other", () => {
       const fp1 = new FixedPointNumber(200n, 2n)
       const fp2 = new FixedPointNumber(100n, 2n)
-      
+
       expect(fp1.greaterThanOrEqual(fp2)).toBe(true)
     })
 
-    it('should return true when numbers are equal', () => {
+    it("should return true when numbers are equal", () => {
       const fp1 = new FixedPointNumber(100n, 2n)
       const fp2 = new FixedPointNumber(100n, 2n)
-      
+
       expect(fp1.greaterThanOrEqual(fp2)).toBe(true)
     })
 
-    it('should return false when this number is less than other', () => {
+    it("should return false when this number is less than other", () => {
       const fp1 = new FixedPointNumber(100n, 2n)
       const fp2 = new FixedPointNumber(200n, 2n)
-      
+
       expect(fp1.greaterThanOrEqual(fp2)).toBe(false)
     })
 
-    it('should handle equivalent numbers with different decimal places', () => {
-      const fp1 = new FixedPointNumber(100n, 2n)  // 1.00
+    it("should handle equivalent numbers with different decimal places", () => {
+      const fp1 = new FixedPointNumber(100n, 2n) // 1.00
       const fp2 = new FixedPointNumber(1000n, 3n) // 1.000
-      
+
       expect(fp1.greaterThanOrEqual(fp2)).toBe(true)
       expect(fp2.greaterThanOrEqual(fp1)).toBe(true)
     })
   })
 
-  describe('isPositive', () => {
-    it('should return true for positive amounts', () => {
+  describe("isPositive", () => {
+    it("should return true for positive amounts", () => {
       const positive = new FixedPointNumber(100n, 2n)
       expect(positive.isPositive()).toBe(true)
     })
 
-    it('should return false for zero amounts', () => {
+    it("should return false for zero amounts", () => {
       const zero = new FixedPointNumber(0n, 2n)
       expect(zero.isPositive()).toBe(false)
     })
 
-    it('should return false for negative amounts', () => {
+    it("should return false for negative amounts", () => {
       const negative = new FixedPointNumber(-100n, 2n)
       expect(negative.isPositive()).toBe(false)
     })
   })
 
-  describe('isNegative', () => {
-    it('should return true for negative amounts', () => {
+  describe("isNegative", () => {
+    it("should return true for negative amounts", () => {
       const negative = new FixedPointNumber(-100n, 2n)
       expect(negative.isNegative()).toBe(true)
     })
 
-    it('should return false for zero amounts', () => {
+    it("should return false for zero amounts", () => {
       const zero = new FixedPointNumber(0n, 2n)
       expect(zero.isNegative()).toBe(false)
     })
 
-    it('should return false for positive amounts', () => {
+    it("should return false for positive amounts", () => {
       const positive = new FixedPointNumber(100n, 2n)
       expect(positive.isNegative()).toBe(false)
     })
   })
 
-  describe('max', () => {
-    it('should return the larger of two numbers', () => {
+  describe("max", () => {
+    it("should return the larger of two numbers", () => {
       const fp1 = new FixedPointNumber(100n, 2n) // 1.00
       const fp2 = new FixedPointNumber(200n, 2n) // 2.00
-      
+
       expect(fp1.max(fp2).equals(fp2)).toBe(true)
       expect(fp2.max(fp1).equals(fp2)).toBe(true)
     })
 
-    it('should return this when equal', () => {
+    it("should return this when equal", () => {
       const fp1 = new FixedPointNumber(100n, 2n)
       const fp2 = new FixedPointNumber(100n, 2n)
-      
+
       expect(fp1.max(fp2)).toBe(fp1)
     })
 
-    it('should handle multiple values in array', () => {
+    it("should handle multiple values in array", () => {
       const fp1 = new FixedPointNumber(100n, 2n) // 1.00
       const fp2 = new FixedPointNumber(300n, 2n) // 3.00
       const fp3 = new FixedPointNumber(200n, 2n) // 2.00
-      
+
       const result = fp1.max([fp2, fp3])
       expect(result.equals(fp2)).toBe(true)
     })
 
-    it('should handle different decimal places', () => {
-      const fp1 = new FixedPointNumber(100n, 2n)  // 1.00
+    it("should handle different decimal places", () => {
+      const fp1 = new FixedPointNumber(100n, 2n) // 1.00
       const fp2 = new FixedPointNumber(1500n, 3n) // 1.500
-      
+
       const result = fp1.max(fp2)
       expect(result.equals(fp2)).toBe(true)
     })
 
-    it('should work with FixedPoint-compatible objects', () => {
+    it("should work with FixedPoint-compatible objects", () => {
       const fp = new FixedPointNumber(100n, 2n)
       const result = fp.max({ amount: 200n, decimals: 2n })
-      
+
       expect(result.amount).toBe(200n)
       expect(result.decimals).toBe(2n)
     })
   })
 
-  describe('min', () => {
-    it('should return the smaller of two numbers', () => {
+  describe("min", () => {
+    it("should return the smaller of two numbers", () => {
       const fp1 = new FixedPointNumber(100n, 2n) // 1.00
       const fp2 = new FixedPointNumber(200n, 2n) // 2.00
-      
+
       expect(fp1.min(fp2).equals(fp1)).toBe(true)
       expect(fp2.min(fp1).equals(fp1)).toBe(true)
     })
 
-    it('should return this when equal', () => {
+    it("should return this when equal", () => {
       const fp1 = new FixedPointNumber(100n, 2n)
       const fp2 = new FixedPointNumber(100n, 2n)
-      
+
       expect(fp1.min(fp2)).toBe(fp1)
     })
 
-    it('should handle multiple values in array', () => {
+    it("should handle multiple values in array", () => {
       const fp1 = new FixedPointNumber(300n, 2n) // 3.00
       const fp2 = new FixedPointNumber(100n, 2n) // 1.00
       const fp3 = new FixedPointNumber(200n, 2n) // 2.00
-      
+
       const result = fp1.min([fp2, fp3])
       expect(result.equals(fp2)).toBe(true)
     })
 
-    it('should handle different decimal places', () => {
+    it("should handle different decimal places", () => {
       const fp1 = new FixedPointNumber(1500n, 3n) // 1.500
-      const fp2 = new FixedPointNumber(100n, 2n)  // 1.00
-      
+      const fp2 = new FixedPointNumber(100n, 2n) // 1.00
+
       const result = fp1.min(fp2)
       expect(result.equals(fp2)).toBe(true)
     })
 
-    it('should work with FixedPoint-compatible objects', () => {
+    it("should work with FixedPoint-compatible objects", () => {
       const fp = new FixedPointNumber(200n, 2n)
       const result = fp.min({ amount: 100n, decimals: 2n })
-      
+
       expect(result.amount).toBe(100n)
       expect(result.decimals).toBe(2n)
     })
   })
 
-  describe('toJSON', () => {
-    it('should serialize amount and decimals as strings', () => {
+  describe("toJSON", () => {
+    it("should serialize amount and decimals as strings", () => {
       const fp = new FixedPointNumber(10050n, 2n) // 100.50
       const json = fp.toJSON()
-      
+
       expect(json).toEqual({
         amount: "10050",
-        decimals: "2"
+        decimals: "2",
       })
     })
 
-    it('should handle zero values', () => {
+    it("should handle zero values", () => {
       const fp = new FixedPointNumber(0n, 0n)
       const json = fp.toJSON()
-      
+
       expect(json).toEqual({
         amount: "0",
-        decimals: "0"
+        decimals: "0",
       })
     })
 
-    it('should handle large numbers', () => {
+    it("should handle large numbers", () => {
       const fp = new FixedPointNumber(12345678901234567890n, 8n)
       const json = fp.toJSON()
-      
+
       expect(json).toEqual({
         amount: "12345678901234567890",
-        decimals: "8"
+        decimals: "8",
       })
     })
 
-    it('should handle negative amounts', () => {
+    it("should handle negative amounts", () => {
       const fp = new FixedPointNumber(-10050n, 2n) // -100.50
       const json = fp.toJSON()
-      
+
       expect(json).toEqual({
         amount: "-10050",
-        decimals: "2"
+        decimals: "2",
       })
     })
 
-    it('should work with JSON.stringify', () => {
+    it("should work with JSON.stringify", () => {
       const fp = new FixedPointNumber(10050n, 2n)
       const jsonString = JSON.stringify(fp)
-      
+
       expect(jsonString).toBe('{"amount":"10050","decimals":"2"}')
     })
   })
 
-  describe('fromJSON', () => {
-    it('should deserialize valid JSON back to FixedPointNumber', () => {
+  describe("fromJSON", () => {
+    it("should deserialize valid JSON back to FixedPointNumber", () => {
       const json = { amount: "10050", decimals: "2" }
       const fp = FixedPointNumber.fromJSON(json)
-      
+
       expect(fp.amount).toBe(10050n)
       expect(fp.decimals).toBe(2n)
     })
 
-    it('should handle zero values', () => {
+    it("should handle zero values", () => {
       const json = { amount: "0", decimals: "0" }
       const fp = FixedPointNumber.fromJSON(json)
-      
+
       expect(fp.amount).toBe(0n)
       expect(fp.decimals).toBe(0n)
     })
 
-    it('should handle large numbers', () => {
+    it("should handle large numbers", () => {
       const json = { amount: "12345678901234567890", decimals: "8" }
       const fp = FixedPointNumber.fromJSON(json)
-      
+
       expect(fp.amount).toBe(12345678901234567890n)
       expect(fp.decimals).toBe(8n)
     })
 
-    it('should handle negative amounts', () => {
+    it("should handle negative amounts", () => {
       const json = { amount: "-10050", decimals: "2" }
       const fp = FixedPointNumber.fromJSON(json)
-      
+
       expect(fp.amount).toBe(-10050n)
       expect(fp.decimals).toBe(2n)
     })
 
-    it('should round-trip correctly with toJSON', () => {
+    it("should round-trip correctly with toJSON", () => {
       const original = new FixedPointNumber(12345n, 3n)
       const json = original.toJSON()
       const restored = FixedPointNumber.fromJSON(json)
-      
+
       expect(restored.amount).toBe(original.amount)
       expect(restored.decimals).toBe(original.decimals)
       expect(restored.equals(original)).toBe(true)
     })
 
-    it('should work with JSON.stringify/parse round-trip', () => {
+    it("should work with JSON.stringify/parse round-trip", () => {
       const original = new FixedPointNumber(54321n, 4n)
       const jsonString = JSON.stringify(original)
       const parsed = JSON.parse(jsonString)
       const restored = FixedPointNumber.fromJSON(parsed)
-      
+
       expect(restored.equals(original)).toBe(true)
     })
 
-    it('should throw error for missing amount field', () => {
+    it("should throw error for missing amount field", () => {
       const json = { decimals: "2" }
-      
+
       expect(() => FixedPointNumber.fromJSON(json)).toThrow()
     })
 
-    it('should throw error for missing decimals field', () => {
+    it("should throw error for missing decimals field", () => {
       const json = { amount: "100" }
-      
+
       expect(() => FixedPointNumber.fromJSON(json)).toThrow()
     })
 
-    it('should throw error for non-string amount', () => {
+    it("should throw error for non-string amount", () => {
       const json = { amount: 100, decimals: "2" }
-      
+
       expect(() => FixedPointNumber.fromJSON(json)).toThrow()
     })
 
-    it('should throw error for non-string decimals', () => {
+    it("should throw error for non-string decimals", () => {
       const json = { amount: "100", decimals: 2 }
-      
+
       expect(() => FixedPointNumber.fromJSON(json)).toThrow()
     })
 
-    it('should throw error for invalid amount format', () => {
+    it("should throw error for invalid amount format", () => {
       const json = { amount: "100.5", decimals: "2" }
-      
+
       expect(() => FixedPointNumber.fromJSON(json)).toThrow()
     })
 
-    it('should throw error for invalid decimals format', () => {
+    it("should throw error for invalid decimals format", () => {
       const json = { amount: "100", decimals: "2.5" }
-      
+
       expect(() => FixedPointNumber.fromJSON(json)).toThrow()
     })
 
-    it('should throw error for negative decimals', () => {
+    it("should throw error for negative decimals", () => {
       const json = { amount: "100", decimals: "-2" }
-      
+
       expect(() => FixedPointNumber.fromJSON(json)).toThrow()
     })
 
-    it('should throw error for non-numeric strings', () => {
+    it("should throw error for non-numeric strings", () => {
       const json = { amount: "abc", decimals: "2" }
-      
+
       expect(() => FixedPointNumber.fromJSON(json)).toThrow()
     })
 
-    it('should throw error for null input', () => {
+    it("should throw error for null input", () => {
       expect(() => FixedPointNumber.fromJSON(null)).toThrow()
     })
 
-    it('should throw error for undefined input', () => {
+    it("should throw error for undefined input", () => {
       expect(() => FixedPointNumber.fromJSON(undefined)).toThrow()
     })
 
-    it('should ignore extra fields', () => {
+    it("should ignore extra fields", () => {
       const json = { amount: "100", decimals: "2", extraField: "ignored" }
       const fp = FixedPointNumber.fromJSON(json)
-      
+
       expect(fp.amount).toBe(100n)
       expect(fp.decimals).toBe(2n)
     })
   })
 
-  describe('FixedPointJSONSchema', () => {
-    it('should be exported and usable independently', () => {
+  describe("FixedPointJSONSchema", () => {
+    it("should be exported and usable independently", () => {
       const validData = { amount: "100", decimals: "2" }
       const parsed = FixedPointJSONSchema.parse(validData)
-      
+
       expect(parsed).toEqual(validData)
     })
 
-    it('should validate data independently of fromJSON', () => {
+    it("should validate data independently of fromJSON", () => {
       const invalidData = { amount: 100, decimals: "2" }
-      
+
       expect(() => FixedPointJSONSchema.parse(invalidData)).toThrow()
     })
 
-    it('should provide the same validation as fromJSON', () => {
+    it("should provide the same validation as fromJSON", () => {
       const testData = { amount: "abc", decimals: "2" }
-      
+
       // Both should throw for the same invalid data
       expect(() => FixedPointJSONSchema.parse(testData)).toThrow()
       expect(() => FixedPointNumber.fromJSON(testData)).toThrow()
     })
   })
 
-  describe('Ratio interface', () => {
-    it('should implement Ratio interface with p and q getters', () => {
+  describe("Ratio interface", () => {
+    it("should implement Ratio interface with p and q getters", () => {
       const fp = new FixedPointNumber(123n, 2n) // 1.23
-      
+
       expect(fp.p).toBe(123n)
       expect(fp.q).toBe(100n) // 10^2
     })
 
-    it('should calculate q correctly for different decimal places', () => {
+    it("should calculate q correctly for different decimal places", () => {
       const fp0 = new FixedPointNumber(5n, 0n) // 5
       const fp2 = new FixedPointNumber(123n, 2n) // 1.23
       const fp3 = new FixedPointNumber(456n, 3n) // 0.456
@@ -1086,117 +1123,119 @@ describe('FixedPointNumber', () => {
       expect(fp5.q).toBe(100000n) // 10^5
     })
 
-    it('should work with RationalNumber operations', () => {
+    it("should work with RationalNumber operations", () => {
       const fp = new FixedPointNumber(150n, 2n) // 1.50 = 150/100
-      const rational = new (require('../src/rationals').RationalNumber)(fp)
-      
+      const rational = new (require("../src/rationals").RationalNumber)(fp)
+
       expect(rational.p).toBe(150n)
       expect(rational.q).toBe(100n)
     })
 
-    it('should maintain ratio consistency for zero amounts', () => {
+    it("should maintain ratio consistency for zero amounts", () => {
       const fp = new FixedPointNumber(0n, 3n) // 0.000
-      
+
       expect(fp.p).toBe(0n)
       expect(fp.q).toBe(1000n) // 10^3
     })
 
-    it('should maintain ratio consistency for negative amounts', () => {
+    it("should maintain ratio consistency for negative amounts", () => {
       const fp = new FixedPointNumber(-250n, 2n) // -2.50
-      
+
       expect(fp.p).toBe(-250n)
       expect(fp.q).toBe(100n) // 10^2
     })
 
-    it('should represent proper fractions for amounts less than 1', () => {
+    it("should represent proper fractions for amounts less than 1", () => {
       const fp = new FixedPointNumber(75n, 2n) // 0.75
-      
+
       expect(fp.p).toBe(75n)
       expect(fp.q).toBe(100n) // represents 75/100 = 0.75
     })
   })
 })
 
-describe('FixedPoint factory function', () => {
-  describe('string parsing mode', () => {
-    it('should parse whole numbers', () => {
-      const fp = FixedPoint('123')
+describe("FixedPoint factory function", () => {
+  describe("string parsing mode", () => {
+    it("should parse whole numbers", () => {
+      const fp = FixedPoint("123")
       expect(fp).toBeInstanceOf(FixedPointNumber)
       expect(fp.amount).toBe(123n)
       expect(fp.decimals).toBe(0n)
     })
 
-    it('should parse decimal numbers with auto-detected decimals', () => {
-      const fp = FixedPoint('123.45')
+    it("should parse decimal numbers with auto-detected decimals", () => {
+      const fp = FixedPoint("123.45")
       expect(fp.amount).toBe(12345n)
       expect(fp.decimals).toBe(2n)
     })
 
-    it('should parse high precision decimals', () => {
-      const fp = FixedPoint('1.234098')
+    it("should parse high precision decimals", () => {
+      const fp = FixedPoint("1.234098")
       expect(fp.amount).toBe(1234098n)
       expect(fp.decimals).toBe(6n)
     })
 
-    it('should parse negative numbers', () => {
-      const fp = FixedPoint('-123.45')
+    it("should parse negative numbers", () => {
+      const fp = FixedPoint("-123.45")
       expect(fp.amount).toBe(-12345n)
       expect(fp.decimals).toBe(2n)
     })
 
-    it('should parse zero', () => {
-      const fp = FixedPoint('0')
+    it("should parse zero", () => {
+      const fp = FixedPoint("0")
       expect(fp.amount).toBe(0n)
       expect(fp.decimals).toBe(0n)
     })
 
-    it('should parse zero with decimals', () => {
-      const fp = FixedPoint('0.00')
+    it("should parse zero with decimals", () => {
+      const fp = FixedPoint("0.00")
       expect(fp.amount).toBe(0n)
       expect(fp.decimals).toBe(2n)
     })
 
-    it('should work with DecimalString type', () => {
-      const decimalStr = '1.5' as any // Simulating DecimalString
+    it("should work with DecimalString type", () => {
+      const decimalStr = "1.5" as any // Simulating DecimalString
       const fp = FixedPoint(decimalStr)
       expect(fp.amount).toBe(15n)
       expect(fp.decimals).toBe(1n)
     })
 
-    it('should throw for invalid string formats', () => {
-      expect(() => FixedPoint('abc')).toThrow('Invalid number format')
-      expect(() => FixedPoint('123.')).toThrow('Invalid number format')
-      expect(() => FixedPoint('.123')).toThrow('Invalid number format')
+    it("should throw for invalid string formats", () => {
+      expect(() => FixedPoint("abc")).toThrow("Invalid number format")
+      expect(() => FixedPoint("123.")).toThrow("Invalid number format")
+      expect(() => FixedPoint(".123")).toThrow("Invalid number format")
     })
   })
 
-  describe('original constructor mode', () => {
-    it('should work with bigint amount and decimals', () => {
+  describe("original constructor mode", () => {
+    it("should work with bigint amount and decimals", () => {
       const fp = FixedPoint(12345n, 3n)
       expect(fp).toBeInstanceOf(FixedPointNumber)
       expect(fp.amount).toBe(12345n)
       expect(fp.decimals).toBe(3n)
     })
 
-    it('should work with zero values', () => {
+    it("should work with zero values", () => {
       const fp = FixedPoint(0n, 2n)
       expect(fp.amount).toBe(0n)
       expect(fp.decimals).toBe(2n)
     })
 
-    it('should work with negative amounts', () => {
+    it("should work with negative amounts", () => {
       const fp = FixedPoint(-500n, 2n)
       expect(fp.amount).toBe(-500n)
       expect(fp.decimals).toBe(2n)
     })
 
-    it('should throw when decimals parameter is missing', () => {
-      expect(() => FixedPoint(123n as any)).toThrow('decimals parameter is required')
+    it("should throw when decimals parameter is missing", () => {
+      expect(() => FixedPoint(123n as any)).toThrow(
+        "decimals parameter is required",
+      )
     })
   })
 
-  describe('FixedPoint object mode', () => {
-    it('should work with FixedPoint objects', () => {
+  describe("FixedPoint object mode", () => {
+    it("should work with FixedPoint objects", () => {
       const original = new FixedPointNumber(12345n, 3n)
       const fp = FixedPoint(original)
       expect(fp).toBeInstanceOf(FixedPointNumber)
@@ -1205,7 +1244,7 @@ describe('FixedPoint factory function', () => {
       expect(fp.equals(original)).toBe(true)
     })
 
-    it('should work with FixedPoint-compatible objects', () => {
+    it("should work with FixedPoint-compatible objects", () => {
       const compatibleObj = { amount: 98765n, decimals: 4n }
       const fp = FixedPoint(compatibleObj)
       expect(fp).toBeInstanceOf(FixedPointNumber)
@@ -1213,21 +1252,21 @@ describe('FixedPoint factory function', () => {
       expect(fp.decimals).toBe(4n)
     })
 
-    it('should work with zero values', () => {
+    it("should work with zero values", () => {
       const zero = { amount: 0n, decimals: 2n }
       const fp = FixedPoint(zero)
       expect(fp.amount).toBe(0n)
       expect(fp.decimals).toBe(2n)
     })
 
-    it('should work with negative amounts', () => {
+    it("should work with negative amounts", () => {
       const negative = { amount: -5000n, decimals: 2n }
       const fp = FixedPoint(negative)
       expect(fp.amount).toBe(-5000n)
       expect(fp.decimals).toBe(2n)
     })
 
-    it('should create a new instance, not return the same object', () => {
+    it("should create a new instance, not return the same object", () => {
       const original = new FixedPointNumber(12345n, 3n)
       const fp = FixedPoint(original)
       expect(fp).not.toBe(original) // Different object references
@@ -1235,290 +1274,292 @@ describe('FixedPoint factory function', () => {
     })
   })
 
-  describe('equivalence with constructor', () => {
-    it('should produce same results as constructor for bigint mode', () => {
+  describe("equivalence with constructor", () => {
+    it("should produce same results as constructor for bigint mode", () => {
       const factory = FixedPoint(12345n, 3n)
       const constructor = new FixedPointNumber(12345n, 3n)
       expect(factory.equals(constructor)).toBe(true)
     })
 
-    it('should produce same results as fromDecimalString for string mode', () => {
-      const factory = FixedPoint('123.45')
-      const method = FixedPointNumber.fromDecimalString('123.45')
+    it("should produce same results as fromDecimalString for string mode", () => {
+      const factory = FixedPoint("123.45")
+      const method = FixedPointNumber.fromDecimalString("123.45")
       expect(factory.equals(method)).toBe(true)
     })
   })
 
-  describe('String argument support', () => {
+  describe("String argument support", () => {
     const fp100 = new FixedPointNumber(10000n, 2n) // 100.00
-    const fp25 = new FixedPointNumber(2500n, 2n)   // 25.00
+    const fp25 = new FixedPointNumber(2500n, 2n) // 25.00
 
-    describe('add', () => {
-      it('should add string decimal numbers', () => {
-        const result = fp100.add('25.50')
+    describe("add", () => {
+      it("should add string decimal numbers", () => {
+        const result = fp100.add("25.50")
         expect(result.amount).toBe(12550n) // 125.50
         expect(result.decimals).toBe(2n)
       })
 
-      it('should handle different precision strings', () => {
-        const result = fp100.add('0.123') // 3 decimals
+      it("should handle different precision strings", () => {
+        const result = fp100.add("0.123") // 3 decimals
         expect(result.amount).toBe(100123n) // 100.123
         expect(result.decimals).toBe(3n)
       })
 
-      it('should handle integer strings', () => {
-        const result = fp100.add('25')
+      it("should handle integer strings", () => {
+        const result = fp100.add("25")
         expect(result.amount).toBe(12500n) // 125.00
         expect(result.decimals).toBe(2n)
       })
 
-      it('should handle negative string amounts', () => {
-        const result = fp100.add('-25.00')
+      it("should handle negative string amounts", () => {
+        const result = fp100.add("-25.00")
         expect(result.amount).toBe(7500n) // 75.00
         expect(result.decimals).toBe(2n)
       })
 
-      it('should throw on invalid string formats', () => {
-        expect(() => fp100.add('invalid')).toThrow('Invalid number format')
+      it("should throw on invalid string formats", () => {
+        expect(() => fp100.add("invalid")).toThrow("Invalid number format")
       })
     })
 
-    describe('subtract', () => {
-      it('should subtract string decimal numbers', () => {
-        const result = fp100.subtract('25.50')
+    describe("subtract", () => {
+      it("should subtract string decimal numbers", () => {
+        const result = fp100.subtract("25.50")
         expect(result.amount).toBe(7450n) // 74.50
         expect(result.decimals).toBe(2n)
       })
 
-      it('should handle different precision strings', () => {
-        const result = fp100.subtract('0.123') // 3 decimals
+      it("should handle different precision strings", () => {
+        const result = fp100.subtract("0.123") // 3 decimals
         expect(result.amount).toBe(99877n) // 99.877
         expect(result.decimals).toBe(3n)
       })
 
-      it('should handle negative string amounts', () => {
-        const result = fp100.subtract('-25.00')
+      it("should handle negative string amounts", () => {
+        const result = fp100.subtract("-25.00")
         expect(result.amount).toBe(12500n) // 125.00
         expect(result.decimals).toBe(2n)
       })
     })
 
-    describe('multiply', () => {
-      it('should multiply by string decimal numbers', () => {
-        const result = fp25.multiply('2.5')
+    describe("multiply", () => {
+      it("should multiply by string decimal numbers", () => {
+        const result = fp25.multiply("2.5")
         expect(result.amount).toBe(6250n) // 62.50
         expect(result.decimals).toBe(2n)
       })
 
-      it('should handle high precision strings', () => {
-        const result = fp25.multiply('1.125') // 3 decimals
+      it("should handle high precision strings", () => {
+        const result = fp25.multiply("1.125") // 3 decimals
         expect(result.amount).toBe(28125n) // 28.125
         expect(result.decimals).toBe(3n)
       })
 
-      it('should handle integer strings', () => {
-        const result = fp25.multiply('3')
+      it("should handle integer strings", () => {
+        const result = fp25.multiply("3")
         expect(result.amount).toBe(7500n) // 75.00
         expect(result.decimals).toBe(2n)
       })
 
-      it('should preserve FixedPoint behavior with bigint', () => {
+      it("should preserve FixedPoint behavior with bigint", () => {
         const result = fp25.multiply(3n)
         expect(result.amount).toBe(7500n) // 75.00
         expect(result.decimals).toBe(2n)
       })
     })
 
-    describe('divide', () => {
-      it('should divide by string decimal numbers (factors of 2 and 5)', () => {
-        const result = fp100.divide('2.5')
+    describe("divide", () => {
+      it("should divide by string decimal numbers (factors of 2 and 5)", () => {
+        const result = fp100.divide("2.5")
         expect(result.amount).toBe(400000n) // 40.00000 (higher precision)
         expect(result.decimals).toBe(5n)
-        expect(result.toString()).toBe('4.00000')
+        expect(result.toString()).toBe("4.00000")
       })
 
-      it('should divide by string integers', () => {
-        const result = fp100.divide('4')
+      it("should divide by string integers", () => {
+        const result = fp100.divide("4")
         expect(result.amount).toBe(250000n) // 25.0000 (higher precision)
         expect(result.decimals).toBe(4n)
-        expect(result.toString()).toBe('25.0000')
+        expect(result.toString()).toBe("25.0000")
       })
 
-      it('should throw on division by invalid factors', () => {
-        expect(() => fp100.divide('3.0')).toThrow('divisor numerator must be composed only of factors of 2 and 5')
+      it("should throw on division by invalid factors", () => {
+        expect(() => fp100.divide("3.0")).toThrow(
+          "divisor numerator must be composed only of factors of 2 and 5",
+        )
       })
 
-      it('should throw on division by zero string', () => {
-        expect(() => fp100.divide('0')).toThrow('Cannot divide by zero')
+      it("should throw on division by zero string", () => {
+        expect(() => fp100.divide("0")).toThrow("Cannot divide by zero")
       })
 
-      it('should preserve FixedPoint behavior with bigint', () => {
+      it("should preserve FixedPoint behavior with bigint", () => {
         const result = fp100.divide(4n)
         expect(result.amount).toBe(250000n) // 25.0000 (higher precision due to calculation)
         expect(result.decimals).toBe(4n)
       })
     })
 
-    describe('equals', () => {
-      it('should compare with string decimal numbers', () => {
-        expect(fp100.equals('100.00')).toBe(true)
-        expect(fp100.equals('100.0')).toBe(true)
-        expect(fp100.equals('100')).toBe(true)
-        expect(fp100.equals('100.01')).toBe(false)
+    describe("equals", () => {
+      it("should compare with string decimal numbers", () => {
+        expect(fp100.equals("100.00")).toBe(true)
+        expect(fp100.equals("100.0")).toBe(true)
+        expect(fp100.equals("100")).toBe(true)
+        expect(fp100.equals("100.01")).toBe(false)
       })
 
-      it('should handle high precision comparisons', () => {
+      it("should handle high precision comparisons", () => {
         const precise = new FixedPointNumber(10012345n, 5n) // 100.12345
-        expect(precise.equals('100.12345')).toBe(true)
-        expect(precise.equals('100.12346')).toBe(false)
+        expect(precise.equals("100.12345")).toBe(true)
+        expect(precise.equals("100.12346")).toBe(false)
       })
 
-      it('should handle negative comparisons', () => {
+      it("should handle negative comparisons", () => {
         const negative = new FixedPointNumber(-10000n, 2n) // -100.00
-        expect(negative.equals('-100.00')).toBe(true)
-        expect(negative.equals('-100.01')).toBe(false)
+        expect(negative.equals("-100.00")).toBe(true)
+        expect(negative.equals("-100.01")).toBe(false)
       })
     })
 
-    describe('lessThan', () => {
-      it('should compare with string numbers', () => {
-        expect(fp25.lessThan('100.00')).toBe(true)
-        expect(fp100.lessThan('25.00')).toBe(false)
-        expect(fp100.lessThan('100.00')).toBe(false)
+    describe("lessThan", () => {
+      it("should compare with string numbers", () => {
+        expect(fp25.lessThan("100.00")).toBe(true)
+        expect(fp100.lessThan("25.00")).toBe(false)
+        expect(fp100.lessThan("100.00")).toBe(false)
       })
 
-      it('should handle different precision strings', () => {
-        expect(fp25.lessThan('25.001')).toBe(true)
-        expect(fp25.lessThan('24.999')).toBe(false)
-      })
-    })
-
-    describe('lessThanOrEqual', () => {
-      it('should compare with string numbers', () => {
-        expect(fp25.lessThanOrEqual('100.00')).toBe(true)
-        expect(fp100.lessThanOrEqual('100.00')).toBe(true)
-        expect(fp100.lessThanOrEqual('25.00')).toBe(false)
+      it("should handle different precision strings", () => {
+        expect(fp25.lessThan("25.001")).toBe(true)
+        expect(fp25.lessThan("24.999")).toBe(false)
       })
     })
 
-    describe('greaterThan', () => {
-      it('should compare with string numbers', () => {
-        expect(fp100.greaterThan('25.00')).toBe(true)
-        expect(fp25.greaterThan('100.00')).toBe(false)
-        expect(fp100.greaterThan('100.00')).toBe(false)
-      })
-
-      it('should handle different precision strings', () => {
-        expect(fp25.greaterThan('24.999')).toBe(true)
-        expect(fp25.greaterThan('25.001')).toBe(false)
+    describe("lessThanOrEqual", () => {
+      it("should compare with string numbers", () => {
+        expect(fp25.lessThanOrEqual("100.00")).toBe(true)
+        expect(fp100.lessThanOrEqual("100.00")).toBe(true)
+        expect(fp100.lessThanOrEqual("25.00")).toBe(false)
       })
     })
 
-    describe('greaterThanOrEqual', () => {
-      it('should compare with string numbers', () => {
-        expect(fp100.greaterThanOrEqual('25.00')).toBe(true)
-        expect(fp100.greaterThanOrEqual('100.00')).toBe(true)
-        expect(fp25.greaterThanOrEqual('100.00')).toBe(false)
+    describe("greaterThan", () => {
+      it("should compare with string numbers", () => {
+        expect(fp100.greaterThan("25.00")).toBe(true)
+        expect(fp25.greaterThan("100.00")).toBe(false)
+        expect(fp100.greaterThan("100.00")).toBe(false)
+      })
+
+      it("should handle different precision strings", () => {
+        expect(fp25.greaterThan("24.999")).toBe(true)
+        expect(fp25.greaterThan("25.001")).toBe(false)
       })
     })
 
-    describe('max', () => {
-      it('should handle string arguments', () => {
-        const result = fp25.max('100.00')
+    describe("greaterThanOrEqual", () => {
+      it("should compare with string numbers", () => {
+        expect(fp100.greaterThanOrEqual("25.00")).toBe(true)
+        expect(fp100.greaterThanOrEqual("100.00")).toBe(true)
+        expect(fp25.greaterThanOrEqual("100.00")).toBe(false)
+      })
+    })
+
+    describe("max", () => {
+      it("should handle string arguments", () => {
+        const result = fp25.max("100.00")
         expect(result.equals(fp100)).toBe(true)
       })
 
-      it('should handle array of strings', () => {
-        const result = fp25.max(['50.00', '100.00', '75.00'])
+      it("should handle array of strings", () => {
+        const result = fp25.max(["50.00", "100.00", "75.00"])
         expect(result.equals(fp100)).toBe(true)
       })
 
-      it('should handle mixed string and FixedPoint arguments', () => {
-        const result = fp25.max([fp100, '75.00'])
+      it("should handle mixed string and FixedPoint arguments", () => {
+        const result = fp25.max([fp100, "75.00"])
         expect(result.equals(fp100)).toBe(true)
       })
 
-      it('should handle different precision strings', () => {
-        const result = fp25.max('25.001')
+      it("should handle different precision strings", () => {
+        const result = fp25.max("25.001")
         expect(result.amount).toBe(25001n)
         expect(result.decimals).toBe(3n)
       })
     })
 
-    describe('min', () => {
-      it('should handle string arguments', () => {
-        const result = fp100.min('25.00')
+    describe("min", () => {
+      it("should handle string arguments", () => {
+        const result = fp100.min("25.00")
         expect(result.equals(fp25)).toBe(true)
       })
 
-      it('should handle array of strings', () => {
-        const result = fp100.min(['50.00', '25.00', '75.00'])
+      it("should handle array of strings", () => {
+        const result = fp100.min(["50.00", "25.00", "75.00"])
         expect(result.equals(fp25)).toBe(true)
       })
 
-      it('should handle mixed string and FixedPoint arguments', () => {
-        const result = fp100.min([fp25, '75.00'])
+      it("should handle mixed string and FixedPoint arguments", () => {
+        const result = fp100.min([fp25, "75.00"])
         expect(result.equals(fp25)).toBe(true)
       })
 
-      it('should handle different precision strings', () => {
-        const result = fp25.min('24.999')
+      it("should handle different precision strings", () => {
+        const result = fp25.min("24.999")
         expect(result.amount).toBe(24999n)
         expect(result.decimals).toBe(3n)
       })
     })
 
-    describe('normalize', () => {
-      it('should normalize to string target precision', () => {
+    describe("normalize", () => {
+      it("should normalize to string target precision", () => {
         const fp = new FixedPointNumber(12345n, 3n) // 12.345
-        const result = fp.normalize('100.00') // 2 decimals, safe mode
+        const result = fp.normalize("100.00") // 2 decimals, safe mode
         expect(result.amount).toBe(12345n) // Keeps original precision when would lose data
         expect(result.decimals).toBe(3n)
       })
 
-      it('should scale up to higher precision string', () => {
+      it("should scale up to higher precision string", () => {
         const fp = new FixedPointNumber(1234n, 2n) // 12.34
-        const result = fp.normalize('100.000') // 3 decimals
+        const result = fp.normalize("100.000") // 3 decimals
         expect(result.amount).toBe(12340n) // 12.340
         expect(result.decimals).toBe(3n)
       })
 
-      it('should preserve precision when unsafe=true', () => {
+      it("should preserve precision when unsafe=true", () => {
         const fp = new FixedPointNumber(12345n, 3n) // 12.345
-        const result = fp.normalize('100.00', true) // 2 decimals, unsafe
+        const result = fp.normalize("100.00", true) // 2 decimals, unsafe
         expect(result.amount).toBe(1234n) // 12.34 (precision lost)
         expect(result.decimals).toBe(2n)
       })
 
-      it('should keep original precision when would lose data and unsafe=false', () => {
+      it("should keep original precision when would lose data and unsafe=false", () => {
         const fp = new FixedPointNumber(12345n, 3n) // 12.345
-        const result = fp.normalize('100.00', false) // 2 decimals, safe
+        const result = fp.normalize("100.00", false) // 2 decimals, safe
         expect(result.amount).toBe(12345n) // Keep original
         expect(result.decimals).toBe(3n)
       })
     })
 
-    describe('Edge cases and error handling', () => {
-      it('should preserve FixedPoint instance when passed instead of string', () => {
+    describe("Edge cases and error handling", () => {
+      it("should preserve FixedPoint instance when passed instead of string", () => {
         const result = fp100.add(fp25)
         expect(result.amount).toBe(12500n) // 125.00
         expect(result.decimals).toBe(2n)
       })
 
-      it('should handle very high precision strings', () => {
-        const result = fp100.add('0.123456789')
+      it("should handle very high precision strings", () => {
+        const result = fp100.add("0.123456789")
         expect(result.amount).toBe(100123456789n)
         expect(result.decimals).toBe(9n)
       })
 
-      it('should handle zero strings', () => {
-        const result = fp100.add('0.0')
+      it("should handle zero strings", () => {
+        const result = fp100.add("0.0")
         expect(result.equals(fp100)).toBe(true)
       })
 
-      it('should handle very large numbers', () => {
+      it("should handle very large numbers", () => {
         const large = new FixedPointNumber(123456789012345n, 5n) // 1234567890.12345
-        const result = large.add('1000000.0') // Add 1000000.0
+        const result = large.add("1000000.0") // Add 1000000.0
         expect(result.amount).toBe(123556789012345n) // 1235567890.12345
         expect(result.decimals).toBe(5n)
       })
