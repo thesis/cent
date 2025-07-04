@@ -332,11 +332,17 @@ const money = Money("$1,234,567,890,123.45")
 // Serialize (BigInt becomes string)
 const json = money.toJSON()
 console.log(JSON.stringify(json))
-// {"asset":{"name":"United States dollar","code":"USD","decimals":"2","symbol":"$"},"amount":{"amount":"123456789012345","decimals":"2"}}
+// {"asset":{"name":"United States dollar","code":"USD","decimals":"2","symbol":"$"},"amount":"1234567890123.45"}
 
 // Deserialize
 const restored = Money.fromJSON(json)
 console.log(restored.equals(money)) // true
+
+// FixedPointNumber also serializes as decimal strings preserving trailing zeros
+const fp = FixedPoint("12.34500")
+console.log(JSON.stringify(fp)) // "12.34500"
+const restoredFp = FixedPointNumber.fromJSON("12.34500")
+console.log(restoredFp.equals(fp)) // true
 ```
 
 ### Precision handling

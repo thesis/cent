@@ -915,57 +915,66 @@ describe("FixedPointNumber", () => {
   })
 
   describe("toJSON", () => {
-    it("should serialize amount and decimals as strings", () => {
+    it("should serialize as decimal string with trailing zeros", () => {
       const fp = new FixedPointNumber(10050n, 2n) // 100.50
       const json = fp.toJSON()
 
-      expect(json).toEqual({
-        amount: "10050",
-        decimals: "2",
-      })
+      expect(json).toBe("100.50")
     })
 
     it("should handle zero values", () => {
       const fp = new FixedPointNumber(0n, 0n)
       const json = fp.toJSON()
 
-      expect(json).toEqual({
-        amount: "0",
-        decimals: "0",
-      })
+      expect(json).toBe("0")
+    })
+
+    it("should handle zero with decimal places", () => {
+      const fp = new FixedPointNumber(0n, 2n)
+      const json = fp.toJSON()
+
+      expect(json).toBe("0.00")
     })
 
     it("should handle large numbers", () => {
       const fp = new FixedPointNumber(12345678901234567890n, 8n)
       const json = fp.toJSON()
 
-      expect(json).toEqual({
-        amount: "12345678901234567890",
-        decimals: "8",
-      })
+      expect(json).toBe("123456789012.34567890")
     })
 
     it("should handle negative amounts", () => {
       const fp = new FixedPointNumber(-10050n, 2n) // -100.50
       const json = fp.toJSON()
 
-      expect(json).toEqual({
-        amount: "-10050",
-        decimals: "2",
-      })
+      expect(json).toBe("-100.50")
+    })
+
+    it("should preserve trailing zeros for precision", () => {
+      const fp = new FixedPointNumber(1234500n, 5n) // 12.34500
+      const json = fp.toJSON()
+
+      expect(json).toBe("12.34500")
+    })
+
+    it("should handle whole numbers with decimal places", () => {
+      const fp = new FixedPointNumber(12000n, 3n) // 12.000
+      const json = fp.toJSON()
+
+      expect(json).toBe("12.000")
     })
 
     it("should work with JSON.stringify", () => {
       const fp = new FixedPointNumber(10050n, 2n)
       const jsonString = JSON.stringify(fp)
 
-      expect(jsonString).toBe('{"amount":"10050","decimals":"2"}')
+      expect(jsonString).toBe('"100.50"')
     })
   })
 
   describe("fromJSON", () => {
-    it("should deserialize valid JSON back to FixedPointNumber", () => {
-      const json = { amount: "10050", decimals: "2" }
+    it("should deserialize decimal string back to FixedPointNumber", () => {
+      const json = "100.50"
       const fp = FixedPointNumber.fromJSON(json)
 
       expect(fp.amount).toBe(10050n)
@@ -973,15 +982,23 @@ describe("FixedPointNumber", () => {
     })
 
     it("should handle zero values", () => {
-      const json = { amount: "0", decimals: "0" }
+      const json = "0"
       const fp = FixedPointNumber.fromJSON(json)
 
       expect(fp.amount).toBe(0n)
       expect(fp.decimals).toBe(0n)
     })
 
+    it("should handle zero with decimal places", () => {
+      const json = "0.00"
+      const fp = FixedPointNumber.fromJSON(json)
+
+      expect(fp.amount).toBe(0n)
+      expect(fp.decimals).toBe(2n)
+    })
+
     it("should handle large numbers", () => {
-      const json = { amount: "12345678901234567890", decimals: "8" }
+      const json = "123456789012.34567890"
       const fp = FixedPointNumber.fromJSON(json)
 
       expect(fp.amount).toBe(12345678901234567890n)
@@ -989,11 +1006,19 @@ describe("FixedPointNumber", () => {
     })
 
     it("should handle negative amounts", () => {
-      const json = { amount: "-10050", decimals: "2" }
+      const json = "-100.50"
       const fp = FixedPointNumber.fromJSON(json)
 
       expect(fp.amount).toBe(-10050n)
       expect(fp.decimals).toBe(2n)
+    })
+
+    it("should preserve trailing zeros for precision", () => {
+      const json = "12.34500"
+      const fp = FixedPointNumber.fromJSON(json)
+
+      expect(fp.amount).toBe(1234500n)
+      expect(fp.decimals).toBe(5n)
     })
 
     it("should round-trip correctly with toJSON", () => {
@@ -1015,52 +1040,11 @@ describe("FixedPointNumber", () => {
       expect(restored.equals(original)).toBe(true)
     })
 
-    it("should throw error for missing amount field", () => {
-      const json = { decimals: "2" }
-
-      expect(() => FixedPointNumber.fromJSON(json)).toThrow()
-    })
-
-    it("should throw error for missing decimals field", () => {
-      const json = { amount: "100" }
-
-      expect(() => FixedPointNumber.fromJSON(json)).toThrow()
-    })
-
-    it("should throw error for non-string amount", () => {
-      const json = { amount: 100, decimals: "2" }
-
-      expect(() => FixedPointNumber.fromJSON(json)).toThrow()
-    })
-
-    it("should throw error for non-string decimals", () => {
-      const json = { amount: "100", decimals: 2 }
-
-      expect(() => FixedPointNumber.fromJSON(json)).toThrow()
-    })
-
-    it("should throw error for invalid amount format", () => {
-      const json = { amount: "100.5", decimals: "2" }
-
-      expect(() => FixedPointNumber.fromJSON(json)).toThrow()
-    })
-
-    it("should throw error for invalid decimals format", () => {
-      const json = { amount: "100", decimals: "2.5" }
-
-      expect(() => FixedPointNumber.fromJSON(json)).toThrow()
-    })
-
-    it("should throw error for negative decimals", () => {
-      const json = { amount: "100", decimals: "-2" }
-
-      expect(() => FixedPointNumber.fromJSON(json)).toThrow()
-    })
-
-    it("should throw error for non-numeric strings", () => {
-      const json = { amount: "abc", decimals: "2" }
-
-      expect(() => FixedPointNumber.fromJSON(json)).toThrow()
+    it("should throw error for invalid number format", () => {
+      expect(() => FixedPointNumber.fromJSON("100.")).toThrow()
+      expect(() => FixedPointNumber.fromJSON(".123")).toThrow()
+      expect(() => FixedPointNumber.fromJSON("abc")).toThrow()
+      expect(() => FixedPointNumber.fromJSON("--123")).toThrow()
     })
 
     it("should throw error for null input", () => {
@@ -1071,31 +1055,29 @@ describe("FixedPointNumber", () => {
       expect(() => FixedPointNumber.fromJSON(undefined)).toThrow()
     })
 
-    it("should ignore extra fields", () => {
-      const json = { amount: "100", decimals: "2", extraField: "ignored" }
-      const fp = FixedPointNumber.fromJSON(json)
-
-      expect(fp.amount).toBe(100n)
-      expect(fp.decimals).toBe(2n)
+    it("should throw error for non-string input", () => {
+      expect(() => FixedPointNumber.fromJSON(123)).toThrow()
+      expect(() => FixedPointNumber.fromJSON({})).toThrow()
+      expect(() => FixedPointNumber.fromJSON([])).toThrow()
     })
   })
 
   describe("FixedPointJSONSchema", () => {
     it("should be exported and usable independently", () => {
-      const validData = { amount: "100", decimals: "2" }
+      const validData = "100.50"
       const parsed = FixedPointJSONSchema.parse(validData)
 
       expect(parsed).toEqual(validData)
     })
 
     it("should validate data independently of fromJSON", () => {
-      const invalidData = { amount: 100, decimals: "2" }
+      const invalidData = 100
 
       expect(() => FixedPointJSONSchema.parse(invalidData)).toThrow()
     })
 
     it("should provide the same validation as fromJSON", () => {
-      const testData = { amount: "abc", decimals: "2" }
+      const testData = "abc"
 
       // Both should throw for the same invalid data
       expect(() => FixedPointJSONSchema.parse(testData)).toThrow()

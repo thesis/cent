@@ -1631,10 +1631,7 @@ describe("Money", () => {
           decimals: "2",
           symbol: "$",
         },
-        amount: {
-          amount: "10050",
-          decimals: "2",
-        },
+        amount: "100.50",
       })
     })
 
@@ -1659,10 +1656,7 @@ describe("Money", () => {
           decimals: "8",
           fractionalUnit: "satoshi",
         },
-        amount: {
-          amount: "100000000",
-          decimals: "8",
-        },
+        amount: "1.00000000",
       })
     })
 
@@ -1687,10 +1681,7 @@ describe("Money", () => {
           decimals: "8",
           fractionalUnit: ["satoshi", "sat"],
         },
-        amount: {
-          amount: "50000000",
-          decimals: "8",
-        },
+        amount: "0.50000000",
       })
     })
 
@@ -1721,10 +1712,7 @@ describe("Money", () => {
             12: ["millisatoshi", "millisat"],
           },
         },
-        amount: {
-          amount: "21000000",
-          decimals: "8",
-        },
+        amount: "0.21000000",
       })
     })
 
@@ -1741,10 +1729,7 @@ describe("Money", () => {
         currency: {
           name: "Basic Asset",
         },
-        amount: {
-          amount: "1000",
-          decimals: "0",
-        },
+        amount: "1000",
       })
     })
 
@@ -1756,10 +1741,7 @@ describe("Money", () => {
 
       const json = money.toJSON()
 
-      expect(json.amount).toEqual({
-        amount: "0",
-        decimals: "2",
-      })
+      expect(json.amount).toBe("0.00")
     })
 
     it("should handle negative amounts", () => {
@@ -1770,10 +1752,7 @@ describe("Money", () => {
 
       const json = money.toJSON()
 
-      expect(json.amount).toEqual({
-        amount: "-5000",
-        decimals: "2",
-      })
+      expect(json.amount).toBe("-50.00")
     })
 
     it("should work with JSON.stringify", () => {
@@ -1786,8 +1765,7 @@ describe("Money", () => {
       const parsed = JSON.parse(jsonString)
 
       expect(parsed.currency.decimals).toBe("2")
-      expect(parsed.amount.amount).toBe("100")
-      expect(parsed.amount.decimals).toBe("2")
+      expect(parsed.amount).toBe("1.00")
     })
   })
 
@@ -1989,7 +1967,7 @@ describe("Money", () => {
     it("should be exported and usable independently", () => {
       const validData = {
         currency: { name: "Test", code: "TST", decimals: "2" },
-        amount: { amount: "100", decimals: "2" },
+        amount: "1.00",
       }
       const parsed = MoneyJSONSchema.parse(validData)
 

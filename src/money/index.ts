@@ -950,9 +950,11 @@ export class Money {
 
     // Deserialize amount based on structure - infer type from fields
     const amount =
-      "amount" in parsed.amount && "decimals" in parsed.amount
-        ? FixedPointNumber.fromJSON(parsed.amount) // {amount, decimals} -> FixedPointNumber
-        : RationalNumber.fromJSON(parsed.amount) // {p, q} -> RationalNumber
+      typeof parsed.amount === "string"
+        ? FixedPointNumber.fromJSON(parsed.amount) // string -> FixedPointNumber
+        : "p" in parsed.amount && "q" in parsed.amount
+        ? RationalNumber.fromJSON(parsed.amount) // {p, q} -> RationalNumber
+        : FixedPointNumber.fromJSON(parsed.amount) // legacy {amount, decimals} -> FixedPointNumber
 
     return new Money(currency, amount)
   }

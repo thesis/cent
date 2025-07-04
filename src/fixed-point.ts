@@ -6,10 +6,7 @@ import {
 } from "./validation-schemas"
 import { isOnlyFactorsOf2And5 } from "./math-utils"
 
-export const FixedPointJSONSchema = z.object({
-  amount: BigIntStringSchema,
-  decimals: NonNegativeBigIntStringSchema,
-})
+export const FixedPointJSONSchema = z.string().regex(/^-?\d+(\.\d+)?$/, "Invalid decimal string format")
 
 export class FixedPointNumber implements FixedPoint, Ratio {
   #amount: bigint
@@ -580,7 +577,7 @@ export class FixedPointNumber implements FixedPoint, Ratio {
   max(other: FixedPoint | FixedPoint[] | string | string[]): FixedPointNumber {
     const otherArray = Array.isArray(other) ? other : [other]
     const others = otherArray.map((item) =>
-      typeof item === "string" ? parseStringToFixedPoint(item) : item,
+      typeof item === "string" ? FixedPointNumber.fromDecimalString(item) : item,
     )
     let maxValue: FixedPointNumber = this
 
@@ -602,7 +599,7 @@ export class FixedPointNumber implements FixedPoint, Ratio {
   min(other: FixedPoint | FixedPoint[] | string | string[]): FixedPointNumber {
     const otherArray = Array.isArray(other) ? other : [other]
     const others = otherArray.map((item) =>
-      typeof item === "string" ? parseStringToFixedPoint(item) : item,
+      typeof item === "string" ? FixedPointNumber.fromDecimalString(item) : item,
     )
     let minValue: FixedPointNumber = this
 
@@ -618,26 +615,23 @@ export class FixedPointNumber implements FixedPoint, Ratio {
   /**
    * Serialize this FixedPointNumber to JSON
    *
-   * @returns A JSON-serializable object with amount and decimals as strings
+   * @returns A decimal string representation preserving trailing zeros
    */
-  toJSON(): { amount: string; decimals: string } {
-    return {
-      amount: this.amount.toString(),
-      decimals: this.decimals.toString(),
-    }
+  toJSON(): string {
+    return this.toString()
   }
 
   /**
    * Create a FixedPointNumber from JSON data
    *
-   * @param json - The JSON data to deserialize
+   * @param json - The JSON data to deserialize (decimal string)
    * @returns A new FixedPointNumber instance
    * @throws Error if the JSON data is invalid
    */
   static fromJSON(json: any): FixedPointNumber {
     const parsed = FixedPointJSONSchema.parse(json)
 
-    return new FixedPointNumber(BigInt(parsed.amount), BigInt(parsed.decimals))
+    return FixedPointNumber.fromDecimalString(parsed)
   }
 }
 
