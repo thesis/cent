@@ -2247,6 +2247,105 @@ describe("Money", () => {
         expect(money.toString({ maxDecimals: 1 })).toBe("$125.7") // Default behavior
       })
     })
+
+    describe("minDecimals option", () => {
+      it("should preserve current default behavior when minDecimals is not specified", () => {
+        const usdMoney = new Money({
+          asset: usd,
+          amount: { amount: 1n, decimals: 0n }, // $1
+        })
+        const btcMoney = new Money({
+          asset: btc,
+          amount: { amount: 100000000n, decimals: 8n }, // 1.00000000 BTC
+        })
+
+        // Default behavior should be unchanged
+        expect(usdMoney.toString()).toBe("$1.00") // ISO currency shows currency default decimals
+        expect(btcMoney.toString()).toBe("1 BTC") // Non-ISO currency shows minimal decimals
+      })
+
+      it("should force trailing zeros for ISO currencies when minDecimals is specified", () => {
+        const money = new Money({
+          asset: usd,
+          amount: { amount: 1n, decimals: 0n }, // $1
+        })
+
+        expect(money.toString({ minDecimals: 0 })).toBe("$1")
+        expect(money.toString({ minDecimals: 1 })).toBe("$1.0")
+        expect(money.toString({ minDecimals: 2 })).toBe("$1.00")
+        expect(money.toString({ minDecimals: 3 })).toBe("$1.000")
+      })
+
+      it("should force trailing zeros for non-ISO currencies when minDecimals is specified", () => {
+        const money = new Money({
+          asset: btc,
+          amount: { amount: 100000000n, decimals: 8n }, // 1.00000000 BTC
+        })
+
+        expect(money.toString({ minDecimals: 0 })).toBe("1 BTC")
+        expect(money.toString({ minDecimals: 2 })).toBe("1.00 BTC")
+        expect(money.toString({ minDecimals: 4 })).toBe("1.0000 BTC")
+        expect(money.toString({ minDecimals: 8 })).toBe("1.00000000 BTC")
+      })
+
+      it("should work with amounts that already have sufficient decimals", () => {
+        const money = new Money({
+          asset: usd,
+          amount: { amount: 12345n, decimals: 2n }, // $123.45
+        })
+
+        expect(money.toString({ minDecimals: 0 })).toBe("$123.45")
+        expect(money.toString({ minDecimals: 1 })).toBe("$123.45")
+        expect(money.toString({ minDecimals: 2 })).toBe("$123.45")
+        expect(money.toString({ minDecimals: 3 })).toBe("$123.450")
+      })
+
+      it("should work in combination with maxDecimals", () => {
+        const money = new Money({
+          asset: btc,
+          amount: { amount: 123456789n, decimals: 8n }, // 1.23456789 BTC
+        })
+
+        // minDecimals forces trailing zeros, maxDecimals limits precision
+        expect(money.toString({ minDecimals: 2, maxDecimals: 4 })).toBe("1.2346 BTC")
+        expect(money.toString({ minDecimals: 6, maxDecimals: 4 })).toBe("1.2346 BTC") // maxDecimals takes precedence
+        expect(money.toString({ minDecimals: 2, maxDecimals: 8 })).toBe("1.23456789 BTC")
+      })
+
+      it("should handle zero amounts with minDecimals", () => {
+        const usdMoney = new Money({
+          asset: usd,
+          amount: { amount: 0n, decimals: 2n }, // $0.00
+        })
+        const btcMoney = new Money({
+          asset: btc,
+          amount: { amount: 0n, decimals: 8n }, // 0.00000000 BTC
+        })
+
+        expect(usdMoney.toString({ minDecimals: 3 })).toBe("$0.000")
+        expect(btcMoney.toString({ minDecimals: 4 })).toBe("0.0000 BTC")
+      })
+
+      it("should work with negative amounts", () => {
+        const money = new Money({
+          asset: usd,
+          amount: { amount: -1n, decimals: 0n }, // -$1
+        })
+
+        expect(money.toString({ minDecimals: 2 })).toBe("-$1.00")
+        expect(money.toString({ minDecimals: 3 })).toBe("-$1.000")
+      })
+
+      it("should work with preferredUnit option for cryptocurrencies", () => {
+        const money = new Money({
+          asset: btc,
+          amount: { amount: 100000000n, decimals: 8n }, // 1.00000000 BTC
+        })
+
+        expect(money.toString({ minDecimals: 0, preferredUnit: "satoshi" })).toBe("100,000,000 satoshis")
+        expect(money.toString({ minDecimals: 2, preferredUnit: "satoshi" })).toBe("100,000,000.00 satoshis")
+      })
+    })
   })
 
   describe("formatting utility functions", () => {

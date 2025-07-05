@@ -6,7 +6,9 @@ import {
 } from "./validation-schemas"
 import { isOnlyFactorsOf2And5 } from "./math-utils"
 
-export const FixedPointJSONSchema = z.string().regex(/^-?\d+(\.\d+)?$/, "Invalid decimal string format")
+export const FixedPointJSONSchema = z
+  .string()
+  .regex(/^-?\d+(\.\d+)?$/, "Invalid decimal string format")
 
 export class FixedPointNumber implements FixedPoint, Ratio {
   #amount: bigint
@@ -577,7 +579,9 @@ export class FixedPointNumber implements FixedPoint, Ratio {
   max(other: FixedPoint | FixedPoint[] | string | string[]): FixedPointNumber {
     const otherArray = Array.isArray(other) ? other : [other]
     const others = otherArray.map((item) =>
-      typeof item === "string" ? FixedPointNumber.fromDecimalString(item) : item,
+      typeof item === "string"
+        ? FixedPointNumber.fromDecimalString(item)
+        : item,
     )
     let maxValue: FixedPointNumber = this
 
@@ -599,7 +603,9 @@ export class FixedPointNumber implements FixedPoint, Ratio {
   min(other: FixedPoint | FixedPoint[] | string | string[]): FixedPointNumber {
     const otherArray = Array.isArray(other) ? other : [other]
     const others = otherArray.map((item) =>
-      typeof item === "string" ? FixedPointNumber.fromDecimalString(item) : item,
+      typeof item === "string"
+        ? FixedPointNumber.fromDecimalString(item)
+        : item,
     )
     let minValue: FixedPointNumber = this
 

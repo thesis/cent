@@ -953,8 +953,8 @@ export class Money {
       typeof parsed.amount === "string"
         ? FixedPointNumber.fromJSON(parsed.amount) // string -> FixedPointNumber
         : "p" in parsed.amount && "q" in parsed.amount
-        ? RationalNumber.fromJSON(parsed.amount) // {p, q} -> RationalNumber
-        : FixedPointNumber.fromJSON(parsed.amount) // legacy {amount, decimals} -> FixedPointNumber
+          ? RationalNumber.fromJSON(parsed.amount) // {p, q} -> RationalNumber
+          : FixedPointNumber.fromJSON(parsed.amount) // legacy {amount, decimals} -> FixedPointNumber
 
     return new Money(currency, amount)
   }
@@ -1059,6 +1059,8 @@ export interface MoneyToStringOptions {
   compact?: boolean
   /** Maximum number of decimal places to display */
   maxDecimals?: number | bigint
+  /** Minimum number of decimal places to display (forces trailing zeros) */
+  minDecimals?: number | bigint
   /** Preferred fractional unit for non-ISO currencies */
   preferredUnit?: string
   /** Prefer symbol formatting over code for non-ISO currencies */
@@ -1079,6 +1081,7 @@ function formatMoney(money: Money, options: MoneyToStringOptions = {}): string {
     locale = "en-US",
     compact = false,
     maxDecimals,
+    minDecimals,
     preferredUnit,
     preferSymbol = false,
     roundingMode,
@@ -1098,6 +1101,7 @@ function formatMoney(money: Money, options: MoneyToStringOptions = {}): string {
       locale,
       compact,
       maxDecimals,
+      minDecimals,
       roundingMode,
     )
   }
@@ -1106,6 +1110,7 @@ function formatMoney(money: Money, options: MoneyToStringOptions = {}): string {
     locale,
     compact,
     maxDecimals,
+    minDecimals,
     preferredUnit,
     preferSymbol,
     roundingMode,
@@ -1137,6 +1142,7 @@ export function formatWithIntlCurrency(
   locale: string,
   compact: boolean,
   maxDecimals?: number | bigint,
+  minDecimals?: number | bigint,
   roundingMode?: RoundingMode,
 ): string {
   // Money should have FixedPointNumber amount here due to formatting conversion
@@ -1151,7 +1157,15 @@ export function formatWithIntlCurrency(
     "decimals" in money.currency
       ? safeNumberFromBigInt(money.currency.decimals, "Asset decimal places")
       : 2
-  const finalMaxDecimals =
+  const requestedMinDecimals =
+    minDecimals !== undefined
+      ? safeNumberFromBigInt(
+          typeof minDecimals === "bigint" ? minDecimals : BigInt(minDecimals),
+          "Min decimal places",
+        )
+      : undefined
+
+  const requestedMaxDecimals =
     maxDecimals !== undefined
       ? Math.min(
           safeNumberFromBigInt(
@@ -1160,10 +1174,28 @@ export function formatWithIntlCurrency(
           ),
           20,
         )
-      : assetDecimals
-  const finalMinDecimals = compact
-    ? 0
-    : Math.min(assetDecimals, finalMaxDecimals)
+      : undefined
+
+  // Determine final decimal places based on priority:
+  // 1. If both min and max are specified, max takes precedence when there's conflict
+  // 2. If only min is specified, it can extend beyond currency defaults
+  // 3. Default behavior for unspecified values
+  const finalMinDecimals =
+    requestedMinDecimals !== undefined
+      ? requestedMaxDecimals !== undefined
+        ? Math.min(requestedMinDecimals, requestedMaxDecimals)
+        : requestedMinDecimals
+      : compact
+        ? 0
+        : Math.min(assetDecimals, requestedMaxDecimals ?? assetDecimals)
+
+  const finalMaxDecimals =
+    requestedMaxDecimals !== undefined
+      ? requestedMaxDecimals
+      : requestedMinDecimals !== undefined &&
+          requestedMinDecimals > assetDecimals
+        ? requestedMinDecimals
+        : assetDecimals
 
   const formatterOptions: NumberFormatOptionsWithRounding = {
     style: "currency",
@@ -1204,6 +1236,7 @@ export function formatWithCustomFormatting(
   locale: string,
   compact: boolean,
   maxDecimals?: number | bigint,
+  minDecimals?: number | bigint,
   preferredUnit?: string,
   preferSymbol: boolean = false,
   roundingMode?: RoundingMode,
@@ -1219,20 +1252,47 @@ export function formatWithCustomFormatting(
     "decimals" in money.currency
       ? safeNumberFromBigInt(money.currency.decimals, "Asset decimal places")
       : 2
-  const finalMaxDecimals =
+  const requestedMinDecimals =
+    minDecimals !== undefined
+      ? safeNumberFromBigInt(
+          typeof minDecimals === "bigint" ? minDecimals : BigInt(minDecimals),
+          "Min decimal places",
+        )
+      : undefined
+
+  const requestedMaxDecimals =
     maxDecimals !== undefined
       ? safeNumberFromBigInt(
           typeof maxDecimals === "bigint" ? maxDecimals : BigInt(maxDecimals),
           "Max decimal places",
         )
-      : assetDecimals
+      : undefined
+
+  // Determine final decimal places based on priority:
+  // 1. If both min and max are specified, max takes precedence when there's conflict
+  // 2. If only min is specified, it can extend beyond currency defaults
+  // 3. Default behavior for unspecified values
+  const finalMinDecimals =
+    requestedMinDecimals !== undefined
+      ? requestedMaxDecimals !== undefined
+        ? Math.min(requestedMinDecimals, requestedMaxDecimals)
+        : requestedMinDecimals
+      : 0
+
+  const finalMaxDecimals =
+    requestedMaxDecimals !== undefined
+      ? requestedMaxDecimals
+      : requestedMinDecimals !== undefined &&
+          requestedMinDecimals > assetDecimals
+        ? requestedMinDecimals
+        : assetDecimals
 
   // Format the number part using Intl.NumberFormat with string input
   const formatterOptions: NumberFormatOptionsWithRounding = {
     style: "decimal",
     notation: compact ? "compact" : "standard",
     compactDisplay: compact ? "short" : undefined,
-    minimumFractionDigits: 0,
+    minimumFractionDigits: finalMinDecimals,
     maximumFractionDigits: finalMaxDecimals,
   }
 
@@ -1460,7 +1520,9 @@ export function pluralizeFractionalUnit(unitName: string): string {
 export function MoneyFactory(input: string): Money
 export function MoneyFactory(balance: AssetAmount): Money
 export function MoneyFactory(json: any): Money
-export function MoneyFactory(inputOrBalanceOrJson: string | AssetAmount | any): Money {
+export function MoneyFactory(
+  inputOrBalanceOrJson: string | AssetAmount | any,
+): Money {
   if (typeof inputOrBalanceOrJson === "string") {
     // String parsing mode
     const parseResult = parseMoneyString(inputOrBalanceOrJson)
@@ -1473,7 +1535,7 @@ export function MoneyFactory(inputOrBalanceOrJson: string | AssetAmount | any): 
       },
     })
   }
-  
+
   // Check if this looks like a JSON object from Money.toJSON()
   if (
     inputOrBalanceOrJson &&
@@ -1485,7 +1547,7 @@ export function MoneyFactory(inputOrBalanceOrJson: string | AssetAmount | any): 
     // JSON deserialization mode
     return Money.fromJSON(inputOrBalanceOrJson)
   }
-  
+
   // Original constructor mode (AssetAmount)
   return new Money(inputOrBalanceOrJson)
 }
