@@ -1,5 +1,5 @@
 // Core classes
-export { MoneyJSONSchema } from "./money"
+export { MoneyJSONSchema, Money as MoneyClass } from "./money"
 export { FixedPointNumber, FixedPointJSONSchema } from "./fixed-point"
 export { RationalNumber, RationalNumberJSONSchema, Rational } from "./rationals"
 export { Price } from "./prices"
