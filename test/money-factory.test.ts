@@ -921,4 +921,77 @@ describe("Money Factory Function", () => {
       ).toBe(true)
     })
   })
+
+  describe("JSON Deserialization", () => {
+    it("should deserialize JSON objects from Money.toJSON()", () => {
+      // Create original money instance
+      const originalMoney = new MoneyClass({
+        asset: USD,
+        amount: { amount: 12345n, decimals: 2n },
+      })
+
+      // Get JSON representation
+      const json = originalMoney.toJSON()
+
+      // Factory should be able to deserialize it
+      const deserializedMoney = Money(json)
+
+      expect(deserializedMoney.equals(originalMoney)).toBe(true)
+      expect(deserializedMoney.currency.code).toBe(originalMoney.currency.code)
+      expect(deserializedMoney.currency.name).toBe(originalMoney.currency.name)
+      expect(deserializedMoney.amount.equals(originalMoney.amount)).toBe(true)
+    })
+
+    it("should work with different currencies", () => {
+      const currencies = [USD, EUR, BTC, ETH]
+      
+      for (const currency of currencies) {
+        const originalMoney = new MoneyClass({
+          asset: currency,
+          amount: { amount: 100000n, decimals: currency.decimals },
+        })
+
+        const json = originalMoney.toJSON()
+        const deserializedMoney = Money(json)
+
+        expect(deserializedMoney.equals(originalMoney)).toBe(true)
+      }
+    })
+
+    it("should preserve precision through JSON round-trip", () => {
+      // Test with high precision amount
+      const originalMoney = new MoneyClass({
+        asset: BTC,
+        amount: { amount: 123456789n, decimals: 8n }, // 1.23456789 BTC
+      })
+
+      const json = originalMoney.toJSON()
+      const deserializedMoney = Money(json)
+
+      expect(deserializedMoney.equals(originalMoney)).toBe(true)
+      expect(deserializedMoney.amount.toString()).toBe("1.23456789")
+    })
+
+    it("should distinguish between JSON objects and AssetAmount objects", () => {
+      // Create a Money instance and get its JSON representation
+      const originalMoney = new MoneyClass({
+        asset: USD,
+        amount: { amount: 12345n, decimals: 2n }
+      })
+      const jsonObject = originalMoney.toJSON()
+
+      // AssetAmount object (has 'asset' field)
+      const assetAmountObject = {
+        asset: USD,
+        amount: { amount: 12345n, decimals: 2n }
+      }
+
+      const fromJson = Money(jsonObject)
+      const fromAssetAmount = Money(assetAmountObject)
+
+      expect(fromJson.equals(fromAssetAmount)).toBe(true)
+      expect(fromJson.currency.code).toBe("USD")
+      expect(fromAssetAmount.currency.code).toBe("USD")
+    })
+  })
 })

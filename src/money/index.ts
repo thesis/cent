@@ -1459,10 +1459,11 @@ export function pluralizeFractionalUnit(unitName: string): string {
  */
 export function MoneyFactory(input: string): Money
 export function MoneyFactory(balance: AssetAmount): Money
-export function MoneyFactory(inputOrBalance: string | AssetAmount): Money {
-  if (typeof inputOrBalance === "string") {
+export function MoneyFactory(json: any): Money
+export function MoneyFactory(inputOrBalanceOrJson: string | AssetAmount | any): Money {
+  if (typeof inputOrBalanceOrJson === "string") {
     // String parsing mode
-    const parseResult = parseMoneyString(inputOrBalance)
+    const parseResult = parseMoneyString(inputOrBalanceOrJson)
 
     return new Money({
       asset: parseResult.currency,
@@ -1472,6 +1473,19 @@ export function MoneyFactory(inputOrBalance: string | AssetAmount): Money {
       },
     })
   }
-  // Original constructor mode
-  return new Money(inputOrBalance)
+  
+  // Check if this looks like a JSON object from Money.toJSON()
+  if (
+    inputOrBalanceOrJson &&
+    typeof inputOrBalanceOrJson === "object" &&
+    "currency" in inputOrBalanceOrJson &&
+    "amount" in inputOrBalanceOrJson &&
+    !("asset" in inputOrBalanceOrJson)
+  ) {
+    // JSON deserialization mode
+    return Money.fromJSON(inputOrBalanceOrJson)
+  }
+  
+  // Original constructor mode (AssetAmount)
+  return new Money(inputOrBalanceOrJson)
 }
