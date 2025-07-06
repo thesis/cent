@@ -1,6 +1,7 @@
 import { ExchangeRate } from "../src/exchange-rates"
 import { Currency, AssetAmount } from "../src/types"
 import { Money } from "../src/money"
+import { ExchangeRateSource } from "../src/exchange-rate-sources"
 
 describe("ExchangeRate", () => {
   const usdCurrency: Currency = {
@@ -60,6 +61,16 @@ describe("ExchangeRate", () => {
       const rate = new ExchangeRate(usdAmount, eurAmount, customTime)
       expect(rate.time).toBe(customTime)
     })
+
+    it("should accept optional source metadata", () => {
+      const source: ExchangeRateSource = {
+        name: "Coinbase",
+        priority: 1,
+        reliability: 0.95,
+      }
+      const rate = new ExchangeRate(usdAmount, eurAmount, undefined, source)
+      expect(rate.source).toEqual(source)
+    })
   })
 
   describe("invert", () => {
@@ -72,6 +83,21 @@ describe("ExchangeRate", () => {
       expect(inverted.amounts[1]).toEqual(usdAmount)
       expect(inverted.time).toBe(customTime)
       expect(inverted).toBeInstanceOf(ExchangeRate)
+    })
+
+    it("should preserve source metadata when inverting", () => {
+      const source: ExchangeRateSource = {
+        name: "Coinbase",
+        priority: 1,
+        reliability: 0.95,
+      }
+      const customTime = "1609459200"
+      const rate = new ExchangeRate(usdAmount, eurAmount, customTime, source)
+      const inverted = rate.invert()
+
+      expect(inverted.source).toEqual(source)
+      expect(inverted.amounts[0]).toEqual(eurAmount)
+      expect(inverted.amounts[1]).toEqual(usdAmount)
     })
   })
 
@@ -165,6 +191,27 @@ describe("ExchangeRate", () => {
       const halved = rate.divide(2n)
       expect(halved.amounts[0].amount.amount).toBe(5000n)
       expect(halved.amounts[1].amount.amount).toBe(8500n) // unchanged
+    })
+  })
+
+  describe("staleness detection", () => {
+    it("should detect fresh rates", () => {
+      const rate = new ExchangeRate(usdAmount, eurAmount)
+      expect(rate.isStale(60000)).toBe(false) // 1 minute threshold
+    })
+
+    it("should detect stale rates", () => {
+      const pastTime = (Date.now() - 120000).toString() // 2 minutes ago
+      const rate = new ExchangeRate(usdAmount, eurAmount, pastTime)
+      expect(rate.isStale(60000)).toBe(true) // 1 minute threshold
+    })
+
+    it("should calculate rate age", () => {
+      const pastTime = (Date.now() - 30000).toString() // 30 seconds ago
+      const rate = new ExchangeRate(usdAmount, eurAmount, pastTime)
+      const age = rate.getAge()
+      expect(age).toBeGreaterThan(29000) // Allow for small timing differences
+      expect(age).toBeLessThan(35000)
     })
   })
 })

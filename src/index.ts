@@ -4,6 +4,15 @@ export { FixedPointNumber, FixedPointJSONSchema } from "./fixed-point"
 export { RationalNumber, RationalNumberJSONSchema, Rational } from "./rationals"
 export { Price } from "./prices"
 export { ExchangeRate } from "./exchange-rates"
+export {
+  ManualExchangeRateProvider,
+  ExchangeRateSourceUtils,
+} from "./exchange-rate-sources"
+export type {
+  ExchangeRateSource,
+  ExchangeRateProvider,
+  RateStalenessConfig,
+} from "./exchange-rate-sources"
 
 // Factory functions
 export { MoneyFactory as Money } from "./money"
