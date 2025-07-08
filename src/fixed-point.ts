@@ -10,7 +10,11 @@ export const FixedPointJSONSchema = z
   .string()
   .regex(/^-?\d+(\.\d+)?$/, "Invalid decimal string format")
 
-export class FixedPointNumber implements FixedPoint, Ratio {
+export function isFixedPoint(obj: unknown): obj is FixedPoint {
+  return typeof obj === "object" && !!obj && "amount" in obj && typeof obj.amount === "bigint" && "decimals" in obj && typeof obj.decimals === "bigint"
+}
+
+export class FixedPointNumber implements FixedPointType, Ratio {
   #amount: bigint
 
   #decimals: bigint

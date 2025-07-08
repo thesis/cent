@@ -1,4 +1,4 @@
-import { AnyAsset } from "./types"
+import { AnyAsset, Asset, AssetAmount } from "./types"
 
 /**
  * Check if two assets are equal
@@ -15,4 +15,12 @@ export function assetsEqual(asset1: AnyAsset, asset2: AnyAsset): boolean {
 
   // For basic assets, compare by name
   return asset1.name === asset2.name
+}
+
+export function isAsset(obj: unknown): obj is Asset {
+  return typeof obj === "object" && !!obj && "name" in obj
+}
+
+export function isAssetAmount(obj: unknown): obj is AssetAmount {
+  return typeof obj === "object" && !!obj && "asset" in obj && isAsset(obj.asset) && "amount" in obj
 }
