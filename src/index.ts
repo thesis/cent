@@ -5,7 +5,6 @@ export { RationalNumber, RationalNumberJSONSchema, Rational } from "./rationals"
 export { Price } from "./prices"
 export { ExchangeRate } from "./exchange-rates"
 export { ExchangeRateSourceUtils } from "./exchange-rate-sources"
-export { ManualExchangeRateProvider } from "./manual-exchange-rate-provider"
 export type {
   ExchangeRateSource,
   ExchangeRateProvider,

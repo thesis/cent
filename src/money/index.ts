@@ -1,4 +1,4 @@
-import { z } from "zod"
+import { z, ZodError } from "zod"
 import { AssetAmount, FixedPoint, RoundingMode, Currency } from "../types"
 import { MoneyAmount } from "./types"
 import { FixedPointNumber, FixedPointJSONSchema } from "../fixed-point"
@@ -86,6 +86,30 @@ export const MoneyJSONSchema = z.object({
   currency: AnyAssetJSONSchema,
   amount: MoneyAmountJSONSchema,
 })
+
+// Type for the validated Money JSON structure
+export type MoneyJSON = z.infer<typeof MoneyJSONSchema>
+
+/**
+ * Safe validation of Money JSON data using Zod schema
+ * @param data - The data to validate
+ * @returns Result object with success flag and either data or error
+ */
+export function safeValidateMoneyJSON(data: unknown):
+  | {
+      success: true
+      data: MoneyJSON
+    }
+  | {
+      success: false
+      error: ZodError
+    } {
+  const result = MoneyJSONSchema.safeParse(data)
+  if (result.success) {
+    return { success: true, data: result.data }
+  }
+  return { success: false, error: result.error }
+}
 
 /**
  * Options for formatting Money instances to strings
@@ -204,12 +228,17 @@ export function getCurrencyDisplayPart(
     return ` ${unitSuffix}`
   }
 
-  if (preferSymbol && "symbol" in asset) {
+  if (
+    preferSymbol &&
+    typeof asset === "object" &&
+    asset !== null &&
+    "symbol" in asset
+  ) {
     return "" // Symbol would go at the beginning, handled separately
   }
 
-  if ("code" in asset) {
-    return ` ${asset.code}`
+  if (typeof asset === "object" && asset !== null && "code" in asset) {
+    return ` ${(asset as { code: string }).code}`
   }
 
   return ""
@@ -287,7 +316,12 @@ export function normalizeLocale(locale: string): string {
  * @returns true if ISO 4217 formatting should be used
  */
 export function shouldUseIsoFormatting(asset: unknown): boolean {
-  return "iso4217Support" in asset && asset.iso4217Support === true
+  return (
+    typeof asset === "object" &&
+    asset !== null &&
+    "iso4217Support" in asset &&
+    (asset as { iso4217Support: boolean }).iso4217Support === true
+  )
 }
 
 /**
@@ -313,12 +347,16 @@ export function formatWithIntlCurrency(
   const decimalString = fixedPointToDecimalString(fp)
 
   // Get currency code for ISO formatting
-  const currencyCode = "code" in money.currency ? money.currency.code : "XXX"
+  const currencyCode =
+    "code" in money.currency ? (money.currency as { code: string }).code : "XXX"
 
   // Determine decimal places
   const assetDecimals =
     "decimals" in money.currency
-      ? safeNumberFromBigInt(money.currency.decimals, "Asset decimal places")
+      ? safeNumberFromBigInt(
+          (money.currency as { decimals: bigint }).decimals,
+          "Asset decimal places",
+        )
       : 2
   const requestedMinDecimals =
     minDecimals !== undefined
@@ -424,7 +462,10 @@ export function formatWithCustomFormatting(
   // Determine decimal places
   const assetDecimals =
     "decimals" in money.currency
-      ? safeNumberFromBigInt(money.currency.decimals, "Asset decimal places")
+      ? safeNumberFromBigInt(
+          (money.currency as { decimals: bigint }).decimals,
+          "Asset decimal places",
+        )
       : 2
   const requestedMinDecimals =
     minDecimals !== undefined
@@ -492,7 +533,7 @@ export function formatWithCustomFormatting(
 
   // Handle symbol vs code formatting
   if (preferSymbol && "symbol" in money.currency && !unitSuffix) {
-    return `${money.currency.symbol}${formattedNumber}`
+    return `${(money.currency as { symbol: string }).symbol}${formattedNumber}`
   }
 
   // Add currency code or unit suffix
@@ -1248,9 +1289,9 @@ export class Money {
   /**
    * Serialize this Money instance to JSON
    *
-   * @returns A JSON-serializable object with currency and amount
+   * @returns A validated JSON-serializable object with currency and amount
    */
-  toJSON(): unknown {
+  toJSON(): MoneyJSON {
     // Helper function to serialize any value, converting bigints to strings
     const serializeValue = (value: unknown): unknown => {
       if (typeof value === "bigint") {
@@ -1274,10 +1315,13 @@ export class Money {
       ? this.amount.toJSON() // {amount: string, decimals: string}
       : this.amount.toJSON() // {p: string, q: string}
 
-    return {
+    const result = {
       currency: serializeValue(this.currency),
       amount: amountData,
     }
+
+    // Validate the output using Zod schema for type safety
+    return MoneyJSONSchema.parse(result)
   }
 
   /**
@@ -1328,9 +1372,14 @@ export class Money {
    *
    * @param json - The JSON data to deserialize
    * @returns A new Money instance
-   * @throws Error if the JSON data is invalid
+   * @throws ZodError if the JSON data is invalid
    */
   static fromJSON(json: unknown): Money {
+    // First validate that json is an object
+    if (typeof json !== "object" || json === null) {
+      throw new Error("Invalid JSON input: expected object")
+    }
+
     // Check if this is the old format (has 'asset' instead of 'currency')
     if ("asset" in json && !("currency" in json)) {
       // Old format compatibility
@@ -1338,17 +1387,18 @@ export class Money {
         const result: Record<string, unknown> = {
           ...(asset as Record<string, unknown>),
         }
-        if ("decimals" in result) {
+        if ("decimals" in result && typeof result.decimals === "string") {
           result.decimals = BigInt(result.decimals)
         }
         return result
       }
 
-      const asset = deserializeAsset(json.asset)
-      const amount = FixedPointNumber.fromJSON(json.amount)
+      const jsonObj = json as { asset: unknown; amount: unknown }
+      const asset = deserializeAsset(jsonObj.asset)
+      const amount = FixedPointNumber.fromJSON(jsonObj.amount)
 
       return new Money({
-        asset,
+        asset: asset as Currency,
         amount: {
           amount: amount.amount,
           decimals: amount.decimals,
@@ -1356,7 +1406,7 @@ export class Money {
       })
     }
 
-    // New format
+    // New format - validate with Zod schema
     const parsed = MoneyJSONSchema.parse(json)
 
     // Helper function to deserialize currency, converting string bigints back to bigints
@@ -1366,7 +1416,7 @@ export class Money {
       }
 
       // Convert decimals back to bigint if present (FungibleAsset/Currency)
-      if ("decimals" in result) {
+      if ("decimals" in result && typeof result.decimals === "string") {
         result.decimals = BigInt(result.decimals)
       }
 
