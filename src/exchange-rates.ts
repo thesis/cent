@@ -30,7 +30,12 @@ export class ExchangeRate extends Price {
    * @returns A new ExchangeRate instance with amounts swapped
    */
   invert(): ExchangeRate {
-    return new ExchangeRate(this.amounts[1], this.amounts[0], this.time, this.source)
+    return new ExchangeRate(
+      this.amounts[1],
+      this.amounts[0],
+      this.time,
+      this.source,
+    )
   }
 
   /**
@@ -40,9 +45,12 @@ export class ExchangeRate extends Price {
    */
   isStale(maxAge: number): boolean {
     const now = Date.now()
-    const rateTime = typeof this.time === 'string' ? parseInt(this.time) : parseInt(this.time)
+    const rateTime =
+      typeof this.time === "string"
+        ? parseInt(this.time, 10)
+        : parseInt(this.time, 10)
     const age = now - rateTime
-    
+
     return age > maxAge
   }
 
@@ -52,8 +60,11 @@ export class ExchangeRate extends Price {
    */
   getAge(): number {
     const now = Date.now()
-    const rateTime = typeof this.time === 'string' ? parseInt(this.time) : parseInt(this.time)
-    
+    const rateTime =
+      typeof this.time === "string"
+        ? parseInt(this.time, 10)
+        : parseInt(this.time, 10)
+
     return now - rateTime
   }
 }

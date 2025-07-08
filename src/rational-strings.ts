@@ -24,7 +24,7 @@ export const FractionStringSchema = z
       if (parts.length !== 2) return false
 
       try {
-        const numerator = BigInt(parts[0].trim())
+        BigInt(parts[0].trim()) // Validate numerator
         const denominator = BigInt(parts[1].trim())
         return denominator !== 0n
       } catch {

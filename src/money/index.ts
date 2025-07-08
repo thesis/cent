@@ -3,11 +3,9 @@ import { AssetAmount, FixedPoint, RoundingMode, Currency } from "../types"
 import { MoneyAmount } from "./types"
 import { FixedPointNumber, FixedPointJSONSchema } from "../fixed-point"
 import { RationalNumber, RationalNumberJSONSchema } from "../rationals"
-import { assetsEqual } from "../assets"
-import { DecimalStringSchema as _DecimalStringSchema } from "../decimal-strings"
+import { assetsEqual, isAssetAmount } from "../assets"
 import { NonNegativeBigIntStringSchema } from "../validation-schemas"
 import { parseMoneyString } from "./parsing"
-import { isOnlyFactorsOf2And5 as _isOnlyFactorsOf2And5 } from "../math-utils"
 import {
   isFixedPointNumber,
   isRationalNumber,
@@ -90,39 +88,420 @@ export const MoneyJSONSchema = z.object({
 })
 
 /**
- * Helper function to convert string arguments to Money instances
- *
- * @param value - String representation or existing Money instance
- * @param referenceCurrency - Currency to validate against if value is a string
- * @returns Money instance
- * @throws Error if string parsing fails or currencies don't match
+ * Options for formatting Money instances to strings
  */
-function parseStringToMoney(
-  value: string | Money,
-  referenceCurrency: Currency,
-): Money {
-  if (value instanceof Money) {
-    return value
+export interface MoneyToStringOptions {
+  /** Display locale (default "en-US") */
+  locale?: string
+  /** Use compact notation (e.g., $1M instead of $1,000,000) */
+  compact?: boolean
+  /** Maximum number of decimal places to display */
+  maxDecimals?: number | bigint
+  /** Minimum number of decimal places to display (forces trailing zeros) */
+  minDecimals?: number | bigint
+  /** Preferred fractional unit for non-ISO currencies */
+  preferredUnit?: string
+  /** Prefer symbol formatting over code for non-ISO currencies */
+  preferSymbol?: boolean
+  /** Rounding mode for number formatting */
+  roundingMode?: RoundingMode
+}
+
+/**
+ * Pluralize fractional unit names
+ *
+ * @param unitName - The singular unit name
+ * @returns The pluralized unit name
+ */
+export function pluralizeFractionalUnit(unitName: string): string {
+  // Handle special cases for irregular plurals
+  const irregularPlurals: Record<string, string> = {
+    penny: "pence",
+    kopek: "kopeks",
+    grosz: "groszy",
+    fils: "fils", // Already plural
+    sen: "sen", // Already plural
+    pul: "puls",
+    qəpik: "qəpiks",
+    tyiyn: "tyiyns",
+    möngö: "möngös",
   }
 
-  // Parse the string to get a Money instance
-  const parseResult = parseMoneyString(value)
-  const parsed = new Money({
-    asset: parseResult.currency,
-    amount: {
-      amount: parseResult.amount.amount,
-      decimals: parseResult.amount.decimals,
-    },
-  })
+  if (irregularPlurals[unitName]) {
+    return irregularPlurals[unitName]
+  }
 
-  // Validate that currencies match
-  if (!assetsEqual(parsed.currency, referenceCurrency)) {
-    throw new Error(
-      `Currency mismatch: expected ${referenceCurrency.code || referenceCurrency.name}, got ${parsed.currency.code || parsed.currency.name}`,
+  // Handle regular pluralization rules
+  if (unitName.endsWith("y")) {
+    return `${unitName.slice(0, -1)}ies`
+  }
+  if (unitName.endsWith("z")) {
+    return `${unitName}zes`
+  }
+  if (
+    unitName.endsWith("s") ||
+    unitName.endsWith("sh") ||
+    unitName.endsWith("ch") ||
+    unitName.endsWith("x")
+  ) {
+    return `${unitName}es`
+  }
+  return `${unitName}s`
+}
+
+/**
+ * Find information about a fractional unit
+ *
+ * @param fractionalUnit - The fractional unit definition from the asset
+ * @param unitName - The unit name to search for
+ * @returns Unit information or null if not found
+ */
+export function findFractionalUnitInfo(
+  fractionalUnit: string | string[] | Record<number, string | string[]>,
+  unitName: string,
+  assetDecimals: number,
+): { decimals: number; name: string } | null {
+  if (typeof fractionalUnit === "string") {
+    if (fractionalUnit === unitName) {
+      return { decimals: assetDecimals, name: fractionalUnit }
+    }
+  } else if (Array.isArray(fractionalUnit)) {
+    if (fractionalUnit.includes(unitName)) {
+      return { decimals: assetDecimals, name: fractionalUnit[0] }
+    }
+  } else {
+    const entries = Object.entries(fractionalUnit)
+    const foundEntry = entries.find(([, names]) => {
+      const nameArray = Array.isArray(names) ? names : [names]
+      return nameArray.includes(unitName)
+    })
+
+    if (foundEntry) {
+      const [decimalsStr, names] = foundEntry
+      const decimals = parseInt(decimalsStr, 10)
+      const nameArray = Array.isArray(names) ? names : [names]
+      return { decimals, name: nameArray[0] }
+    }
+  }
+
+  return null
+}
+
+/**
+ * Get the currency display part (symbol or code)
+ *
+ * @param asset - The currency asset
+ * @param preferSymbol - Whether to prefer symbol over code
+ * @param unitSuffix - Optional unit suffix from fractional unit conversion
+ * @returns The currency display string
+ */
+export function getCurrencyDisplayPart(
+  asset: unknown,
+  preferSymbol: boolean,
+  unitSuffix?: string,
+): string {
+  if (unitSuffix) {
+    return ` ${unitSuffix}`
+  }
+
+  if (preferSymbol && "symbol" in asset) {
+    return "" // Symbol would go at the beginning, handled separately
+  }
+
+  if ("code" in asset) {
+    return ` ${asset.code}`
+  }
+
+  return ""
+}
+
+/**
+ * Convert money value to preferred fractional unit if specified
+ *
+ * @param money - The Money instance
+ * @param preferredUnit - The preferred fractional unit
+ * @returns Object with decimal string value and unit suffix
+ */
+export function convertToPreferredUnit(
+  money: Money,
+  preferredUnit?: string,
+): { decimalString: string; unitSuffix?: string } {
+  // Money should have FixedPointNumber amount here due to formatting conversion
+  const fp = money.amount as FixedPointNumber
+  let decimalString = fixedPointToDecimalString(fp)
+  let unitSuffix: string | undefined
+
+  if (
+    preferredUnit &&
+    "fractionalUnit" in money.currency &&
+    money.currency.fractionalUnit
+  ) {
+    const { fractionalUnit } = money.currency
+    const assetDecimals =
+      "decimals" in money.currency
+        ? safeNumberFromBigInt(money.currency.decimals, "Asset decimal places")
+        : 0
+    const unitInfo = findFractionalUnitInfo(
+      fractionalUnit,
+      preferredUnit,
+      assetDecimals,
+    )
+
+    if (unitInfo) {
+      // Convert to the fractional unit using BigInt arithmetic
+      const multiplierDecimals = BigInt(unitInfo.decimals)
+      const convertedFp = fp.multiply({
+        amount: 10n ** multiplierDecimals,
+        decimals: 0n,
+      })
+      decimalString = fixedPointToDecimalString(convertedFp)
+
+      // Parse the decimal string to determine pluralization
+      const numericValue = parseFloat(decimalString)
+      if (numericValue === 1) {
+        unitSuffix = preferredUnit
+      } else {
+        unitSuffix = pluralizeFractionalUnit(preferredUnit)
+      }
+    }
+  }
+
+  return { decimalString, unitSuffix }
+}
+
+/**
+ * Normalize locale string to a standard format
+ *
+ * @param locale - The input locale string
+ * @returns Normalized locale string
+ */
+export function normalizeLocale(locale: string): string {
+  // Convert underscore to hyphen (e.g., "en_US" -> "en-US")
+  return locale.replace("_", "-")
+}
+
+/**
+ * Determine if an asset supports ISO 4217 formatting
+ *
+ * @param asset - The asset to check
+ * @returns true if ISO 4217 formatting should be used
+ */
+export function shouldUseIsoFormatting(asset: unknown): boolean {
+  return "iso4217Support" in asset && asset.iso4217Support === true
+}
+
+/**
+ * Format money using Intl.NumberFormat with currency support
+ *
+ * @param money - The Money instance to format
+ * @param locale - The locale to use for formatting
+ * @param compact - Whether to use compact notation
+ * @param maxDecimals - Maximum decimal places
+ * @param roundingMode - Rounding mode for number formatting
+ * @returns Formatted string using ISO 4217 currency formatting
+ */
+export function formatWithIntlCurrency(
+  money: Money,
+  locale: string,
+  compact: boolean,
+  maxDecimals?: number | bigint,
+  minDecimals?: number | bigint,
+  roundingMode?: RoundingMode,
+): string {
+  // Money should have FixedPointNumber amount here due to formatting conversion
+  const fp = money.amount as FixedPointNumber
+  const decimalString = fixedPointToDecimalString(fp)
+
+  // Get currency code for ISO formatting
+  const currencyCode = "code" in money.currency ? money.currency.code : "XXX"
+
+  // Determine decimal places
+  const assetDecimals =
+    "decimals" in money.currency
+      ? safeNumberFromBigInt(money.currency.decimals, "Asset decimal places")
+      : 2
+  const requestedMinDecimals =
+    minDecimals !== undefined
+      ? safeNumberFromBigInt(
+          typeof minDecimals === "bigint" ? minDecimals : BigInt(minDecimals),
+          "Min decimal places",
+        )
+      : undefined
+
+  const requestedMaxDecimals =
+    maxDecimals !== undefined
+      ? Math.min(
+          safeNumberFromBigInt(
+            typeof maxDecimals === "bigint" ? maxDecimals : BigInt(maxDecimals),
+            "Max decimal places",
+          ),
+          20,
+        )
+      : undefined
+
+  // Determine final decimal places based on priority:
+  // 1. If both min and max are specified, max takes precedence when there's conflict
+  // 2. If only min is specified, it can extend beyond currency defaults
+  // 3. Default behavior for unspecified values
+  let finalMinDecimals: number
+  if (requestedMinDecimals !== undefined) {
+    if (requestedMaxDecimals !== undefined) {
+      finalMinDecimals = Math.min(requestedMinDecimals, requestedMaxDecimals)
+    } else {
+      finalMinDecimals = requestedMinDecimals
+    }
+  } else if (compact) {
+    finalMinDecimals = 0
+  } else {
+    finalMinDecimals = Math.min(
+      assetDecimals,
+      requestedMaxDecimals ?? assetDecimals,
     )
   }
 
-  return parsed
+  let finalMaxDecimals: number
+  if (requestedMaxDecimals !== undefined) {
+    finalMaxDecimals = requestedMaxDecimals
+  } else if (
+    requestedMinDecimals !== undefined &&
+    requestedMinDecimals > assetDecimals
+  ) {
+    finalMaxDecimals = requestedMinDecimals
+  } else {
+    finalMaxDecimals = assetDecimals
+  }
+
+  const formatterOptions: NumberFormatOptionsWithRounding = {
+    style: "currency",
+    currency: currencyCode,
+    notation: compact ? "compact" : "standard",
+    compactDisplay: compact ? "short" : undefined,
+    minimumFractionDigits: finalMinDecimals,
+    maximumFractionDigits: finalMaxDecimals,
+  }
+
+  if (roundingMode) {
+    formatterOptions.roundingMode = roundingMode
+  }
+
+  const formatter = new Intl.NumberFormat(
+    normalizeLocale(locale),
+    formatterOptions,
+  )
+
+  // Convert decimal string to number for formatting
+  return formatter.format(parseFloat(decimalString))
+}
+
+/**
+ * Format money using custom formatting for non-ISO currencies
+ *
+ * @param money - The Money instance to format
+ * @param locale - The locale to use for formatting
+ * @param compact - Whether to use compact notation
+ * @param maxDecimals - Maximum decimal places
+ * @param preferredUnit - Preferred fractional unit
+ * @param preferSymbol - Whether to prefer symbol over code
+ * @param roundingMode - Rounding mode for number formatting
+ * @returns Formatted string using custom formatting
+ */
+export function formatWithCustomFormatting(
+  money: Money,
+  locale: string,
+  compact: boolean,
+  maxDecimals?: number | bigint,
+  minDecimals?: number | bigint,
+  preferredUnit?: string,
+  preferSymbol: boolean = false,
+  roundingMode?: RoundingMode,
+): string {
+  // Handle fractional unit conversion if specified
+  const { decimalString, unitSuffix } = convertToPreferredUnit(
+    money,
+    preferredUnit,
+  )
+
+  // Determine decimal places
+  const assetDecimals =
+    "decimals" in money.currency
+      ? safeNumberFromBigInt(money.currency.decimals, "Asset decimal places")
+      : 2
+  const requestedMinDecimals =
+    minDecimals !== undefined
+      ? safeNumberFromBigInt(
+          typeof minDecimals === "bigint" ? minDecimals : BigInt(minDecimals),
+          "Min decimal places",
+        )
+      : undefined
+
+  const requestedMaxDecimals =
+    maxDecimals !== undefined
+      ? safeNumberFromBigInt(
+          typeof maxDecimals === "bigint" ? maxDecimals : BigInt(maxDecimals),
+          "Max decimal places",
+        )
+      : undefined
+
+  // Determine final decimal places based on priority:
+  // 1. If both min and max are specified, max takes precedence when there's conflict
+  // 2. If only min is specified, it can extend beyond currency defaults
+  // 3. Default behavior for unspecified values
+  let finalMinDecimals: number
+  if (requestedMinDecimals !== undefined) {
+    if (requestedMaxDecimals !== undefined) {
+      finalMinDecimals = Math.min(requestedMinDecimals, requestedMaxDecimals)
+    } else {
+      finalMinDecimals = requestedMinDecimals
+    }
+  } else {
+    finalMinDecimals = 0
+  }
+
+  let finalMaxDecimals: number
+  if (requestedMaxDecimals !== undefined) {
+    finalMaxDecimals = requestedMaxDecimals
+  } else if (
+    requestedMinDecimals !== undefined &&
+    requestedMinDecimals > assetDecimals
+  ) {
+    finalMaxDecimals = requestedMinDecimals
+  } else {
+    finalMaxDecimals = assetDecimals
+  }
+
+  // Format the number part using Intl.NumberFormat with string input
+  const formatterOptions: NumberFormatOptionsWithRounding = {
+    style: "decimal",
+    notation: compact ? "compact" : "standard",
+    compactDisplay: compact ? "short" : undefined,
+    minimumFractionDigits: finalMinDecimals,
+    maximumFractionDigits: finalMaxDecimals,
+  }
+
+  if (roundingMode) {
+    formatterOptions.roundingMode = roundingMode
+  }
+
+  const formatter = new Intl.NumberFormat(
+    normalizeLocale(locale),
+    formatterOptions,
+  )
+
+  // Convert decimal string to number for formatting
+  const formattedNumber = formatter.format(parseFloat(decimalString))
+
+  // Handle symbol vs code formatting
+  if (preferSymbol && "symbol" in money.currency && !unitSuffix) {
+    return `${money.currency.symbol}${formattedNumber}`
+  }
+
+  // Add currency code or unit suffix
+  const currencyPart = getCurrencyDisplayPart(
+    money.currency,
+    preferSymbol,
+    unitSuffix,
+  )
+  return `${formattedNumber}${currencyPart}`
 }
 
 export class Money {
@@ -160,6 +539,42 @@ export class Money {
   }
 
   /**
+   * Helper method to convert string arguments to Money instances
+   *
+   * @param value - String representation or existing Money instance
+   * @param referenceCurrency - Currency to validate against if value is a string
+   * @returns Money instance
+   * @throws Error if string parsing fails or currencies don't match
+   */
+  private static parseStringToMoney(
+    value: string | Money,
+    referenceCurrency: Currency,
+  ): Money {
+    if (value instanceof Money) {
+      return value
+    }
+
+    // Parse the string to get a Money instance
+    const parseResult = parseMoneyString(value)
+    const parsed = new Money({
+      asset: parseResult.currency,
+      amount: {
+        amount: parseResult.amount.amount,
+        decimals: parseResult.amount.decimals,
+      },
+    })
+
+    // Validate that currencies match
+    if (!assetsEqual(parsed.currency, referenceCurrency)) {
+      throw new Error(
+        `Currency mismatch: expected ${referenceCurrency.code || referenceCurrency.name}, got ${parsed.currency.code || parsed.currency.name}`,
+      )
+    }
+
+    return parsed
+  }
+
+  /**
    * Get the asset for this Money instance (convenience getter for backward compatibility)
    */
   get asset() {
@@ -191,12 +606,14 @@ export class Money {
    * @throws Error if the assets are not the same type
    */
   add(other: Money | AssetAmount | string): Money {
-    const otherMoney =
-      typeof other === "string"
-        ? parseStringToMoney(other, this.currency)
-        : other instanceof Money
-          ? other
-          : new Money(other)
+    let otherMoney: Money
+    if (typeof other === "string") {
+      otherMoney = Money.parseStringToMoney(other, this.currency)
+    } else if (other instanceof Money) {
+      otherMoney = other
+    } else {
+      otherMoney = new Money(other)
+    }
 
     if (!assetsEqual(this.currency, otherMoney.currency)) {
       throw new Error("Cannot add Money with different asset types")
@@ -235,12 +652,14 @@ export class Money {
    * @throws Error if the assets are not the same type
    */
   subtract(other: Money | AssetAmount | string): Money {
-    const otherMoney =
-      typeof other === "string"
-        ? parseStringToMoney(other, this.currency)
-        : other instanceof Money
-          ? other
-          : new Money(other)
+    let otherMoney: Money
+    if (typeof other === "string") {
+      otherMoney = Money.parseStringToMoney(other, this.currency)
+    } else if (other instanceof Money) {
+      otherMoney = other
+    } else {
+      otherMoney = new Money(other)
+    }
 
     if (!assetsEqual(this.currency, otherMoney.currency)) {
       throw new Error("Cannot subtract Money with different asset types")
@@ -366,12 +785,14 @@ export class Money {
    * @throws Error if the assets are not the same type
    */
   lessThan(other: Money | AssetAmount | string): boolean {
-    const otherMoney =
-      typeof other === "string"
-        ? parseStringToMoney(other, this.currency)
-        : other instanceof Money
-          ? other
-          : new Money(other)
+    let otherMoney: Money
+    if (typeof other === "string") {
+      otherMoney = Money.parseStringToMoney(other, this.currency)
+    } else if (other instanceof Money) {
+      otherMoney = other
+    } else {
+      otherMoney = new Money(other)
+    }
     const otherAmount = otherMoney.balance
 
     if (!assetsEqual(this.balance.asset, otherAmount.asset)) {
@@ -398,12 +819,14 @@ export class Money {
    * @throws Error if the assets are not the same type
    */
   lessThanOrEqual(other: Money | AssetAmount | string): boolean {
-    const otherMoney =
-      typeof other === "string"
-        ? parseStringToMoney(other, this.currency)
-        : other instanceof Money
-          ? other
-          : new Money(other)
+    let otherMoney: Money
+    if (typeof other === "string") {
+      otherMoney = Money.parseStringToMoney(other, this.currency)
+    } else if (other instanceof Money) {
+      otherMoney = other
+    } else {
+      otherMoney = new Money(other)
+    }
     const otherAmount = otherMoney.balance
 
     if (!assetsEqual(this.balance.asset, otherAmount.asset)) {
@@ -430,12 +853,14 @@ export class Money {
    * @throws Error if the assets are not the same type
    */
   greaterThan(other: Money | AssetAmount | string): boolean {
-    const otherMoney =
-      typeof other === "string"
-        ? parseStringToMoney(other, this.currency)
-        : other instanceof Money
-          ? other
-          : new Money(other)
+    let otherMoney: Money
+    if (typeof other === "string") {
+      otherMoney = Money.parseStringToMoney(other, this.currency)
+    } else if (other instanceof Money) {
+      otherMoney = other
+    } else {
+      otherMoney = new Money(other)
+    }
     const otherAmount = otherMoney.balance
 
     if (!assetsEqual(this.balance.asset, otherAmount.asset)) {
@@ -462,12 +887,14 @@ export class Money {
    * @throws Error if the assets are not the same type
    */
   greaterThanOrEqual(other: Money | AssetAmount | string): boolean {
-    const otherMoney =
-      typeof other === "string"
-        ? parseStringToMoney(other, this.currency)
-        : other instanceof Money
-          ? other
-          : new Money(other)
+    let otherMoney: Money
+    if (typeof other === "string") {
+      otherMoney = Money.parseStringToMoney(other, this.currency)
+    } else if (other instanceof Money) {
+      otherMoney = other
+    } else {
+      otherMoney = new Money(other)
+    }
     const otherAmount = otherMoney.balance
 
     if (!assetsEqual(this.balance.asset, otherAmount.asset)) {
@@ -583,11 +1010,11 @@ export class Money {
     }
 
     // Validate ratios are non-negative
-    for (const ratio of ratios) {
+    ratios.forEach((ratio) => {
       if (ratio < 0) {
         throw new Error("Cannot allocate with negative ratios")
       }
-    }
+    })
 
     const totalRatio = ratios.reduce((sum, ratio) => sum + ratio, 0)
     if (totalRatio === 0) {
@@ -651,11 +1078,11 @@ export class Money {
 
       // Distribute one unit to each of the top remainder holders
       let remaining = unallocatedAmount
-      for (const index of indicesByRemainder) {
-        if (remaining <= 0n) break
+      indicesByRemainder.forEach((index) => {
+        if (remaining <= 0n) return
         allocations[index] += 1n
         remaining -= 1n
-      }
+      })
     }
 
     // Create Money instances from allocations
@@ -724,21 +1151,19 @@ export class Money {
   max(other: Money | Money[] | string | string[]): Money {
     const otherArray = Array.isArray(other) ? other : [other]
     const others = otherArray.map((item) =>
-      typeof item === "string" ? parseStringToMoney(item, this.currency) : item,
+      typeof item === "string"
+        ? Money.parseStringToMoney(item, this.currency)
+        : item,
     )
-    let maxValue: Money = this
+    const currentBalance = this.balance
 
-    for (const money of others) {
-      if (!assetsEqual(this.balance.asset, money.balance.asset)) {
+    return others.reduce((maxValue: Money, money) => {
+      if (!assetsEqual(currentBalance.asset, money.balance.asset)) {
         throw new Error("Cannot compare Money with different asset types")
       }
 
-      if (maxValue.lessThan(money)) {
-        maxValue = money
-      }
-    }
-
-    return maxValue
+      return maxValue.lessThan(money) ? money : maxValue
+    }, this)
   }
 
   /**
@@ -751,21 +1176,19 @@ export class Money {
   min(other: Money | Money[] | string | string[]): Money {
     const otherArray = Array.isArray(other) ? other : [other]
     const others = otherArray.map((item) =>
-      typeof item === "string" ? parseStringToMoney(item, this.currency) : item,
+      typeof item === "string"
+        ? Money.parseStringToMoney(item, this.currency)
+        : item,
     )
-    let minValue: Money = this
+    const currentBalance = this.balance
 
-    for (const money of others) {
-      if (!assetsEqual(this.balance.asset, money.balance.asset)) {
+    return others.reduce((minValue: Money, money) => {
+      if (!assetsEqual(currentBalance.asset, money.balance.asset)) {
         throw new Error("Cannot compare Money with different asset types")
       }
 
-      if (minValue.greaterThan(money)) {
-        minValue = money
-      }
-    }
-
-    return minValue
+      return minValue.greaterThan(money) ? money : minValue
+    }, this)
   }
 
   /**
@@ -827,9 +1250,9 @@ export class Money {
    *
    * @returns A JSON-serializable object with currency and amount
    */
-  toJSON(): any {
+  toJSON(): unknown {
     // Helper function to serialize any value, converting bigints to strings
-    const serializeValue = (value: any): any => {
+    const serializeValue = (value: unknown): unknown => {
       if (typeof value === "bigint") {
         return value.toString()
       }
@@ -837,10 +1260,10 @@ export class Money {
         if (Array.isArray(value)) {
           return value.map(serializeValue)
         }
-        const result: any = {}
-        for (const [key, val] of Object.entries(value)) {
+        const result: Record<string, unknown> = {}
+        Object.entries(value).forEach(([key, val]) => {
           result[key] = serializeValue(val)
-        }
+        })
         return result
       }
       return value
@@ -866,7 +1289,7 @@ export class Money {
   equals(other: Money | string): boolean {
     const otherMoney =
       typeof other === "string"
-        ? parseStringToMoney(other, this.currency)
+        ? Money.parseStringToMoney(other, this.currency)
         : other
 
     // Check if currencies are equal
@@ -907,12 +1330,14 @@ export class Money {
    * @returns A new Money instance
    * @throws Error if the JSON data is invalid
    */
-  static fromJSON(json: any): Money {
+  static fromJSON(json: unknown): Money {
     // Check if this is the old format (has 'asset' instead of 'currency')
     if ("asset" in json && !("currency" in json)) {
       // Old format compatibility
-      const deserializeAsset = (asset: any): any => {
-        const result: any = { ...asset }
+      const deserializeAsset = (asset: unknown): unknown => {
+        const result: Record<string, unknown> = {
+          ...(asset as Record<string, unknown>),
+        }
         if ("decimals" in result) {
           result.decimals = BigInt(result.decimals)
         }
@@ -935,8 +1360,10 @@ export class Money {
     const parsed = MoneyJSONSchema.parse(json)
 
     // Helper function to deserialize currency, converting string bigints back to bigints
-    const deserializeCurrency = (currency: any): Currency => {
-      const result: any = { ...currency }
+    const deserializeCurrency = (currency: unknown): Currency => {
+      const result: Record<string, unknown> = {
+        ...(currency as Record<string, unknown>),
+      }
 
       // Convert decimals back to bigint if present (FungibleAsset/Currency)
       if ("decimals" in result) {
@@ -949,12 +1376,14 @@ export class Money {
     const currency = deserializeCurrency(parsed.currency)
 
     // Deserialize amount based on structure - infer type from fields
-    const amount =
-      typeof parsed.amount === "string"
-        ? FixedPointNumber.fromJSON(parsed.amount) // string -> FixedPointNumber
-        : "p" in parsed.amount && "q" in parsed.amount
-          ? RationalNumber.fromJSON(parsed.amount) // {p, q} -> RationalNumber
-          : FixedPointNumber.fromJSON(parsed.amount) // legacy {amount, decimals} -> FixedPointNumber
+    let amount: MoneyAmount
+    if (typeof parsed.amount === "string") {
+      amount = FixedPointNumber.fromJSON(parsed.amount) // string -> FixedPointNumber
+    } else if ("p" in parsed.amount && "q" in parsed.amount) {
+      amount = RationalNumber.fromJSON(parsed.amount) // {p, q} -> RationalNumber
+    } else {
+      amount = FixedPointNumber.fromJSON(parsed.amount) // legacy {amount, decimals} -> FixedPointNumber
+    }
 
     return new Money(currency, amount)
   }
@@ -966,7 +1395,44 @@ export class Money {
    * @returns A formatted string representation
    */
   toString(options: MoneyToStringOptions = {}): string {
-    return formatMoney(this, options)
+    const {
+      locale = "en-US",
+      compact = false,
+      maxDecimals,
+      minDecimals,
+      preferredUnit,
+      preferSymbol = false,
+      roundingMode,
+    } = options
+
+    // Convert RationalNumber to FixedPointNumber for formatting
+    const formattingMoney = isRationalNumber(this.amount)
+      ? new Money(this.currency, toFixedPointNumber(this.amount))
+      : this
+
+    // Determine if we should use ISO 4217 formatting
+    const useIsoFormatting = shouldUseIsoFormatting(formattingMoney.currency)
+
+    if (useIsoFormatting) {
+      return formatWithIntlCurrency(
+        formattingMoney,
+        locale,
+        compact,
+        maxDecimals,
+        minDecimals,
+        roundingMode,
+      )
+    }
+    return formatWithCustomFormatting(
+      formattingMoney,
+      locale,
+      compact,
+      maxDecimals,
+      minDecimals,
+      preferredUnit,
+      preferSymbol,
+      roundingMode,
+    )
   }
 
   /**
@@ -987,7 +1453,6 @@ export class Money {
    */
   convert(
     price: import("../prices").Price | import("../exchange-rates").ExchangeRate,
-    _options?: any,
   ): Money {
     // Get the price amounts - both Price and ExchangeRate have amounts array
     const [amount1, amount2] = price.amounts
@@ -1050,448 +1515,6 @@ export class Money {
 }
 
 /**
- * Options for formatting Money instances to strings
- */
-export interface MoneyToStringOptions {
-  /** Display locale (default "en-US") */
-  locale?: string
-  /** Use compact notation (e.g., $1M instead of $1,000,000) */
-  compact?: boolean
-  /** Maximum number of decimal places to display */
-  maxDecimals?: number | bigint
-  /** Minimum number of decimal places to display (forces trailing zeros) */
-  minDecimals?: number | bigint
-  /** Preferred fractional unit for non-ISO currencies */
-  preferredUnit?: string
-  /** Prefer symbol formatting over code for non-ISO currencies */
-  preferSymbol?: boolean
-  /** Rounding mode for number formatting */
-  roundingMode?: RoundingMode
-}
-
-/**
- * Format a Money instance to a localized string
- *
- * @param money - The Money instance to format
- * @param options - Formatting options
- * @returns A formatted string representation
- */
-function formatMoney(money: Money, options: MoneyToStringOptions = {}): string {
-  const {
-    locale = "en-US",
-    compact = false,
-    maxDecimals,
-    minDecimals,
-    preferredUnit,
-    preferSymbol = false,
-    roundingMode,
-  } = options
-
-  // Convert RationalNumber to FixedPointNumber for formatting
-  const formattingMoney = isRationalNumber(money.amount)
-    ? new Money(money.currency, toFixedPointNumber(money.amount))
-    : money
-
-  // Determine if we should use ISO 4217 formatting
-  const useIsoFormatting = shouldUseIsoFormatting(formattingMoney.currency)
-
-  if (useIsoFormatting) {
-    return formatWithIntlCurrency(
-      formattingMoney,
-      locale,
-      compact,
-      maxDecimals,
-      minDecimals,
-      roundingMode,
-    )
-  }
-  return formatWithCustomFormatting(
-    formattingMoney,
-    locale,
-    compact,
-    maxDecimals,
-    minDecimals,
-    preferredUnit,
-    preferSymbol,
-    roundingMode,
-  )
-}
-
-/**
- * Determine if an asset supports ISO 4217 formatting
- *
- * @param asset - The asset to check
- * @returns true if ISO 4217 formatting should be used
- */
-export function shouldUseIsoFormatting(asset: any): boolean {
-  return "iso4217Support" in asset && asset.iso4217Support === true
-}
-
-/**
- * Format money using Intl.NumberFormat with currency support
- *
- * @param money - The Money instance to format
- * @param locale - The locale to use for formatting
- * @param compact - Whether to use compact notation
- * @param maxDecimals - Maximum decimal places
- * @param roundingMode - Rounding mode for number formatting
- * @returns Formatted string using ISO 4217 currency formatting
- */
-export function formatWithIntlCurrency(
-  money: Money,
-  locale: string,
-  compact: boolean,
-  maxDecimals?: number | bigint,
-  minDecimals?: number | bigint,
-  roundingMode?: RoundingMode,
-): string {
-  // Money should have FixedPointNumber amount here due to formatting conversion
-  const fp = money.amount as FixedPointNumber
-  const decimalString = fixedPointToDecimalString(fp)
-
-  // Get currency code for ISO formatting
-  const currencyCode = "code" in money.currency ? money.currency.code : "XXX"
-
-  // Determine decimal places
-  const assetDecimals =
-    "decimals" in money.currency
-      ? safeNumberFromBigInt(money.currency.decimals, "Asset decimal places")
-      : 2
-  const requestedMinDecimals =
-    minDecimals !== undefined
-      ? safeNumberFromBigInt(
-          typeof minDecimals === "bigint" ? minDecimals : BigInt(minDecimals),
-          "Min decimal places",
-        )
-      : undefined
-
-  const requestedMaxDecimals =
-    maxDecimals !== undefined
-      ? Math.min(
-          safeNumberFromBigInt(
-            typeof maxDecimals === "bigint" ? maxDecimals : BigInt(maxDecimals),
-            "Max decimal places",
-          ),
-          20,
-        )
-      : undefined
-
-  // Determine final decimal places based on priority:
-  // 1. If both min and max are specified, max takes precedence when there's conflict
-  // 2. If only min is specified, it can extend beyond currency defaults
-  // 3. Default behavior for unspecified values
-  const finalMinDecimals =
-    requestedMinDecimals !== undefined
-      ? requestedMaxDecimals !== undefined
-        ? Math.min(requestedMinDecimals, requestedMaxDecimals)
-        : requestedMinDecimals
-      : compact
-        ? 0
-        : Math.min(assetDecimals, requestedMaxDecimals ?? assetDecimals)
-
-  const finalMaxDecimals =
-    requestedMaxDecimals !== undefined
-      ? requestedMaxDecimals
-      : requestedMinDecimals !== undefined &&
-          requestedMinDecimals > assetDecimals
-        ? requestedMinDecimals
-        : assetDecimals
-
-  const formatterOptions: NumberFormatOptionsWithRounding = {
-    style: "currency",
-    currency: currencyCode,
-    notation: compact ? "compact" : "standard",
-    compactDisplay: compact ? "short" : undefined,
-    minimumFractionDigits: finalMinDecimals,
-    maximumFractionDigits: finalMaxDecimals,
-  }
-
-  if (roundingMode) {
-    formatterOptions.roundingMode = roundingMode
-  }
-
-  const formatter = new Intl.NumberFormat(
-    normalizeLocale(locale),
-    formatterOptions,
-  )
-
-  // Convert decimal string to number for formatting
-  return formatter.format(parseFloat(decimalString))
-}
-
-/**
- * Format money using custom formatting for non-ISO currencies
- *
- * @param money - The Money instance to format
- * @param locale - The locale to use for formatting
- * @param compact - Whether to use compact notation
- * @param maxDecimals - Maximum decimal places
- * @param preferredUnit - Preferred fractional unit
- * @param preferSymbol - Whether to prefer symbol over code
- * @param roundingMode - Rounding mode for number formatting
- * @returns Formatted string using custom formatting
- */
-export function formatWithCustomFormatting(
-  money: Money,
-  locale: string,
-  compact: boolean,
-  maxDecimals?: number | bigint,
-  minDecimals?: number | bigint,
-  preferredUnit?: string,
-  preferSymbol: boolean = false,
-  roundingMode?: RoundingMode,
-): string {
-  // Handle fractional unit conversion if specified
-  const { decimalString, unitSuffix } = convertToPreferredUnit(
-    money,
-    preferredUnit,
-  )
-
-  // Determine decimal places
-  const assetDecimals =
-    "decimals" in money.currency
-      ? safeNumberFromBigInt(money.currency.decimals, "Asset decimal places")
-      : 2
-  const requestedMinDecimals =
-    minDecimals !== undefined
-      ? safeNumberFromBigInt(
-          typeof minDecimals === "bigint" ? minDecimals : BigInt(minDecimals),
-          "Min decimal places",
-        )
-      : undefined
-
-  const requestedMaxDecimals =
-    maxDecimals !== undefined
-      ? safeNumberFromBigInt(
-          typeof maxDecimals === "bigint" ? maxDecimals : BigInt(maxDecimals),
-          "Max decimal places",
-        )
-      : undefined
-
-  // Determine final decimal places based on priority:
-  // 1. If both min and max are specified, max takes precedence when there's conflict
-  // 2. If only min is specified, it can extend beyond currency defaults
-  // 3. Default behavior for unspecified values
-  const finalMinDecimals =
-    requestedMinDecimals !== undefined
-      ? requestedMaxDecimals !== undefined
-        ? Math.min(requestedMinDecimals, requestedMaxDecimals)
-        : requestedMinDecimals
-      : 0
-
-  const finalMaxDecimals =
-    requestedMaxDecimals !== undefined
-      ? requestedMaxDecimals
-      : requestedMinDecimals !== undefined &&
-          requestedMinDecimals > assetDecimals
-        ? requestedMinDecimals
-        : assetDecimals
-
-  // Format the number part using Intl.NumberFormat with string input
-  const formatterOptions: NumberFormatOptionsWithRounding = {
-    style: "decimal",
-    notation: compact ? "compact" : "standard",
-    compactDisplay: compact ? "short" : undefined,
-    minimumFractionDigits: finalMinDecimals,
-    maximumFractionDigits: finalMaxDecimals,
-  }
-
-  if (roundingMode) {
-    formatterOptions.roundingMode = roundingMode
-  }
-
-  const formatter = new Intl.NumberFormat(
-    normalizeLocale(locale),
-    formatterOptions,
-  )
-
-  // Convert decimal string to number for formatting
-  const formattedNumber = formatter.format(parseFloat(decimalString))
-
-  // Handle symbol vs code formatting
-  if (preferSymbol && "symbol" in money.currency && !unitSuffix) {
-    return `${money.currency.symbol}${formattedNumber}`
-  }
-
-  // Add currency code or unit suffix
-  const currencyPart = getCurrencyDisplayPart(
-    money.currency,
-    preferSymbol,
-    unitSuffix,
-  )
-  return `${formattedNumber}${currencyPart}`
-}
-
-/**
- * Convert money value to preferred fractional unit if specified
- *
- * @param money - The Money instance
- * @param preferredUnit - The preferred fractional unit
- * @returns Object with decimal string value and unit suffix
- */
-export function convertToPreferredUnit(
-  money: Money,
-  preferredUnit?: string,
-): { decimalString: string; unitSuffix?: string } {
-  // Money should have FixedPointNumber amount here due to formatting conversion
-  const fp = money.amount as FixedPointNumber
-  let decimalString = fixedPointToDecimalString(fp)
-  let unitSuffix: string | undefined
-
-  if (
-    preferredUnit &&
-    "fractionalUnit" in money.currency &&
-    money.currency.fractionalUnit
-  ) {
-    const { fractionalUnit } = money.currency
-    const assetDecimals =
-      "decimals" in money.currency
-        ? safeNumberFromBigInt(money.currency.decimals, "Asset decimal places")
-        : 0
-    const unitInfo = findFractionalUnitInfo(
-      fractionalUnit,
-      preferredUnit,
-      assetDecimals,
-    )
-
-    if (unitInfo) {
-      // Convert to the fractional unit using BigInt arithmetic
-      const multiplierDecimals = BigInt(unitInfo.decimals)
-      const convertedFp = fp.multiply({
-        amount: 10n ** multiplierDecimals,
-        decimals: 0n,
-      })
-      decimalString = fixedPointToDecimalString(convertedFp)
-
-      // Parse the decimal string to determine pluralization
-      const numericValue = parseFloat(decimalString)
-      if (numericValue === 1) {
-        unitSuffix = preferredUnit
-      } else {
-        unitSuffix = pluralizeFractionalUnit(preferredUnit)
-      }
-    }
-  }
-
-  return { decimalString, unitSuffix }
-}
-
-/**
- * Find information about a fractional unit
- *
- * @param fractionalUnit - The fractional unit definition from the asset
- * @param unitName - The unit name to search for
- * @returns Unit information or null if not found
- */
-export function findFractionalUnitInfo(
-  fractionalUnit: string | string[] | Record<number, string | string[]>,
-  unitName: string,
-  assetDecimals: number,
-): { decimals: number; name: string } | null {
-  if (typeof fractionalUnit === "string") {
-    if (fractionalUnit === unitName) {
-      return { decimals: assetDecimals, name: fractionalUnit }
-    }
-  } else if (Array.isArray(fractionalUnit)) {
-    if (fractionalUnit.includes(unitName)) {
-      return { decimals: assetDecimals, name: fractionalUnit[0] }
-    }
-  } else {
-    for (const [decimalsStr, names] of Object.entries(fractionalUnit)) {
-      const decimals = parseInt(decimalsStr, 10)
-      const nameArray = Array.isArray(names) ? names : [names]
-
-      if (nameArray.includes(unitName)) {
-        return { decimals, name: nameArray[0] }
-      }
-    }
-  }
-
-  return null
-}
-
-/**
- * Get the currency display part (symbol or code)
- *
- * @param asset - The currency asset
- * @param preferSymbol - Whether to prefer symbol over code
- * @param unitSuffix - Optional unit suffix from fractional unit conversion
- * @returns The currency display string
- */
-export function getCurrencyDisplayPart(
-  asset: any,
-  preferSymbol: boolean,
-  unitSuffix?: string,
-): string {
-  if (unitSuffix) {
-    return ` ${unitSuffix}`
-  }
-
-  if (preferSymbol && "symbol" in asset) {
-    return "" // Symbol would go at the beginning, handled separately
-  }
-
-  if ("code" in asset) {
-    return ` ${asset.code}`
-  }
-
-  return ""
-}
-
-/**
- * Normalize locale string to a standard format
- *
- * @param locale - The input locale string
- * @returns Normalized locale string
- */
-export function normalizeLocale(locale: string): string {
-  // Convert underscore to hyphen (e.g., "en_US" -> "en-US")
-  return locale.replace("_", "-")
-}
-
-/**
- * Pluralize fractional unit names
- *
- * @param unitName - The singular unit name
- * @returns The pluralized unit name
- */
-export function pluralizeFractionalUnit(unitName: string): string {
-  // Handle special cases for irregular plurals
-  const irregularPlurals: Record<string, string> = {
-    penny: "pence",
-    kopek: "kopeks",
-    grosz: "groszy",
-    fils: "fils", // Already plural
-    sen: "sen", // Already plural
-    pul: "puls",
-    qəpik: "qəpiks",
-    tyiyn: "tyiyns",
-    möngö: "möngös",
-  }
-
-  if (irregularPlurals[unitName]) {
-    return irregularPlurals[unitName]
-  }
-
-  // Handle regular pluralization rules
-  if (unitName.endsWith("y")) {
-    return `${unitName.slice(0, -1)}ies`
-  }
-  if (unitName.endsWith("z")) {
-    return `${unitName}zes`
-  }
-  if (
-    unitName.endsWith("s") ||
-    unitName.endsWith("sh") ||
-    unitName.endsWith("ch") ||
-    unitName.endsWith("x")
-  ) {
-    return `${unitName}es`
-  }
-  return `${unitName}s`
-}
-
-/**
  * Factory function for creating Money instances from string representations
  * Also supports original constructor pattern with AssetAmount
  *
@@ -1519,9 +1542,9 @@ export function pluralizeFractionalUnit(unitName: string): string {
  */
 export function MoneyFactory(input: string): Money
 export function MoneyFactory(balance: AssetAmount): Money
-export function MoneyFactory(json: any): Money
+export function MoneyFactory(json: unknown): Money
 export function MoneyFactory(
-  inputOrBalanceOrJson: string | AssetAmount | any,
+  inputOrBalanceOrJson: string | AssetAmount | unknown,
 ): Money {
   if (typeof inputOrBalanceOrJson === "string") {
     // String parsing mode
@@ -1536,18 +1559,10 @@ export function MoneyFactory(
     })
   }
 
-  // Check if this looks like a JSON object from Money.toJSON()
-  if (
-    inputOrBalanceOrJson &&
-    typeof inputOrBalanceOrJson === "object" &&
-    "currency" in inputOrBalanceOrJson &&
-    "amount" in inputOrBalanceOrJson &&
-    !("asset" in inputOrBalanceOrJson)
-  ) {
-    // JSON deserialization mode
-    return Money.fromJSON(inputOrBalanceOrJson)
+  if (isAssetAmount(inputOrBalanceOrJson)) {
+    return new Money(inputOrBalanceOrJson)
   }
 
-  // Original constructor mode (AssetAmount)
-  return new Money(inputOrBalanceOrJson)
+  // JSON deserialization mode
+  return Money.fromJSON(inputOrBalanceOrJson)
 }

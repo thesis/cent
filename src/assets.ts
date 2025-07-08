@@ -22,5 +22,11 @@ export function isAsset(obj: unknown): obj is Asset {
 }
 
 export function isAssetAmount(obj: unknown): obj is AssetAmount {
-  return typeof obj === "object" && !!obj && "asset" in obj && isAsset(obj.asset) && "amount" in obj
+  return (
+    typeof obj === "object" &&
+    !!obj &&
+    "asset" in obj &&
+    isAsset(obj.asset) &&
+    "amount" in obj
+  )
 }

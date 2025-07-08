@@ -1,8 +1,14 @@
-import { AssetAmount, Ratio, FixedPoint, PricePoint, UNIXTime } from "./types"
+import {
+  AnyAsset,
+  AssetAmount,
+  Ratio,
+  FixedPoint,
+  PricePoint,
+  UNIXTime,
+} from "./types"
 import { Money as MoneyClass } from "./money"
 import { assetsEqual } from "./assets"
 import { RationalNumber } from "./rationals"
-import { FixedPointNumber } from "./fixed-point"
 import { nowUNIXTime, toUNIXTime } from "./time"
 
 export class Price implements PricePoint {
@@ -238,9 +244,8 @@ export class Price implements PricePoint {
       return new Price(newAmountA, newAmountB, this.time)
     }
 
-    // No shared asset found
-    const getAssetName = (asset: any) =>
-      asset.name || asset.code || "Unknown Asset"
+    const getAssetName = (asset: AnyAsset) =>
+      asset.name || ("code" in asset ? asset.code : "Unknown Asset")
     throw new Error(
       `Cannot multiply prices: no shared asset found between ${getAssetName(this.amounts[0].asset)}/${getAssetName(this.amounts[1].asset)} and ${getAssetName(other.amounts[0].asset)}/${getAssetName(other.amounts[1].asset)}`,
     )

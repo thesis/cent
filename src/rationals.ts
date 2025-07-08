@@ -10,6 +10,34 @@ export const RationalNumberJSONSchema = z.object({
   q: BigIntStringSchema,
 })
 
+/**
+ * Helper function to convert string arguments to RationalNumber instances
+ *
+ * @param value - String representation (fraction or decimal) or existing Ratio instance
+ * @returns RationalNumber instance
+ * @throws Error if string parsing fails
+ */
+const parseStringToRational = (value: string | Ratio): RationalNumber => {
+  if (typeof value === "object" && "p" in value && "q" in value) {
+    // eslint-disable-next-line @typescript-eslint/no-use-before-define
+    return new RationalNumber(value)
+  }
+
+  // Parse the string using the existing factory function logic
+  const stringType = getRationalStringType(value as string)
+
+  if (stringType === "fraction") {
+    // Parse fraction format using utility function
+    const ratio = parseFraction(value as string)
+    // eslint-disable-next-line @typescript-eslint/no-use-before-define
+    return new RationalNumber(ratio)
+  }
+  // Parse decimal format "12234.352453" - convert to fraction
+  const fp = FixedPointNumber.fromDecimalString(value as string)
+  // eslint-disable-next-line @typescript-eslint/no-use-before-define
+  return new RationalNumber({ p: fp.amount, q: fp.q })
+}
+
 export class RationalNumber implements Ratio {
   #p: bigint
 
@@ -235,15 +263,11 @@ export class RationalNumber implements Ratio {
         : new RationalNumber(item),
     )
 
-    let maxValue: RationalNumber = this
-
-    for (const rational of others) {
-      if (maxValue.lessThan(rational)) {
-        maxValue = rational
-      }
-    }
-
-    return maxValue
+    return others.reduce(
+      (maxValue, rational) =>
+        maxValue.lessThan(rational) ? rational : maxValue,
+      this,
+    )
   }
 
   /**
@@ -260,15 +284,11 @@ export class RationalNumber implements Ratio {
         : new RationalNumber(item),
     )
 
-    let minValue: RationalNumber = this
-
-    for (const rational of others) {
-      if (minValue.greaterThan(rational)) {
-        minValue = rational
-      }
-    }
-
-    return minValue
+    return others.reduce(
+      (minValue, rational) =>
+        minValue.greaterThan(rational) ? rational : minValue,
+      this,
+    )
   }
 
   /**
@@ -410,7 +430,7 @@ export class RationalNumber implements Ratio {
    * @returns A new RationalNumber instance
    * @throws Error if the JSON data is invalid
    */
-  static fromJSON(json: any): RationalNumber {
+  static fromJSON(json: unknown): RationalNumber {
     const parsed = RationalNumberJSONSchema.parse(json)
 
     return new RationalNumber({
@@ -418,31 +438,6 @@ export class RationalNumber implements Ratio {
       q: BigInt(parsed.q),
     })
   }
-}
-
-/**
- * Helper function to convert string arguments to RationalNumber instances
- *
- * @param value - String representation (fraction or decimal) or existing Ratio instance
- * @returns RationalNumber instance
- * @throws Error if string parsing fails
- */
-function parseStringToRational(value: string | Ratio): RationalNumber {
-  if (typeof value === "object" && "p" in value && "q" in value) {
-    return new RationalNumber(value)
-  }
-
-  // Parse the string using the existing factory function logic
-  const stringType = getRationalStringType(value as string)
-
-  if (stringType === "fraction") {
-    // Parse fraction format using utility function
-    const ratio = parseFraction(value as string)
-    return new RationalNumber(ratio)
-  }
-  // Parse decimal format "12234.352453" - convert to fraction
-  const fp = FixedPointNumber.fromDecimalString(value as string)
-  return new RationalNumber({ p: fp.amount, q: fp.q })
 }
 
 /**

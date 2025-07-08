@@ -7,10 +7,10 @@ import { Currency, UNIXTime } from "./types"
 export interface ExchangeRateSource {
   /** Human-readable name of the source */
   readonly name: string
-  
+
   /** Priority level (lower numbers = higher priority) */
   readonly priority: number
-  
+
   /** Reliability score between 0 and 1 */
   readonly reliability: number
 }
@@ -26,19 +26,19 @@ export interface ExchangeRateProvider {
    * @returns Promise resolving to an exchange rate
    */
   getRate(from: Currency, to: Currency): Promise<ExchangeRate>
-  
+
   /**
    * Get the name of this provider
    * @returns Provider name
    */
   getName(): string
-  
+
   /**
    * Get the priority of this provider
    * @returns Priority level (lower = higher priority)
    */
   getPriority(): number
-  
+
   /**
    * Get the reliability score of this provider
    * @returns Reliability between 0 and 1
@@ -52,7 +52,7 @@ export interface ExchangeRateProvider {
 export interface RateStalenessConfig {
   /** Maximum age in milliseconds before a rate is considered stale */
   maxAge: number
-  
+
   /** Grace period in milliseconds for rate updates */
   gracePeriod?: number
 }
@@ -67,14 +67,20 @@ export class ExchangeRateSourceUtils {
    * @param config - Staleness configuration
    * @returns Whether the rate is stale
    */
-  static isRateStale(timestamp: string | UNIXTime, config: RateStalenessConfig): boolean {
+  static isRateStale(
+    timestamp: string | UNIXTime,
+    config: RateStalenessConfig,
+  ): boolean {
     const now = Date.now()
-    const rateTime = typeof timestamp === 'string' ? parseInt(timestamp) : parseInt(timestamp)
+    const rateTime =
+      typeof timestamp === "string"
+        ? parseInt(timestamp, 10)
+        : parseInt(timestamp, 10)
     const age = now - rateTime
-    
+
     return age > config.maxAge
   }
-  
+
   /**
    * Compare two exchange rate sources by priority and reliability
    * @param a - First source
@@ -86,21 +92,24 @@ export class ExchangeRateSourceUtils {
     if (a.priority !== b.priority) {
       return a.priority - b.priority
     }
-    
+
     // If priorities are equal, compare by reliability (higher is better)
     return b.reliability - a.reliability
   }
-  
+
   /**
    * Filter sources by minimum reliability threshold
    * @param sources - Array of sources to filter
    * @param minReliability - Minimum reliability threshold
    * @returns Filtered sources
    */
-  static filterByReliability(sources: ExchangeRateSource[], minReliability: number): ExchangeRateSource[] {
-    return sources.filter(source => source.reliability >= minReliability)
+  static filterByReliability(
+    sources: ExchangeRateSource[],
+    minReliability: number,
+  ): ExchangeRateSource[] {
+    return sources.filter((source) => source.reliability >= minReliability)
   }
-  
+
   /**
    * Sort sources by priority and reliability
    * @param sources - Array of sources to sort
@@ -108,60 +117,5 @@ export class ExchangeRateSourceUtils {
    */
   static sortSources(sources: ExchangeRateSource[]): ExchangeRateSource[] {
     return [...sources].sort(this.compareSources)
-  }
-}
-
-/**
- * Manual exchange rate provider for fixed rates
- */
-export class ManualExchangeRateProvider implements ExchangeRateProvider {
-  private source: ExchangeRateSource
-  private rates: Map<string, ExchangeRate>
-  
-  constructor(name: string = "Manual", priority: number = 0, reliability: number = 1.0) {
-    this.source = { name, priority, reliability }
-    this.rates = new Map()
-  }
-  
-  /**
-   * Set a manual exchange rate
-   * @param rate - Exchange rate to store
-   */
-  setRate(rate: ExchangeRate): void {
-    const key = this.getRateKey(rate.amounts[0].asset as Currency, rate.amounts[1].asset as Currency)
-    this.rates.set(key, rate)
-  }
-  
-  async getRate(from: Currency, to: Currency): Promise<ExchangeRate> {
-    const key = this.getRateKey(from, to)
-    const rate = this.rates.get(key)
-    
-    if (!rate) {
-      throw new Error(`No manual rate found for ${from.code} to ${to.code}`)
-    }
-    
-    // Return new rate with source metadata
-    return new ExchangeRate(
-      rate.amounts[0], 
-      rate.amounts[1], 
-      Date.now().toString(),
-      this.source
-    )
-  }
-  
-  getName(): string {
-    return this.source.name
-  }
-  
-  getPriority(): number {
-    return this.source.priority
-  }
-  
-  getReliability(): number {
-    return this.source.reliability
-  }
-  
-  private getRateKey(from: Currency, to: Currency): string {
-    return `${from.code}:${to.code}`
   }
 }

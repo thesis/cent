@@ -1,17 +1,24 @@
 import { z } from "zod"
-import type { FixedPoint, Ratio, DecimalString } from "./types"
-import {
-  BigIntStringSchema,
-  NonNegativeBigIntStringSchema,
-} from "./validation-schemas"
+import type {
+  FixedPoint as FixedPointType,
+  Ratio,
+  DecimalString,
+} from "./types"
 import { isOnlyFactorsOf2And5 } from "./math-utils"
 
 export const FixedPointJSONSchema = z
   .string()
   .regex(/^-?\d+(\.\d+)?$/, "Invalid decimal string format")
 
-export function isFixedPoint(obj: unknown): obj is FixedPoint {
-  return typeof obj === "object" && !!obj && "amount" in obj && typeof obj.amount === "bigint" && "decimals" in obj && typeof obj.decimals === "bigint"
+export function isFixedPoint(obj: unknown): obj is FixedPointType {
+  return (
+    typeof obj === "object" &&
+    !!obj &&
+    "amount" in obj &&
+    typeof obj.amount === "bigint" &&
+    "decimals" in obj &&
+    typeof obj.decimals === "bigint"
+  )
 }
 
 export class FixedPointNumber implements FixedPointType, Ratio {
@@ -65,7 +72,7 @@ export class FixedPointNumber implements FixedPointType, Ratio {
   /**
    * Helper method to convert string or FixedPoint to FixedPointNumber
    */
-  private static parseOther(other: FixedPoint | string): FixedPointNumber {
+  private static parseOther(other: FixedPointType | string): FixedPointNumber {
     if (typeof other === "string") {
       return FixedPointNumber.fromDecimalString(other)
     }
@@ -75,7 +82,7 @@ export class FixedPointNumber implements FixedPointType, Ratio {
     return other as FixedPointNumber
   }
 
-  static fromFixedPoint(fp: FixedPoint) {
+  static fromFixedPoint(fp: FixedPointType) {
     return new FixedPointNumber(fp.amount, fp.decimals)
   }
 
@@ -85,7 +92,7 @@ export class FixedPointNumber implements FixedPointType, Ratio {
    * @param other - The other number to add (FixedPoint or string)
    * @returns A new FixedPointNumber instance with the sum
    */
-  add(other: FixedPoint | string): FixedPointNumber {
+  add(other: FixedPointType | string): FixedPointNumber {
     const otherFP = FixedPointNumber.parseOther(other)
     const maxDecimals =
       this.decimals > otherFP.decimals ? this.decimals : otherFP.decimals
@@ -113,7 +120,7 @@ export class FixedPointNumber implements FixedPointType, Ratio {
    * @param other - The number to subtract (FixedPoint or string)
    * @returns A new FixedPointNumber instance with the difference
    */
-  subtract(other: FixedPoint | string): FixedPointNumber {
+  subtract(other: FixedPointType | string): FixedPointNumber {
     const otherFP = FixedPointNumber.parseOther(other)
     const maxDecimals =
       this.decimals > otherFP.decimals ? this.decimals : otherFP.decimals
@@ -141,7 +148,7 @@ export class FixedPointNumber implements FixedPointType, Ratio {
    * @param other - The value to multiply by (FixedPoint, bigint, or string)
    * @returns A new FixedPointNumber instance with the product
    */
-  multiply(other: FixedPoint | bigint | string): FixedPointNumber {
+  multiply(other: FixedPointType | bigint | string): FixedPointNumber {
     if (typeof other === "bigint") {
       return new FixedPointNumber(this.amount * other, this.decimals)
     }
@@ -176,7 +183,7 @@ export class FixedPointNumber implements FixedPointType, Ratio {
    * @returns A new FixedPointNumber instance with the quotient
    * @throws Error if the divisor contains factors other than 2 and 5, or if dividing by zero
    */
-  divide(other: FixedPoint | bigint | string): FixedPointNumber {
+  divide(other: FixedPointType | bigint | string): FixedPointNumber {
     if (typeof other === "bigint") {
       if (other === 0n) {
         throw new Error("Cannot divide by zero")
@@ -323,7 +330,7 @@ export class FixedPointNumber implements FixedPointType, Ratio {
    * @param other - The other number to compare with (FixedPoint or string)
    * @returns true if the numbers are equal when normalized, false otherwise
    */
-  equals(other: FixedPoint | string): boolean {
+  equals(other: FixedPointType | string): boolean {
     const otherFP = FixedPointNumber.parseOther(other)
     // If both have the same decimals, just compare the amounts
     if (this.decimals === otherFP.decimals) {
@@ -346,7 +353,7 @@ export class FixedPointNumber implements FixedPointType, Ratio {
    * @returns A new FixedPointNumber with the same decimal count as other (or original if unsafe=false and precision would be lost)
    */
   normalize(
-    other: FixedPoint | string,
+    other: FixedPointType | string,
     unsafe: boolean = false,
   ): FixedPointNumber {
     const otherFP = FixedPointNumber.parseOther(other)
@@ -484,7 +491,7 @@ export class FixedPointNumber implements FixedPointType, Ratio {
    * @param other - The other number to compare with (FixedPoint or string)
    * @returns true if this number is less than other, false otherwise
    */
-  lessThan(other: FixedPoint | string): boolean {
+  lessThan(other: FixedPointType | string): boolean {
     const otherFP = FixedPointNumber.parseOther(other)
     if (this.decimals === otherFP.decimals) {
       return this.amount < otherFP.amount
@@ -513,7 +520,7 @@ export class FixedPointNumber implements FixedPointType, Ratio {
    * @param other - The other number to compare with (FixedPoint or string)
    * @returns true if this number is less than or equal to other, false otherwise
    */
-  lessThanOrEqual(other: FixedPoint | string): boolean {
+  lessThanOrEqual(other: FixedPointType | string): boolean {
     return this.lessThan(other) || this.equals(other)
   }
 
@@ -523,7 +530,7 @@ export class FixedPointNumber implements FixedPointType, Ratio {
    * @param other - The other number to compare with (FixedPoint or string)
    * @returns true if this number is greater than other, false otherwise
    */
-  greaterThan(other: FixedPoint | string): boolean {
+  greaterThan(other: FixedPointType | string): boolean {
     const otherFP = FixedPointNumber.parseOther(other)
     if (this.decimals === otherFP.decimals) {
       return this.amount > otherFP.amount
@@ -552,7 +559,7 @@ export class FixedPointNumber implements FixedPointType, Ratio {
    * @param other - The other number to compare with (FixedPoint or string)
    * @returns true if this number is greater than or equal to other, false otherwise
    */
-  greaterThanOrEqual(other: FixedPoint | string): boolean {
+  greaterThanOrEqual(other: FixedPointType | string): boolean {
     return this.greaterThan(other) || this.equals(other)
   }
 
@@ -580,22 +587,21 @@ export class FixedPointNumber implements FixedPointType, Ratio {
    * @param other - The other FixedPoint(s) or string(s) to compare with
    * @returns The FixedPointNumber with the largest value
    */
-  max(other: FixedPoint | FixedPoint[] | string | string[]): FixedPointNumber {
+  max(
+    other: FixedPointType | FixedPointType[] | string | string[],
+  ): FixedPointNumber {
     const otherArray = Array.isArray(other) ? other : [other]
     const others = otherArray.map((item) =>
       typeof item === "string"
         ? FixedPointNumber.fromDecimalString(item)
         : item,
     )
-    let maxValue: FixedPointNumber = this
-
-    for (const fp of others) {
+    return others.reduce((maxValue: FixedPointNumber, fp) => {
       if (maxValue.lessThan(fp)) {
-        maxValue = FixedPointNumber.fromFixedPoint(fp)
+        return FixedPointNumber.fromFixedPoint(fp)
       }
-    }
-
-    return maxValue
+      return maxValue
+    }, this)
   }
 
   /**
@@ -604,22 +610,21 @@ export class FixedPointNumber implements FixedPointType, Ratio {
    * @param other - The other FixedPoint(s) or string(s) to compare with
    * @returns The FixedPointNumber with the smallest value
    */
-  min(other: FixedPoint | FixedPoint[] | string | string[]): FixedPointNumber {
+  min(
+    other: FixedPointType | FixedPointType[] | string | string[],
+  ): FixedPointNumber {
     const otherArray = Array.isArray(other) ? other : [other]
     const others = otherArray.map((item) =>
       typeof item === "string"
         ? FixedPointNumber.fromDecimalString(item)
         : item,
     )
-    let minValue: FixedPointNumber = this
-
-    for (const fp of others) {
+    return others.reduce((minValue: FixedPointNumber, fp) => {
       if (minValue.greaterThan(fp)) {
-        minValue = FixedPointNumber.fromFixedPoint(fp)
+        return FixedPointNumber.fromFixedPoint(fp)
       }
-    }
-
-    return minValue
+      return minValue
+    }, this)
   }
 
   /**
@@ -638,7 +643,7 @@ export class FixedPointNumber implements FixedPointType, Ratio {
    * @returns A new FixedPointNumber instance
    * @throws Error if the JSON data is invalid
    */
-  static fromJSON(json: any): FixedPointNumber {
+  static fromJSON(json: unknown): FixedPointNumber {
     const parsed = FixedPointJSONSchema.parse(json)
 
     return FixedPointNumber.fromDecimalString(parsed)
@@ -650,10 +655,10 @@ export class FixedPointNumber implements FixedPointType, Ratio {
  * Supports string parsing, FixedPoint objects, and original constructor signatures
  */
 export function FixedPoint(str: string | DecimalString): FixedPointNumber
-export function FixedPoint(fixedPoint: FixedPoint): FixedPointNumber
+export function FixedPoint(fixedPoint: FixedPointType): FixedPointNumber
 export function FixedPoint(amount: bigint, decimals: bigint): FixedPointNumber
 export function FixedPoint(
-  amountOrStrOrFixedPoint: bigint | string | DecimalString | FixedPoint,
+  amountOrStrOrFixedPoint: bigint | string | DecimalString | FixedPointType,
   decimals?: bigint,
 ): FixedPointNumber {
   if (typeof amountOrStrOrFixedPoint === "string") {
