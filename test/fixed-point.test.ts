@@ -419,6 +419,190 @@ describe("FixedPointNumber", () => {
         expect(parsed.equals(original)).toBe(true)
       })
     })
+
+    describe("percentage formatting", () => {
+      it("should format as percentage with asPercentage option", () => {
+        const fp = new FixedPointNumber(2525n, 4n) // 0.2525
+        expect(fp.toString({ asPercentage: true })).toBe("25.2500%")
+      })
+
+      it("should format whole numbers as percentage", () => {
+        const fp = new FixedPointNumber(1n, 0n) // 1
+        expect(fp.toString({ asPercentage: true })).toBe("100%")
+      })
+
+      it("should format decimal numbers as percentage", () => {
+        const fp = new FixedPointNumber(125n, 2n) // 1.25
+        expect(fp.toString({ asPercentage: true })).toBe("125.00%")
+      })
+
+      it("should format zero as percentage", () => {
+        const fp = new FixedPointNumber(0n, 2n) // 0.00
+        expect(fp.toString({ asPercentage: true })).toBe("0.00%")
+      })
+
+      it("should format small fractions as percentage", () => {
+        const fp = new FixedPointNumber(1n, 4n) // 0.0001
+        expect(fp.toString({ asPercentage: true })).toBe("0.0100%")
+      })
+
+      it("should format negative numbers as percentage", () => {
+        const fp = new FixedPointNumber(-5n, 3n) // -0.005
+        expect(fp.toString({ asPercentage: true })).toBe("-0.500%")
+      })
+
+      it("should format negative decimals as percentage", () => {
+        const fp = new FixedPointNumber(-125n, 2n) // -1.25
+        expect(fp.toString({ asPercentage: true })).toBe("-125.00%")
+      })
+
+      it("should format high precision numbers as percentage", () => {
+        const fp = new FixedPointNumber(123456n, 10n) // 0.0000123456
+        expect(fp.toString({ asPercentage: true })).toBe("0.0012345600%")
+      })
+
+      it("should preserve trailing zeros in percentage format", () => {
+        const fp = new FixedPointNumber(2500n, 4n) // 0.2500
+        expect(fp.toString({ asPercentage: true })).toBe("25.0000%")
+      })
+
+      it("should handle very small percentages", () => {
+        const fp = new FixedPointNumber(1n, 6n) // 0.000001
+        expect(fp.toString({ asPercentage: true })).toBe("0.000100%")
+      })
+
+      it("should handle large percentages", () => {
+        const fp = new FixedPointNumber(12345n, 2n) // 123.45
+        expect(fp.toString({ asPercentage: true })).toBe("12345.00%")
+      })
+
+      it("should work with default formatting when option not provided", () => {
+        const fp = new FixedPointNumber(2525n, 4n) // 0.2525
+        expect(fp.toString()).toBe("0.2525")
+        expect(fp.toString({})).toBe("0.2525")
+      })
+
+      it("should work with asPercentage: false", () => {
+        const fp = new FixedPointNumber(2525n, 4n) // 0.2525
+        expect(fp.toString({ asPercentage: false })).toBe("0.2525")
+      })
+
+      it("should handle negative numbers with zero whole part as percentage", () => {
+        const fp = new FixedPointNumber(-5n, 1n) // -0.5
+        expect(fp.toString({ asPercentage: true })).toBe("-50.0%")
+      })
+
+      it("should handle edge case: exactly 100%", () => {
+        const fp = new FixedPointNumber(100n, 2n) // 1.00
+        expect(fp.toString({ asPercentage: true })).toBe("100.00%")
+      })
+
+      it("should handle edge case: exactly 50%", () => {
+        const fp = new FixedPointNumber(50n, 2n) // 0.50
+        expect(fp.toString({ asPercentage: true })).toBe("50.00%")
+      })
+    })
+
+    describe("trailing zero control", () => {
+      it("should remove trailing zeros with trailingZeroes: false", () => {
+        const fp = new FixedPointNumber(12300n, 2n) // 123.00
+        expect(fp.toString({ trailingZeroes: false })).toBe("123")
+      })
+
+      it("should remove some trailing zeros but keep significant ones", () => {
+        const fp = new FixedPointNumber(12340n, 2n) // 123.40
+        expect(fp.toString({ trailingZeroes: false })).toBe("123.4")
+      })
+
+      it("should preserve non-trailing zeros", () => {
+        const fp = new FixedPointNumber(12345n, 2n) // 123.45
+        expect(fp.toString({ trailingZeroes: false })).toBe("123.45")
+      })
+
+      it("should handle whole numbers with trailingZeroes: false", () => {
+        const fp = new FixedPointNumber(123n, 0n) // 123
+        expect(fp.toString({ trailingZeroes: false })).toBe("123")
+      })
+
+      it("should handle zero with trailingZeroes: false", () => {
+        const fp = new FixedPointNumber(0n, 3n) // 0.000
+        expect(fp.toString({ trailingZeroes: false })).toBe("0")
+      })
+
+      it("should handle negative numbers with trailing zeros", () => {
+        const fp = new FixedPointNumber(-12300n, 2n) // -123.00
+        expect(fp.toString({ trailingZeroes: false })).toBe("-123")
+      })
+
+      it("should handle negative numbers with some trailing zeros", () => {
+        const fp = new FixedPointNumber(-12340n, 2n) // -123.40
+        expect(fp.toString({ trailingZeroes: false })).toBe("-123.4")
+      })
+
+      it("should handle high precision numbers with trailing zeros", () => {
+        const fp = new FixedPointNumber(1234000n, 6n) // 1.234000
+        expect(fp.toString({ trailingZeroes: false })).toBe("1.234")
+      })
+
+      it("should handle numbers with leading zeros in fractional part", () => {
+        const fp = new FixedPointNumber(1050n, 3n) // 1.050
+        expect(fp.toString({ trailingZeroes: false })).toBe("1.05")
+      })
+
+      it("should handle fractional numbers less than 1", () => {
+        const fp = new FixedPointNumber(500n, 3n) // 0.500
+        expect(fp.toString({ trailingZeroes: false })).toBe("0.5")
+      })
+
+      it("should preserve trailing zeros by default (trailingZeroes: true)", () => {
+        const fp = new FixedPointNumber(12300n, 2n) // 123.00
+        expect(fp.toString()).toBe("123.00")
+        expect(fp.toString({ trailingZeroes: true })).toBe("123.00")
+      })
+    })
+
+    describe("combined formatting options", () => {
+      it("should work with both asPercentage and trailingZeroes: false", () => {
+        const fp = new FixedPointNumber(2500n, 4n) // 0.2500
+        expect(fp.toString({ asPercentage: true, trailingZeroes: false })).toBe("25%")
+      })
+
+      it("should handle percentage with some trailing zeros removed", () => {
+        const fp = new FixedPointNumber(2540n, 4n) // 0.2540
+        expect(fp.toString({ asPercentage: true, trailingZeroes: false })).toBe("25.4%")
+      })
+
+      it("should handle percentage with no trailing zeros to remove", () => {
+        const fp = new FixedPointNumber(2545n, 4n) // 0.2545
+        expect(fp.toString({ asPercentage: true, trailingZeroes: false })).toBe("25.45%")
+      })
+
+      it("should handle negative percentages with trailing zeros", () => {
+        const fp = new FixedPointNumber(-2500n, 4n) // -0.2500
+        expect(fp.toString({ asPercentage: true, trailingZeroes: false })).toBe("-25%")
+      })
+
+      it("should handle zero percentage with trailing zeros", () => {
+        const fp = new FixedPointNumber(0n, 4n) // 0.0000
+        expect(fp.toString({ asPercentage: true, trailingZeroes: false })).toBe("0%")
+      })
+
+      it("should handle whole number percentages", () => {
+        const fp = new FixedPointNumber(100n, 2n) // 1.00
+        expect(fp.toString({ asPercentage: true, trailingZeroes: false })).toBe("100%")
+      })
+
+      it("should handle high precision percentages with trailing zeros", () => {
+        const fp = new FixedPointNumber(123450n, 8n) // 0.00123450
+        expect(fp.toString({ asPercentage: true, trailingZeroes: false })).toBe("0.12345%")
+      })
+
+      it("should preserve trailing zeros in percentage by default", () => {
+        const fp = new FixedPointNumber(2500n, 4n) // 0.2500
+        expect(fp.toString({ asPercentage: true })).toBe("25.0000%")
+        expect(fp.toString({ asPercentage: true, trailingZeroes: true })).toBe("25.0000%")
+      })
+    })
   })
 
   describe("parseString", () => {
@@ -1186,6 +1370,112 @@ describe("FixedPoint factory function", () => {
       expect(() => FixedPoint("abc")).toThrow("Invalid number format")
       expect(() => FixedPoint("123.")).toThrow("Invalid number format")
       expect(() => FixedPoint(".123")).toThrow("Invalid number format")
+    })
+  })
+
+  describe("percentage string parsing", () => {
+    it("should parse simple percentage strings", () => {
+      const fp = FixedPoint("51.1%")
+      expect(fp.amount).toBe(511n)
+      expect(fp.decimals).toBe(3n)
+      expect(fp.equals(FixedPoint({ amount: 511n, decimals: 3n }))).toBe(true)
+    })
+
+    it("should parse whole number percentages", () => {
+      const fp = FixedPoint("100%")
+      expect(fp.amount).toBe(100n)
+      expect(fp.decimals).toBe(2n)
+      expect(fp.equals(FixedPoint({ amount: 100n, decimals: 2n }))).toBe(true)
+    })
+
+    it("should parse zero percentage", () => {
+      const fp = FixedPoint("0%")
+      expect(fp.amount).toBe(0n)
+      expect(fp.decimals).toBe(2n)
+      expect(fp.equals(FixedPoint({ amount: 0n, decimals: 2n }))).toBe(true)
+    })
+
+    it("should parse negative percentages", () => {
+      const fp = FixedPoint("-25%")
+      expect(fp.amount).toBe(-25n)
+      expect(fp.decimals).toBe(2n)
+      expect(fp.equals(FixedPoint({ amount: -25n, decimals: 2n }))).toBe(true)
+    })
+
+    it("should parse high precision percentages", () => {
+      const fp = FixedPoint("12.345%")
+      expect(fp.amount).toBe(12345n)
+      expect(fp.decimals).toBe(5n)
+      expect(fp.equals(FixedPoint({ amount: 12345n, decimals: 5n }))).toBe(true)
+    })
+
+    it("should parse small percentages", () => {
+      const fp = FixedPoint("0.1%")
+      expect(fp.amount).toBe(1n)
+      expect(fp.decimals).toBe(3n)
+      expect(fp.equals(FixedPoint({ amount: 1n, decimals: 3n }))).toBe(true)
+    })
+
+    it("should parse very small percentages", () => {
+      const fp = FixedPoint("0.01%")
+      expect(fp.amount).toBe(1n)
+      expect(fp.decimals).toBe(4n)
+      expect(fp.equals(FixedPoint({ amount: 1n, decimals: 4n }))).toBe(true)
+    })
+
+    it("should parse percentages with trailing zeros", () => {
+      const fp = FixedPoint("50.00%")
+      expect(fp.amount).toBe(5000n)
+      expect(fp.decimals).toBe(4n)
+      expect(fp.equals(FixedPoint({ amount: 5000n, decimals: 4n }))).toBe(true)
+    })
+
+    it("should parse large percentages", () => {
+      const fp = FixedPoint("200%")
+      expect(fp.amount).toBe(200n)
+      expect(fp.decimals).toBe(2n)
+      expect(fp.equals(FixedPoint({ amount: 200n, decimals: 2n }))).toBe(true)
+    })
+
+    it("should parse fractional percentages", () => {
+      const fp = FixedPoint("33.333%")
+      expect(fp.amount).toBe(33333n)
+      expect(fp.decimals).toBe(5n)
+      expect(fp.equals(FixedPoint({ amount: 33333n, decimals: 5n }))).toBe(true)
+    })
+
+    it("should handle negative small percentages", () => {
+      const fp = FixedPoint("-0.5%")
+      expect(fp.amount).toBe(-5n)
+      expect(fp.decimals).toBe(3n)
+      expect(fp.equals(FixedPoint({ amount: -5n, decimals: 3n }))).toBe(true)
+    })
+
+    it("should throw for invalid percentage formats", () => {
+      expect(() => FixedPoint("abc%")).toThrow("Invalid number format")
+      expect(() => FixedPoint("123.%")).toThrow("Invalid number format")
+      expect(() => FixedPoint(".123%")).toThrow("Invalid number format")
+      expect(() => FixedPoint("%")).toThrow("Invalid number format")
+      expect(() => FixedPoint("-%")).toThrow("Invalid number format")
+    })
+
+    it("should round-trip with percentage toString", () => {
+      const original = FixedPoint("25.5%")
+      const asPercentage = original.toString({ asPercentage: true })
+      expect(asPercentage).toBe("25.500%")
+      
+      const roundTrip = FixedPoint(asPercentage)
+      expect(roundTrip.equals(original)).toBe(true)
+    })
+
+    it("should handle edge case: exactly 100%", () => {
+      const fp = FixedPoint("100%")
+      expect(fp.toString()).toBe("1.00")
+    })
+
+    it("should handle edge case: exactly 50%", () => {
+      const fp = FixedPoint("50%")
+      expect(fp.toString()).toBe("0.50")
     })
   })
 

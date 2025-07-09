@@ -121,3 +121,13 @@ export type PricePoint = {
   amounts: [AssetAmount, AssetAmount]
   time: UNIXTime
 }
+
+/**
+ * Formatting options for FixedPointNumber.toString()
+ */
+export type FormatOptions = {
+  /** Format as percentage (multiplies by 100 and adds % suffix) */
+  asPercentage?: boolean
+  /** Include trailing zeros after decimal point (defaults to true) */
+  trailingZeroes?: boolean
+}

@@ -3,6 +3,7 @@ import type {
   FixedPoint as FixedPointType,
   Ratio,
   DecimalString,
+  FormatOptions,
 } from "./types"
 import { isOnlyFactorsOf2And5 } from "./math-utils"
 
@@ -289,39 +290,65 @@ export class FixedPointNumber implements FixedPointType, Ratio {
   /**
    * Convert the fixed-point number to a string representation
    *
-   * @returns A string representation of the number (e.g., "10234.25")
+   * @param options - Optional formatting options
+   * @param options.asPercentage - Format as percentage (multiplies by 100 and adds % suffix)
+   * @param options.trailingZeroes - Include trailing zeros after decimal point (defaults to true)
+   * @returns A string representation of the number (e.g., "10234.25" or "1023.425%")
    */
-  toString(): DecimalString {
-    const factor = 10n ** this.decimals
-    const wholePart = this.amount / factor
-    const fractionPart = this.amount % factor
+  toString(options?: FormatOptions): DecimalString {
+    // If percentage formatting is requested, multiply by 100 first
+    const numberToFormat = options?.asPercentage ? this.multiply(new FixedPointNumber(100n, 0n)) : this
+    
+    const factor = 10n ** numberToFormat.decimals
+    const wholePart = numberToFormat.amount / factor
+    const fractionPart = numberToFormat.amount % factor
+
+    let result: string
 
     // if decimals is 0, just return the whole part
-    if (this.decimals === 0n) {
-      return wholePart.toString() as DecimalString
+    if (numberToFormat.decimals === 0n) {
+      result = wholePart.toString()
+    } else {
+      // Handle negative numbers correctly
+      if (numberToFormat.amount < 0n && wholePart === 0n) {
+        // For negative numbers where wholePart is 0 (e.g., -0.5)
+        // we need to preserve the negative sign and use absolute value of fractionPart
+        const absFractionPart = -fractionPart
+        let fractionStr = absFractionPart.toString()
+        const padding = Number(numberToFormat.decimals) - fractionStr.length
+        if (padding > 0) {
+          fractionStr = "0".repeat(padding) + fractionStr
+        }
+        result = `-0.${fractionStr}`
+      } else {
+        // For positive numbers or negative numbers with non-zero whole part
+        // convert fraction part to string and pad with leading zeros if needed
+        let fractionStr =
+          fractionPart < 0n ? (-fractionPart).toString() : fractionPart.toString()
+        const padding = Number(numberToFormat.decimals) - fractionStr.length
+        if (padding > 0) {
+          fractionStr = "0".repeat(padding) + fractionStr
+        }
+        result = `${wholePart.toString()}.${fractionStr}`
+      }
     }
 
-    // Handle negative numbers correctly
-    if (this.amount < 0n && wholePart === 0n) {
-      // For negative numbers where wholePart is 0 (e.g., -0.5)
-      // we need to preserve the negative sign and use absolute value of fractionPart
-      const absFractionPart = -fractionPart
-      let fractionStr = absFractionPart.toString()
-      const padding = Number(this.decimals) - fractionStr.length
-      if (padding > 0) {
-        fractionStr = "0".repeat(padding) + fractionStr
+    // Remove trailing zeros if trailingZeroes is false (default is true)
+    if (options?.trailingZeroes === false && result.includes('.')) {
+      // Remove trailing zeros after decimal point
+      result = result.replace(/\.?0+$/, '')
+      // If we removed all decimal places, don't leave a trailing dot
+      if (result.endsWith('.')) {
+        result = result.slice(0, -1)
       }
-      return `-0.${fractionStr}` as DecimalString
     }
-    // For positive numbers or negative numbers with non-zero whole part
-    // convert fraction part to string and pad with leading zeros if needed
-    let fractionStr =
-      fractionPart < 0n ? (-fractionPart).toString() : fractionPart.toString()
-    const padding = Number(this.decimals) - fractionStr.length
-    if (padding > 0) {
-      fractionStr = "0".repeat(padding) + fractionStr
+
+    // Add percentage suffix if requested
+    if (options?.asPercentage) {
+      result += "%"
     }
-    return `${wholePart.toString()}.${fractionStr}` as DecimalString
+
+    return result as DecimalString
   }
 
   /**
@@ -652,7 +679,13 @@ export class FixedPointNumber implements FixedPointType, Ratio {
 
 /**
  * Factory function for creating FixedPointNumber instances
- * Supports string parsing, FixedPoint objects, and original constructor signatures
+ * Supports string parsing (including percentage strings), FixedPoint objects, and original constructor signatures
+ * 
+ * @example
+ * FixedPoint("123.45")     // Parses as 123.45
+ * FixedPoint("51.1%")      // Parses as 0.511 (percentage converted to decimal)
+ * FixedPoint({ amount: 123n, decimals: 2n })  // From FixedPoint object
+ * FixedPoint(123n, 2n)     // From bigint amount and decimals
  */
 export function FixedPoint(str: string | DecimalString): FixedPointNumber
 export function FixedPoint(fixedPoint: FixedPointType): FixedPointNumber
@@ -663,6 +696,17 @@ export function FixedPoint(
 ): FixedPointNumber {
   if (typeof amountOrStrOrFixedPoint === "string") {
     // String parsing mode
+    const str = amountOrStrOrFixedPoint
+    
+    // Check if it's a percentage string (ends with %)
+    if (str.endsWith('%')) {
+      // Remove the % suffix and parse as decimal
+      const percentageStr = str.slice(0, -1)
+      const percentage = FixedPointNumber.fromDecimalString(percentageStr)
+      // Convert percentage to decimal by dividing by 100
+      return percentage.divide(new FixedPointNumber(100n, 0n))
+    }
+    
     return FixedPointNumber.fromDecimalString(amountOrStrOrFixedPoint)
   }
   if (

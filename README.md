@@ -163,9 +163,17 @@ import { FixedPoint, Rational } from '@your-org/cent'
 const price = FixedPoint('1255.50')  // Auto-detects 2 decimals
 const rate = FixedPoint('0.875')     // Auto-detects 3 decimals
 
+// Percentage strings are automatically converted to decimals
+const percentage = FixedPoint('51.5%')  // Becomes 0.515 (auto-detects 3 decimals)
+const tax = FixedPoint('8.25%')         // Becomes 0.0825 (auto-detects 4 decimals)
+
 // Arithmetic operations with automatic precision handling
 const product = price.multiply("0.875")
 console.log(product.toString()) // "1098.5625"
+
+// Use percentage parsing in calculations
+const totalWithTax = price.multiply(FixedPoint('8.25%'))
+console.log(totalWithTax.toString()) // "103.5788" (8.25% of $1255.50)
 
 // Precise division (only multiples of 2 and 5)
 const half = price.divide("2")
@@ -464,6 +472,7 @@ console.log(change.toString()) // "$0.00123" (sub-unit precision)
 
 **`FixedPoint()`** - Create fixed-point numbers with ease
 - `FixedPoint(str)` - Parse decimal string, auto-detect precision (e.g., `FixedPoint('123.45')`)
+- `FixedPoint(percentage)` - Parse percentage string, auto-convert to decimal (e.g., `FixedPoint('51.5%')` → `0.515`)
 - `FixedPoint(fixedPoint)` - Copy/clone existing FixedPoint object (e.g., `FixedPoint(existing)`)
 - `FixedPoint(amount, decimals)` - Create from bigint values (e.g., `FixedPoint(12345n, 2n)`)
 
