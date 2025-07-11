@@ -300,12 +300,13 @@ function parseCurrencyCodeAmount(
 }
 
 /**
- * Try to parse currency code format: "USD 100", "100 EUR"
+ * Try to parse currency code format: "USD 100", "100 EUR", "USDT 5", "5 USDC"
  */
 function tryParseCurrencyCode(input: string): MoneyParseResult | null {
   // Pattern: code + space + number OR number + space + code
-  const codeFirstMatch = input.match(/^([A-Z]{3})\s+([0-9,. -]+)$/i)
-  const codeLastMatch = input.match(/^([0-9,. -]+)\s+([A-Z]{3})$/i)
+  // Support both 3-letter (ISO 4217) and 4-letter (crypto) currency codes
+  const codeFirstMatch = input.match(/^([A-Z]{3,4})\s+([0-9,. -]+)$/i)
+  const codeLastMatch = input.match(/^([0-9,. -]+)\s+([A-Z]{3,4})$/i)
 
   if (codeFirstMatch) {
     const [, code, amountStr] = codeFirstMatch

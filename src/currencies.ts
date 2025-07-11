@@ -1419,6 +1419,22 @@ export const SOL: Currency = {
   iso4217Support: false,
 }
 
+export const USDC: Currency = {
+  name: "USD Coin",
+  code: "USDC",
+  decimals: 6n,
+  symbol: "USDC",
+  iso4217Support: false,
+}
+
+export const USDT: Currency = {
+  name: "Tether",
+  code: "USDT",
+  decimals: 6n,
+  symbol: "USDT",
+  iso4217Support: false,
+}
+
 // record of all currencies by code
 export const currencies: Record<string, Currency> = {
   AFN,
@@ -1578,6 +1594,8 @@ export const currencies: Record<string, Currency> = {
   BTC,
   ETH,
   SOL,
+  USDC,
+  USDT,
 }
 
 /**

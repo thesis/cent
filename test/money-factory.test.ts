@@ -1,6 +1,6 @@
 import { Money } from "../src/index"
 import { Money as MoneyClass } from "../src/money"
-import { USD, EUR, GBP, JPY, BTC, ETH, CNY as __CNY } from "../src/currencies"
+import { USD, EUR, GBP, JPY, BTC, ETH, CNY as __CNY, USDT, USDC } from "../src/currencies"
 
 describe("Money Factory Function", () => {
   describe("US Number Format (1,234.56)", () => {
@@ -376,6 +376,82 @@ describe("Money Factory Function", () => {
             new MoneyClass({
               asset: EUR,
               amount: { amount: 123456n, decimals: 2n },
+            }),
+          ),
+        ).toBe(true)
+      })
+    })
+  })
+
+  describe("Stablecoin Currencies", () => {
+    describe("USDT (Tether)", () => {
+      it("should parse USDT amounts with currency code", () => {
+        expect(
+          Money("5 USDT").equals(
+            new MoneyClass({
+              asset: USDT,
+              amount: { amount: 5000000n, decimals: 6n },
+            }),
+          ),
+        ).toBe(true)
+        expect(
+          Money("USDT 5").equals(
+            new MoneyClass({
+              asset: USDT,
+              amount: { amount: 5000000n, decimals: 6n },
+            }),
+          ),
+        ).toBe(true)
+        expect(
+          Money("100.50 USDT").equals(
+            new MoneyClass({
+              asset: USDT,
+              amount: { amount: 100500000n, decimals: 6n },
+            }),
+          ),
+        ).toBe(true)
+        expect(
+          Money("USDT 100.50").equals(
+            new MoneyClass({
+              asset: USDT,
+              amount: { amount: 100500000n, decimals: 6n },
+            }),
+          ),
+        ).toBe(true)
+      })
+    })
+
+    describe("USDC (USD Coin)", () => {
+      it("should parse USDC amounts with currency code", () => {
+        expect(
+          Money("1000.000001 USDC").equals(
+            new MoneyClass({
+              asset: USDC,
+              amount: { amount: 1000000001n, decimals: 6n },
+            }),
+          ),
+        ).toBe(true)
+        expect(
+          Money("USDC 1000.000001").equals(
+            new MoneyClass({
+              asset: USDC,
+              amount: { amount: 1000000001n, decimals: 6n },
+            }),
+          ),
+        ).toBe(true)
+        expect(
+          Money("50.123456 USDC").equals(
+            new MoneyClass({
+              asset: USDC,
+              amount: { amount: 50123456n, decimals: 6n },
+            }),
+          ),
+        ).toBe(true)
+        expect(
+          Money("USDC 50.123456").equals(
+            new MoneyClass({
+              asset: USDC,
+              amount: { amount: 50123456n, decimals: 6n },
             }),
           ),
         ).toBe(true)
