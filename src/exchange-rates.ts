@@ -1,11 +1,10 @@
 import { z } from "zod"
 import { AssetAmount, UNIXTime } from "./types"
-import { Money as MoneyClass } from "./money"
+import { Money as MoneyClass, AnyAssetJSONSchema } from "./money"
 import { Price } from "./prices"
 import { ExchangeRateSource } from "./exchange-rate-sources"
 import { UNIXTimeSchema } from "./time"
 import { NonNegativeBigIntStringSchema } from "./validation-schemas"
-import { AnyAssetJSONSchema } from "./money"
 
 // Schema for FixedPoint amounts in JSON (object format for exchange rates)
 const FixedPointObjectJSONSchema = z.object({

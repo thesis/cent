@@ -3,6 +3,7 @@ import {
   FixedPointJSONSchema,
   FixedPoint,
 } from "../src/fixed-point"
+import { RoundingMode } from "../src/types"
 
 describe("FixedPointNumber", () => {
   describe("constructor", () => {
@@ -1919,6 +1920,242 @@ describe("FixedPoint factory function", () => {
       expect(normalizedBitSize).toBeGreaterThanOrEqual(originalBitSize)
       expect(normalized.amount).toBe(1230n)
       expect(normalized.decimals).toBe(3n)
+    })
+  })
+
+  describe("toPrecision", () => {
+    describe("basic precision control", () => {
+      it("should reduce to specified number of significant digits", () => {
+        // 1234567890n with 10 decimals = 1.234567890
+        // toPrecision(5) should give 1.2345 = 12345n with 5 decimals
+        const fp = new FixedPointNumber(1234567890n, 10n)
+        const result = fp.toPrecision(5n)
+        
+        expect(result.amount).toBe(12345n)
+        expect(result.decimals).toBe(5n)
+      })
+
+      it("should handle the user's specific example with TRUNC rounding", () => {
+        // FixedPointNumber({ amount: 1234567890n, decimals: 10n }).toPrecision(5n, { roundingMode: RoundingModes.TRUNC })
+        // should equal { amount: 12345n, decimals: 5n }
+        const fp = new FixedPointNumber(1234567890n, 10n)
+        const result = fp.toPrecision(5n, { roundingMode: RoundingMode.TRUNC })
+        
+        expect(result.amount).toBe(12345n)
+        expect(result.decimals).toBe(5n)
+        expect(result.equals({ amount: 12345n, decimals: 5n })).toBe(true)
+      })
+
+      it("should work with small numbers requiring padding", () => {
+        // 0.000123 with precision 2 should give 0.00012
+        const fp = new FixedPointNumber(123n, 6n) // 0.000123
+        const result = fp.toPrecision(2n)
+        
+        expect(result.amount).toBe(12n)
+        expect(result.decimals).toBe(5n) // 0.00012 = 12n with 5 decimals
+      })
+
+      it("should work with large numbers", () => {
+        // 12345.67 with precision 3 should give 123 (with appropriate decimals)
+        const fp = new FixedPointNumber(1234567n, 2n) // 12345.67
+        const result = fp.toPrecision(3n)
+        
+        expect(result.amount).toBe(123n)
+        expect(result.decimals).toBe(-2n) // 123 * 10^2 = 12300
+      })
+
+      it("should handle numbers that need no change", () => {
+        // 1.23 with precision 3 should remain 1.23
+        const fp = new FixedPointNumber(123n, 2n) // 1.23
+        const result = fp.toPrecision(3n)
+        
+        expect(result.amount).toBe(123n)
+        expect(result.decimals).toBe(2n)
+      })
+
+      it("should handle precision greater than current significant digits", () => {
+        // 1.5 with precision 5 should give 1.5000
+        const fp = new FixedPointNumber(15n, 1n) // 1.5
+        const result = fp.toPrecision(5n)
+        
+        expect(result.amount).toBe(15000n)
+        expect(result.decimals).toBe(4n)
+      })
+    })
+
+    describe("different rounding modes", () => {
+      it("should use TRUNC rounding mode by default", () => {
+        // 1.999 with precision 2 should give 1.9 with TRUNC
+        const fp = new FixedPointNumber(1999n, 3n) // 1.999
+        const result = fp.toPrecision(2n)
+        
+        expect(result.amount).toBe(19n)
+        expect(result.decimals).toBe(1n) // 1.9
+      })
+
+      it("should support CEIL rounding mode", () => {
+        // 1.231 with precision 2 should give 1.3 with CEIL
+        const fp = new FixedPointNumber(1231n, 3n) // 1.231
+        const result = fp.toPrecision(2n, { roundingMode: RoundingMode.CEIL })
+        
+        expect(result.amount).toBe(13n)
+        expect(result.decimals).toBe(1n) // 1.3
+      })
+
+      it("should support FLOOR rounding mode", () => {
+        // 1.999 with precision 2 should give 1.9 with FLOOR
+        const fp = new FixedPointNumber(1999n, 3n) // 1.999
+        const result = fp.toPrecision(2n, { roundingMode: RoundingMode.FLOOR })
+        
+        expect(result.amount).toBe(19n)
+        expect(result.decimals).toBe(1n) // 1.9
+      })
+
+      it("should support HALF_EVEN rounding mode", () => {
+        // 1.225 with precision 3 should give 1.22 with HALF_EVEN (banker's rounding)
+        const fp = new FixedPointNumber(1225n, 3n) // 1.225
+        const result = fp.toPrecision(3n, { roundingMode: RoundingMode.HALF_EVEN })
+        
+        expect(result.amount).toBe(122n)
+        expect(result.decimals).toBe(2n) // 1.22
+      })
+
+      it("should support EXPAND rounding mode", () => {
+        // 1.231 with precision 2 should give 1.3 with EXPAND (away from zero)
+        const fp = new FixedPointNumber(1231n, 3n) // 1.231
+        const result = fp.toPrecision(2n, { roundingMode: RoundingMode.EXPAND })
+        
+        expect(result.amount).toBe(13n)
+        expect(result.decimals).toBe(1n) // 1.3
+      })
+    })
+
+    describe("negative numbers", () => {
+      it("should handle negative numbers with TRUNC rounding", () => {
+        // -1.999 with precision 2 should give -1.9 with TRUNC
+        const fp = new FixedPointNumber(-1999n, 3n) // -1.999
+        const result = fp.toPrecision(2n, { roundingMode: RoundingMode.TRUNC })
+        
+        expect(result.amount).toBe(-19n)
+        expect(result.decimals).toBe(1n) // -1.9
+      })
+
+      it("should handle negative numbers with CEIL rounding", () => {
+        // -1.231 with precision 2 should give -1.2 with CEIL (toward positive infinity)
+        const fp = new FixedPointNumber(-1231n, 3n) // -1.231
+        const result = fp.toPrecision(2n, { roundingMode: RoundingMode.CEIL })
+        
+        expect(result.amount).toBe(-12n)
+        expect(result.decimals).toBe(1n) // -1.2
+      })
+
+      it("should handle negative numbers with FLOOR rounding", () => {
+        // -1.231 with precision 2 should give -1.3 with FLOOR (toward negative infinity)
+        const fp = new FixedPointNumber(-1231n, 3n) // -1.231
+        const result = fp.toPrecision(2n, { roundingMode: RoundingMode.FLOOR })
+        
+        expect(result.amount).toBe(-13n)
+        expect(result.decimals).toBe(1n) // -1.3
+      })
+    })
+
+    describe("edge cases", () => {
+      it("should handle zero", () => {
+        const fp = new FixedPointNumber(0n, 5n) // 0.00000
+        const result = fp.toPrecision(3n)
+        
+        expect(result.amount).toBe(0n)
+        expect(result.decimals).toBe(0n) // Just 0
+      })
+
+      it("should handle very small numbers", () => {
+        // 0.0000001 with precision 1 should give 0.0000001 (1 significant digit)
+        const fp = new FixedPointNumber(1n, 7n) // 0.0000001
+        const result = fp.toPrecision(1n)
+        
+        expect(result.amount).toBe(1n)
+        expect(result.decimals).toBe(7n) // 0.0000001
+      })
+
+      it("should handle numbers with all significant digits before decimal", () => {
+        // 12000 with precision 2 should give 12000 (represented as 12 * 10^3)
+        const fp = new FixedPointNumber(12000n, 0n) // 12000
+        const result = fp.toPrecision(2n)
+        
+        expect(result.amount).toBe(12n)
+        expect(result.decimals).toBe(-3n) // 12 * 10^3 = 12000
+      })
+
+      it("should handle precision of 1", () => {
+        // 12.345 with precision 1 should give 1 * 10^1 = 10
+        const fp = new FixedPointNumber(12345n, 3n) // 12.345
+        const result = fp.toPrecision(1n)
+        
+        expect(result.amount).toBe(1n)
+        expect(result.decimals).toBe(-1n) // 1 * 10^1 = 10
+      })
+
+      it("should handle very large precision values", () => {
+        // Test with precision larger than current digits
+        const fp = new FixedPointNumber(123n, 2n) // 1.23
+        const result = fp.toPrecision(10n)
+        
+        expect(result.amount).toBe(1230000000n)
+        expect(result.decimals).toBe(9n) // 1.230000000
+      })
+    })
+
+    describe("error handling", () => {
+      it("should throw error for zero precision", () => {
+        const fp = new FixedPointNumber(123n, 2n)
+        
+        expect(() => fp.toPrecision(0n)).toThrow("precision must be positive")
+      })
+
+      it("should throw error for negative precision", () => {
+        const fp = new FixedPointNumber(123n, 2n)
+        
+        expect(() => fp.toPrecision(-1n)).toThrow("precision must be positive")
+      })
+
+      it("should throw error for precision exceeding maximum", () => {
+        const fp = new FixedPointNumber(123n, 2n)
+        
+        expect(() => fp.toPrecision(51n)).toThrow("precision must be between 1 and 50")
+      })
+    })
+
+    describe("mathematical consistency", () => {
+      it("should maintain mathematical relationships", () => {
+        const fp = new FixedPointNumber(314159n, 5n) // 3.14159
+        const result2 = fp.toPrecision(2n) // Should be 3.1
+        const result3 = fp.toPrecision(3n) // Should be 3.14
+        
+        expect(result2.amount).toBe(31n)
+        expect(result2.decimals).toBe(1n)
+        expect(result3.amount).toBe(314n)
+        expect(result3.decimals).toBe(2n)
+      })
+
+      it("should handle rounding boundaries correctly", () => {
+        // Test values exactly at rounding boundaries
+        const fp = new FixedPointNumber(125n, 2n) // 1.25
+        const resultTrunc = fp.toPrecision(2n, { roundingMode: RoundingMode.TRUNC })
+        const resultHalfEven = fp.toPrecision(2n, { roundingMode: RoundingMode.HALF_EVEN })
+        
+        expect(resultTrunc.amount).toBe(12n)
+        expect(resultTrunc.decimals).toBe(1n) // 1.2
+        expect(resultHalfEven.amount).toBe(12n) // Should round to even (1.2)
+        expect(resultHalfEven.decimals).toBe(1n)
+      })
+
+      it("should be idempotent when precision matches current precision", () => {
+        const fp = new FixedPointNumber(123n, 2n) // 1.23
+        const result = fp.toPrecision(3n) // 3 significant digits, should add a zero
+        const secondResult = result.toPrecision(3n) // Should be unchanged
+        
+        expect(result.equals(secondResult)).toBe(true)
+      })
     })
   })
 })

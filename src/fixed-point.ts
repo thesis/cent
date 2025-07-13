@@ -5,6 +5,7 @@ import type {
   DecimalString,
   FormatOptions,
 } from "./types"
+import { RoundingMode } from "./types"
 import { isOnlyFactorsOf2And5, getBitSize } from "./math-utils"
 
 export const FixedPointJSONSchema = z
@@ -519,6 +520,194 @@ export class FixedPointNumber implements FixedPointType, Ratio {
    */
   getBitSize(): number {
     return getBitSize(this.amount) + getBitSize(this.decimals)
+  }
+
+  /**
+   * Reduce this FixedPointNumber to a specified number of significant digits
+   *
+   * @param precision - The number of significant digits to keep (must be between 1 and 50)
+   * @param options - Optional rounding options (defaults to TRUNC rounding)
+   * @returns A new FixedPointNumber with the specified precision
+   * @throws Error if precision is invalid
+   */
+  toPrecision(
+    precision: bigint,
+    options?: { roundingMode?: RoundingMode },
+  ): FixedPointNumber {
+    if (precision <= 0n) {
+      throw new Error("precision must be positive")
+    }
+
+    if (precision > 50n) {
+      throw new Error("precision must be between 1 and 50")
+    }
+
+    const roundingMode = options?.roundingMode || RoundingMode.TRUNC
+
+    // Handle zero specially
+    if (this.amount === 0n) {
+      return new FixedPointNumber(0n, 0n)
+    }
+
+    // Convert to decimal to determine magnitude
+    const decimalValue = Number(this.amount) / Number(10n ** this.decimals)
+
+    // Find the order of magnitude (how many digits before decimal point)
+    let magnitude = 0
+    if (decimalValue !== 0) {
+      const absValue = Math.abs(decimalValue)
+      if (absValue >= 1) {
+        magnitude = Math.floor(Math.log10(absValue)) + 1
+      } else {
+        // For values < 1, we need to count the leading zeros after decimal point
+        // This means the magnitude is negative for very small numbers
+        magnitude = Math.floor(Math.log10(absValue)) + 1
+      }
+    }
+
+    // Calculate how many decimal places we need
+    // precision = total significant digits
+    // magnitude = digits before decimal point (can be negative for small numbers)
+    // decimalPlaces = precision - magnitude
+    const targetDecimalPlaces = Number(precision) - magnitude
+
+    if (targetDecimalPlaces >= 0) {
+      // Standard case: positive decimal places
+      const targetDecimals = BigInt(targetDecimalPlaces)
+
+      if (targetDecimals >= this.decimals) {
+        // Scaling up - multiply by appropriate power of 10
+        const scaleFactor = 10n ** (targetDecimals - this.decimals)
+        return new FixedPointNumber(this.amount * scaleFactor, targetDecimals)
+      }
+      // Scaling down - need to apply rounding
+      const divisor = 10n ** (this.decimals - targetDecimals)
+      const roundedAmount = FixedPointNumber.applyRounding(
+        this.amount,
+        divisor,
+        roundingMode,
+      )
+      return new FixedPointNumber(roundedAmount, targetDecimals)
+    }
+    // Negative decimal places: scale down for fewer significant digits
+    // Example: 12345.67 with precision 3 should become 123 × 10^2 = 12300
+    const targetDecimals = BigInt(targetDecimalPlaces)
+
+    // We need to determine how many total digits to remove from the right of the raw amount
+    // For 12345.67 (1234567 raw), magnitude=5, precision=3, targetDecimalPlaces=-2
+    // We want to keep first 3 digits: 123
+    // We need to remove (total digits - precision) = (7 - 3) = 4 digits
+    const totalDigitsInAmount = this.amount.toString().replace("-", "").length
+    const digitsToKeep = Number(precision)
+    const digitsToRemove = totalDigitsInAmount - digitsToKeep
+
+    const totalScaleDown = 10n ** BigInt(digitsToRemove)
+    const roundedAmount = FixedPointNumber.applyRounding(
+      this.amount,
+      totalScaleDown,
+      roundingMode,
+    )
+
+    return new FixedPointNumber(roundedAmount, targetDecimals)
+  }
+
+  /**
+   * Apply rounding to a fraction based on the specified rounding mode
+   *
+   * @param numerator - The numerator of the fraction to round
+   * @param denominator - The denominator of the fraction to round
+   * @param roundingMode - The rounding mode to apply
+   * @returns The rounded integer value
+   */
+  private static applyRounding(
+    numerator: bigint,
+    denominator: bigint,
+    roundingMode: RoundingMode,
+  ): bigint {
+    if (denominator === 0n) {
+      throw new Error("Cannot round with zero denominator")
+    }
+
+    const quotient = numerator / denominator
+    const remainder = numerator % denominator
+
+    // If there's no remainder, no rounding needed
+    if (remainder === 0n) {
+      return quotient
+    }
+
+    const isNegative = numerator < 0n !== denominator < 0n
+    const absRemainder = remainder < 0n ? -remainder : remainder
+    const absDenominator = denominator < 0n ? -denominator : denominator
+
+    // For proper comparison, we need to compare 2*remainder with denominator
+    // instead of remainder with denominator/2 (to avoid fractional division)
+    const doubleRemainder = absRemainder * 2n
+
+    switch (roundingMode) {
+      case "ceil":
+        // Round toward positive infinity
+        return isNegative ? quotient : quotient + 1n
+
+      case "floor":
+        // Round toward negative infinity
+        return isNegative ? quotient - 1n : quotient
+
+      case "expand":
+        // Round away from zero
+        return quotient + (isNegative ? -1n : 1n)
+
+      case "trunc":
+        // Round toward zero
+        return quotient
+
+      case "halfCeil":
+        // Round to nearest, ties toward positive infinity
+        if (doubleRemainder > absDenominator) {
+          return quotient + (isNegative ? -1n : 1n)
+        }
+        if (doubleRemainder === absDenominator) {
+          return isNegative ? quotient : quotient + 1n
+        }
+        return quotient
+
+      case "halfFloor":
+        // Round to nearest, ties toward negative infinity
+        if (doubleRemainder > absDenominator) {
+          return quotient + (isNegative ? -1n : 1n)
+        }
+        if (doubleRemainder === absDenominator) {
+          return isNegative ? quotient - 1n : quotient
+        }
+        return quotient
+
+      case "halfExpand":
+        // Round to nearest, ties away from zero
+        if (doubleRemainder >= absDenominator) {
+          return quotient + (isNegative ? -1n : 1n)
+        }
+        return quotient
+
+      case "halfTrunc":
+        // Round to nearest, ties toward zero
+        if (doubleRemainder > absDenominator) {
+          return quotient + (isNegative ? -1n : 1n)
+        }
+        return quotient
+
+      case "halfEven":
+      default:
+        // Round to nearest, ties toward even
+        if (doubleRemainder > absDenominator) {
+          return quotient + (isNegative ? -1n : 1n)
+        }
+        if (doubleRemainder === absDenominator) {
+          // Check if quotient is even
+          const adjustedQuotient = quotient + (isNegative ? -1n : 1n)
+          return adjustedQuotient % 2n === 0n ? adjustedQuotient : quotient
+        }
+        return quotient
+    }
   }
 
   /**
