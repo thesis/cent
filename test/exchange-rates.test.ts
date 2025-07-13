@@ -468,4 +468,175 @@ describe("ExchangeRate", () => {
       }
     })
   })
+
+  describe("toString() formatting", () => {
+    const usdBtcRate = new ExchangeRate(
+      {
+        asset: usdCurrency,
+        amount: { amount: 11700000n, decimals: 2n }, // $117,000.00
+      },
+      {
+        asset: btcCurrency,
+        amount: { amount: 100000000n, decimals: 8n }, // 1.00000000 BTC
+      }
+    )
+
+    describe("symbol format (default)", () => {
+      it("should format with symbol and denominator code by default", () => {
+        const result = usdBtcRate.toString()
+        expect(result).toBe("$117,000.00 / BTC")
+      })
+
+      it("should show symbol for numerator when requested", () => {
+        const result = usdBtcRate.toString({ 
+          showSymbolFor: 'numerator' 
+        })
+        expect(result).toBe("$117,000.00 / BTC")
+      })
+
+      it("should show no symbols when requested", () => {
+        const result = usdBtcRate.toString({ 
+          showSymbolFor: 'none' 
+        })
+        expect(result).toBe("117,000.00 / BTC")
+      })
+
+      it("should show symbols for both when requested", () => {
+        const result = usdBtcRate.toString({ 
+          showSymbolFor: 'both' 
+        })
+        expect(result).toBe("$117,000.00 / ₿")
+      })
+    })
+
+    describe("code format", () => {
+      it("should format with symbol and currency pair code", () => {
+        const result = usdBtcRate.toString({ format: 'code' })
+        expect(result).toBe("$117,000.00 BTCUSD")
+      })
+
+      it("should format without symbol when showSymbolFor is none", () => {
+        const result = usdBtcRate.toString({ 
+          format: 'code',
+          showSymbolFor: 'none'
+        })
+        expect(result).toBe("117,000.00 BTCUSD")
+      })
+    })
+
+    describe("ratio format", () => {
+      it("should format as currency code ratio", () => {
+        const result = usdBtcRate.toString({ format: 'ratio' })
+        expect(result).toBe("117,000.00 USD/BTC")
+      })
+
+      it("should ignore showSymbolFor in ratio format", () => {
+        const result = usdBtcRate.toString({ 
+          format: 'ratio',
+          showSymbolFor: 'both'
+        })
+        expect(result).toBe("117,000.00 USD/BTC")
+      })
+    })
+
+    describe("precision handling", () => {
+      it("should use quote currency decimals by default", () => {
+        // BTC has 8 decimals, but rate value should use USD decimals (2)
+        const result = usdBtcRate.toString()
+        expect(result).toBe("$117,000.00 / BTC")
+      })
+
+      it("should use custom precision when provided", () => {
+        const result = usdBtcRate.toString({ precision: 4 })
+        expect(result).toBe("$117,000.0000 / BTC")
+      })
+
+      it("should use zero precision when specified", () => {
+        const result = usdBtcRate.toString({ precision: 0 })
+        expect(result).toBe("$117,000 / BTC")
+      })
+    })
+
+    describe("locale formatting", () => {
+      it("should format numbers according to US locale by default", () => {
+        const result = usdBtcRate.toString()
+        expect(result).toBe("$117,000.00 / BTC")
+      })
+
+      it("should format numbers according to German locale", () => {
+        const result = usdBtcRate.toString({ locale: 'de-DE' })
+        expect(result).toBe("$117.000,00 / BTC")
+      })
+
+      it("should format numbers according to French locale", () => {
+        const result = usdBtcRate.toString({ locale: 'fr-FR' })
+        // French locale uses non-breaking space and comma decimal separator
+        expect(result).toMatch(/\$117[\s]000,00 \/ BTC/)
+      })
+    })
+
+    describe("edge cases", () => {
+      it("should handle rates with no symbols", () => {
+        const customCurrency = {
+          name: "Custom Currency",
+          code: "CUS",
+          decimals: 2n,
+        }
+        const rate = new ExchangeRate(
+          {
+            asset: customCurrency,
+            amount: { amount: 100n, decimals: 2n }, // 1.00 CUS
+          },
+          {
+            asset: usdCurrency,
+            amount: { amount: 100n, decimals: 2n }, // 1.00 USD
+          }
+        )
+        
+        const result = rate.toString()
+        expect(result).toBe("1.00 / USD")
+      })
+
+      it("should handle very small rates with high precision", () => {
+        const satoshiRate = new ExchangeRate(
+          {
+            asset: usdCurrency, 
+            amount: { amount: 117n, decimals: 2n }, // $1.17 
+          },
+          {
+            asset: btcCurrency,
+            amount: { amount: 100000000n, decimals: 8n }, // 1.00000000 BTC
+          }
+        )
+        
+        const result = satoshiRate.toString({ precision: 8 })
+        expect(result).toBe("$1.17000000 / BTC")
+      })
+
+      it("should handle very large rates", () => {
+        const largeBtcRate = new ExchangeRate(
+          {
+            asset: usdCurrency,
+            amount: { amount: 500000000n, decimals: 2n }, // $5,000,000.00
+          },
+          {
+            asset: btcCurrency,
+            amount: { amount: 100000000n, decimals: 8n }, // 1.00000000 BTC
+          }
+        )
+        
+        const result = largeBtcRate.toString()
+        expect(result).toBe("$5,000,000.00 / BTC")
+      })
+    })
+
+    describe("inverted rates", () => {
+      it("should format inverted rates correctly", () => {
+        const btcUsdRate = usdBtcRate.invert()
+        const result = btcUsdRate.toString({ precision: 8 })
+        // 1 BTC = $117,000, so 1 BTC should be ~0.00000855 USD per satoshi
+        expect(result).toMatch(/₿0\.0000\d+ \/ USD/)
+      })
+    })
+  })
 })

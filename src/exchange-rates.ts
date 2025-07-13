@@ -1,10 +1,28 @@
 import { z } from "zod"
-import { AssetAmount, UNIXTime } from "./types"
+import { AssetAmount, UNIXTime, Currency } from "./types"
 import { Money as MoneyClass, AnyAssetJSONSchema } from "./money"
 import { Price } from "./prices"
 import { ExchangeRateSource } from "./exchange-rate-sources"
 import { UNIXTimeSchema } from "./time"
 import { NonNegativeBigIntStringSchema } from "./validation-schemas"
+import { FixedPointNumber } from "./fixed-point"
+
+/**
+ * Get symbol for currency if requested, otherwise empty string
+ */
+function getSymbolForCurrency(currency: Currency, useSymbol: boolean): string {
+  if (!useSymbol || !("symbol" in currency)) {
+    return ""
+  }
+  return (currency as { symbol: string }).symbol
+}
+
+/**
+ * Get currency code for display
+ */
+function getCurrencyCode(currency: Currency): string {
+  return currency.code
+}
 
 // Schema for FixedPoint amounts in JSON (object format for exchange rates)
 const FixedPointObjectJSONSchema = z.object({
@@ -122,6 +140,86 @@ export class ExchangeRate extends Price {
       time: this.time,
       source: this.source,
     }
+  }
+
+  /**
+   * Format this ExchangeRate as a human-readable string
+   * @param options - Formatting options
+   * @returns Formatted string representation
+   */
+  toString(options?: {
+    format?: "symbol" | "code" | "ratio"
+    precision?: number
+    locale?: string
+    showSymbolFor?: "numerator" | "denominator" | "both" | "none"
+  }): string {
+    const {
+      format = "symbol",
+      precision,
+      locale = "en-US",
+      showSymbolFor = "denominator",
+    } = options || {}
+
+    // Get the ratio and convert to a FixedPoint for rounding
+    const ratio = this.asRatio()
+
+    // Determine precision: use provided value or base currency decimals (numerator)
+    const [baseAsset] = this.amounts
+    const defaultPrecision =
+      "decimals" in baseAsset.asset ? Number(baseAsset.asset.decimals) : 0
+    const finalPrecision =
+      precision !== undefined ? precision : defaultPrecision
+
+    // Convert ratio to FixedPoint with sufficient precision for display
+    const fixedPointData = ratio.toFixedPoint({ maxBits: 256 })
+
+    // Create a FixedPointNumber instance to access toString() method
+    const roundedRatio = new FixedPointNumber(
+      fixedPointData.amount,
+      fixedPointData.decimals,
+    )
+
+    // Get decimal string representation (no Number conversion needed!)
+    const decimalString = roundedRatio.toString()
+
+    // Create Money instances for easier currency access
+    const baseMoney = new MoneyClass(this.amounts[0])
+    const quoteMoney = new MoneyClass(this.amounts[1])
+
+    // Create number formatter
+    const numberFormatter = new Intl.NumberFormat(locale, {
+      minimumFractionDigits: finalPrecision,
+      maximumFractionDigits: finalPrecision,
+    })
+
+    const formattedRate = numberFormatter.format(decimalString)
+
+    if (format === "ratio") {
+      // Format: "117,000.00 USD/BTC"
+      return `${formattedRate} ${getCurrencyCode(baseMoney.currency)}/${getCurrencyCode(quoteMoney.currency)}`
+    }
+
+    if (format === "code") {
+      // Format: "$117,000.00 BTCUSD"
+      const symbol = getSymbolForCurrency(
+        baseMoney.currency,
+        showSymbolFor !== "none",
+      )
+      const pairCode = `${getCurrencyCode(quoteMoney.currency)}${getCurrencyCode(baseMoney.currency)}`
+      return `${symbol}${formattedRate} ${pairCode}`
+    }
+
+    // Default symbol format: "$117,000.00 / BTC"
+    const symbol = getSymbolForCurrency(
+      baseMoney.currency,
+      showSymbolFor !== "none",
+    )
+    const denomSymbol =
+      showSymbolFor === "both"
+        ? getSymbolForCurrency(quoteMoney.currency, true)
+        : getCurrencyCode(quoteMoney.currency)
+
+    return `${symbol}${formattedRate} / ${denomSymbol}`
   }
 
   /**

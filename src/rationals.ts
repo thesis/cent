@@ -117,42 +117,6 @@ function applyRounding(
 }
 
 /**
- * Calculate the maximum precision (decimal places) that can fit within a bit budget
- *
- * @param maxBits - The maximum number of bits to use
- * @param rationalValue - The rational number being converted
- * @returns The maximum precision that fits within the bit budget
- */
-function calculateMaxPrecisionFromBits(
-  maxBits: number,
-  rationalValue: RationalNumber,
-): number {
-  if (maxBits <= 0) {
-    throw new Error("maxBits must be positive")
-  }
-
-  // Try different precision levels and find the highest one that fits
-  // Start from 1 since precision must be positive
-  for (let precision = 1; precision <= 50; precision++) {
-    const testResult = convertToFixedPointWithPrecision(
-      rationalValue,
-      precision,
-      RoundingMode.TRUNC,
-    )
-    const totalBits =
-      getBitSize(testResult.amount) + getBitSize(testResult.decimals)
-
-    if (totalBits > maxBits) {
-      // Previous precision was the maximum that fits
-      return Math.max(1, precision - 1)
-    }
-  }
-
-  // If we get here, even 50 significant digits fits within the bit budget
-  return 50
-}
-
-/**
  * Convert a rational number to fixed point with specified precision
  *
  * @param rational - The rational number to convert
@@ -214,6 +178,42 @@ function convertToFixedPointWithPrecision(
     amount: roundedAmount,
     decimals: BigInt(decimalPlaces),
   }
+}
+
+/**
+ * Calculate the maximum precision (decimal places) that can fit within a bit budget
+ *
+ * @param maxBits - The maximum number of bits to use
+ * @param rationalValue - The rational number being converted
+ * @returns The maximum precision that fits within the bit budget
+ */
+function calculateMaxPrecisionFromBits(
+  maxBits: number,
+  rationalValue: RationalNumber,
+): number {
+  if (maxBits <= 0) {
+    throw new Error("maxBits must be positive")
+  }
+
+  // Try different precision levels and find the highest one that fits
+  // Start from 1 since precision must be positive
+  for (let precision = 1; precision <= 50; precision += 1) {
+    const testResult = convertToFixedPointWithPrecision(
+      rationalValue,
+      precision,
+      RoundingMode.TRUNC,
+    )
+    const totalBits =
+      getBitSize(testResult.amount) + getBitSize(testResult.decimals)
+
+    if (totalBits > maxBits) {
+      // Previous precision was the maximum that fits
+      return Math.max(1, precision - 1)
+    }
+  }
+
+  // If we get here, even 50 significant digits fits within the bit budget
+  return 50
 }
 
 /**
