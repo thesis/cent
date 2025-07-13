@@ -1,4 +1,4 @@
-import { ExchangeRate, ExchangeRateJSON } from "../src/exchange-rates"
+import { ExchangeRate, ExchangeRateJSON, averageExchangeRate } from "../src/exchange-rates"
 import { Currency, AssetAmount } from "../src/types"
 import { Money } from "../src/money"
 import { ExchangeRateSource } from "../src/exchange-rate-sources"
@@ -636,6 +636,387 @@ describe("ExchangeRate", () => {
         const result = btcUsdRate.toString({ precision: 8 })
         // 1 BTC = $117,000, so 1 BTC should be ~0.00000855 USD per satoshi
         expect(result).toMatch(/₿0\.0000\d+ \/ USD/)
+      })
+    })
+  })
+
+  describe("averageExchangeRate function", () => {
+    describe("currency compatibility validation", () => {
+      it("should accept rates with the same currency pairs", () => {
+        const rates = [
+          new ExchangeRate(
+            {
+              asset: usdCurrency,
+              amount: { amount: 10000n, decimals: 2n }, // $100.00
+            },
+            {
+              asset: btcCurrency,
+              amount: { amount: 100000000n, decimals: 8n }, // 1.00000000 BTC
+            }
+          ),
+          new ExchangeRate(
+            {
+              asset: usdCurrency,
+              amount: { amount: 10100n, decimals: 2n }, // $101.00
+            },
+            {
+              asset: btcCurrency,
+              amount: { amount: 100000000n, decimals: 8n }, // 1.00000000 BTC
+            }
+          )
+        ]
+
+        expect(() => averageExchangeRate(rates)).not.toThrow()
+      })
+
+      it("should accept rates with inverted currency pairs", () => {
+        const rates = [
+          new ExchangeRate(
+            {
+              asset: usdCurrency,
+              amount: { amount: 10000n, decimals: 2n }, // $100.00
+            },
+            {
+              asset: btcCurrency,
+              amount: { amount: 100000000n, decimals: 8n }, // 1.00000000 BTC
+            }
+          ),
+          new ExchangeRate(
+            {
+              asset: btcCurrency,
+              amount: { amount: 100000000n, decimals: 8n }, // 1.00000000 BTC
+            },
+            {
+              asset: usdCurrency,
+              amount: { amount: 10100n, decimals: 2n }, // $101.00
+            }
+          )
+        ]
+
+        expect(() => averageExchangeRate(rates)).not.toThrow()
+      })
+
+      it("should reject rates with incompatible currencies", () => {
+        const rates = [
+          new ExchangeRate(
+            {
+              asset: usdCurrency,
+              amount: { amount: 10000n, decimals: 2n }, // $100.00
+            },
+            {
+              asset: btcCurrency,
+              amount: { amount: 100000000n, decimals: 8n }, // 1.00000000 BTC
+            }
+          ),
+          new ExchangeRate(
+            {
+              asset: eurCurrency,
+              amount: { amount: 8500n, decimals: 2n }, // €85.00
+            },
+            {
+              asset: btcCurrency,
+              amount: { amount: 100000000n, decimals: 8n }, // 1.00000000 BTC
+            }
+          )
+        ]
+
+        expect(() => averageExchangeRate(rates)).toThrow(
+          "Incompatible currency pairs: all rates must use the same two currencies"
+        )
+      })
+
+      it("should reject empty array", () => {
+        expect(() => averageExchangeRate([])).toThrow(
+          "At least one exchange rate is required for averaging"
+        )
+      })
+    })
+
+    describe("averaging calculation", () => {
+      it("should return the same rate when given a single rate", () => {
+        const rate = new ExchangeRate(
+          {
+            asset: usdCurrency,
+            amount: { amount: 10000n, decimals: 2n }, // $100.00
+          },
+          {
+            asset: btcCurrency,
+            amount: { amount: 100000000n, decimals: 8n }, // 1.00000000 BTC
+          },
+          "1609459200"
+        )
+
+        const averaged = averageExchangeRate([rate])
+        
+        // Should have same ratio
+        expect(averaged.asRatio().p).toBe(rate.asRatio().p)
+        expect(averaged.asRatio().q).toBe(rate.asRatio().q)
+        
+        // Should have same assets
+        expect(averaged.amounts[0].asset).toEqual(rate.amounts[0].asset)
+        expect(averaged.amounts[1].asset).toEqual(rate.amounts[1].asset)
+      })
+
+      it("should calculate simple average of two rates", () => {
+        const rate1 = new ExchangeRate(
+          {
+            asset: usdCurrency,
+            amount: { amount: 10000n, decimals: 2n }, // $100.00
+          },
+          {
+            asset: btcCurrency,
+            amount: { amount: 100000000n, decimals: 8n }, // 1.00000000 BTC
+          }
+        )
+
+        const rate2 = new ExchangeRate(
+          {
+            asset: usdCurrency,
+            amount: { amount: 12000n, decimals: 2n }, // $120.00
+          },
+          {
+            asset: btcCurrency,
+            amount: { amount: 100000000n, decimals: 8n }, // 1.00000000 BTC
+          }
+        )
+
+        const averaged = averageExchangeRate([rate1, rate2])
+        
+        // Average should be $110.00 / 1 BTC
+        expect(averaged.amounts[0].amount.amount).toBe(11000n) // $110.00
+        expect(averaged.amounts[1].amount.amount).toBe(100000000n) // 1.00000000 BTC
+      })
+
+      it("should handle rates with inverted currency pairs", () => {
+        const rate1 = new ExchangeRate(
+          {
+            asset: usdCurrency,
+            amount: { amount: 10000n, decimals: 2n }, // $100.00
+          },
+          {
+            asset: btcCurrency,
+            amount: { amount: 100000000n, decimals: 8n }, // 1.00000000 BTC
+          }
+        )
+
+        // Inverted: 1 BTC = $120.00
+        const rate2 = new ExchangeRate(
+          {
+            asset: btcCurrency,
+            amount: { amount: 100000000n, decimals: 8n }, // 1.00000000 BTC
+          },
+          {
+            asset: usdCurrency,
+            amount: { amount: 12000n, decimals: 2n }, // $120.00
+          }
+        )
+
+        const averaged = averageExchangeRate([rate1, rate2])
+        
+        // Should normalize to same format and average: $110.00 / 1 BTC
+        expect(averaged.amounts[0].asset).toEqual(usdCurrency)
+        expect(averaged.amounts[1].asset).toEqual(btcCurrency)
+        expect(averaged.amounts[0].amount.amount).toBe(11000n) // $110.00
+        expect(averaged.amounts[1].amount.amount).toBe(100000000n) // 1.00000000 BTC
+      })
+
+      it("should calculate average of multiple rates", () => {
+        const rates = [
+          new ExchangeRate(
+            { asset: usdCurrency, amount: { amount: 10000n, decimals: 2n } }, // $100.00
+            { asset: btcCurrency, amount: { amount: 100000000n, decimals: 8n } } // 1 BTC
+          ),
+          new ExchangeRate(
+            { asset: usdCurrency, amount: { amount: 11000n, decimals: 2n } }, // $110.00
+            { asset: btcCurrency, amount: { amount: 100000000n, decimals: 8n } } // 1 BTC
+          ),
+          new ExchangeRate(
+            { asset: usdCurrency, amount: { amount: 12000n, decimals: 2n } }, // $120.00
+            { asset: btcCurrency, amount: { amount: 100000000n, decimals: 8n } } // 1 BTC
+          ),
+          new ExchangeRate(
+            { asset: usdCurrency, amount: { amount: 13000n, decimals: 2n } }, // $130.00
+            { asset: btcCurrency, amount: { amount: 100000000n, decimals: 8n } } // 1 BTC
+          )
+        ]
+
+        const averaged = averageExchangeRate(rates)
+        
+        // Average: (100 + 110 + 120 + 130) / 4 = 115
+        expect(averaged.amounts[0].amount.amount).toBe(11500n) // $115.00
+        expect(averaged.amounts[1].amount.amount).toBe(100000000n) // 1.00000000 BTC
+      })
+
+      it("should preserve asset types and decimals", () => {
+        const rate1 = new ExchangeRate(
+          {
+            asset: usdCurrency,
+            amount: { amount: 100000n, decimals: 2n }, // $1000.00
+          },
+          {
+            asset: btcCurrency,
+            amount: { amount: 200000000n, decimals: 8n }, // 2.00000000 BTC
+          }
+        )
+
+        const rate2 = new ExchangeRate(
+          {
+            asset: usdCurrency,
+            amount: { amount: 300000n, decimals: 2n }, // $3000.00
+          },
+          {
+            asset: btcCurrency,
+            amount: { amount: 200000000n, decimals: 8n }, // 2.00000000 BTC
+          }
+        )
+
+        const averaged = averageExchangeRate([rate1, rate2])
+        
+        // Should preserve currencies and decimals
+        expect(averaged.amounts[0].asset).toEqual(usdCurrency)
+        expect(averaged.amounts[1].asset).toEqual(btcCurrency)
+        expect(averaged.amounts[0].amount.decimals).toBe(2n)
+        expect(averaged.amounts[1].amount.decimals).toBe(8n)
+        
+        // Average should be $2000.00 / 2 BTC
+        expect(averaged.amounts[0].amount.amount).toBe(200000n) // $2000.00
+        expect(averaged.amounts[1].amount.amount).toBe(200000000n) // 2.00000000 BTC
+      })
+    })
+
+    describe("source metadata", () => {
+      it("should create average source metadata when no sources provided", () => {
+        const rate1 = new ExchangeRate(
+          { asset: usdCurrency, amount: { amount: 10000n, decimals: 2n } },
+          { asset: btcCurrency, amount: { amount: 100000000n, decimals: 8n } }
+        )
+
+        const rate2 = new ExchangeRate(
+          { asset: usdCurrency, amount: { amount: 12000n, decimals: 2n } },
+          { asset: btcCurrency, amount: { amount: 100000000n, decimals: 8n } }
+        )
+
+        const averaged = averageExchangeRate([rate1, rate2])
+        
+        expect(averaged.source).toEqual({
+          name: "Average of 2 sources",
+          priority: 1,
+          reliability: 1.0
+        })
+      })
+
+      it("should create detailed source metadata when sources provided", () => {
+        const rate1 = new ExchangeRate(
+          { asset: usdCurrency, amount: { amount: 10000n, decimals: 2n } },
+          { asset: btcCurrency, amount: { amount: 100000000n, decimals: 8n } },
+          undefined,
+          { name: "Coinbase", priority: 1, reliability: 0.95 }
+        )
+
+        const rate2 = new ExchangeRate(
+          { asset: usdCurrency, amount: { amount: 12000n, decimals: 2n } },
+          { asset: btcCurrency, amount: { amount: 100000000n, decimals: 8n } },
+          undefined,
+          { name: "Binance", priority: 2, reliability: 0.90 }
+        )
+
+        const averaged = averageExchangeRate([rate1, rate2])
+        
+        expect(averaged.source).toEqual({
+          name: "Average of Coinbase, Binance",
+          priority: 1,
+          reliability: 0.925 // Average of 0.95 and 0.90
+        })
+      })
+
+      it("should handle mixed sources (some with, some without source metadata)", () => {
+        const rate1 = new ExchangeRate(
+          { asset: usdCurrency, amount: { amount: 10000n, decimals: 2n } },
+          { asset: btcCurrency, amount: { amount: 100000000n, decimals: 8n } },
+          undefined,
+          { name: "Coinbase", priority: 1, reliability: 0.95 }
+        )
+
+        const rate2 = new ExchangeRate(
+          { asset: usdCurrency, amount: { amount: 12000n, decimals: 2n } },
+          { asset: btcCurrency, amount: { amount: 100000000n, decimals: 8n } }
+        )
+
+        const averaged = averageExchangeRate([rate1, rate2])
+        
+        expect(averaged.source).toEqual({
+          name: "Average of Coinbase, Unknown",
+          priority: 1,
+          reliability: 0.975 // (0.95 + 1.0) / 2
+        })
+      })
+    })
+
+    describe("timestamp handling", () => {
+      it("should use the most recent timestamp", () => {
+        const rate1 = new ExchangeRate(
+          { asset: usdCurrency, amount: { amount: 10000n, decimals: 2n } },
+          { asset: btcCurrency, amount: { amount: 100000000n, decimals: 8n } },
+          "1609459200" // Earlier time
+        )
+
+        const rate2 = new ExchangeRate(
+          { asset: usdCurrency, amount: { amount: 12000n, decimals: 2n } },
+          { asset: btcCurrency, amount: { amount: 100000000n, decimals: 8n } },
+          "1609545600" // Later time
+        )
+
+        const averaged = averageExchangeRate([rate1, rate2])
+        
+        expect(averaged.time).toBe("1609545600")
+      })
+    })
+
+    describe("performance considerations", () => {
+      it("should handle large rational numbers without performance issues", () => {
+        // Create rates that would result in very large rational numbers
+        const rate1 = new ExchangeRate(
+          { asset: usdCurrency, amount: { amount: 999999999999n, decimals: 2n } },
+          { asset: btcCurrency, amount: { amount: 333333333n, decimals: 8n } }
+        )
+
+        const rate2 = new ExchangeRate(
+          { asset: usdCurrency, amount: { amount: 888888888888n, decimals: 2n } },
+          { asset: btcCurrency, amount: { amount: 333333333n, decimals: 8n } }
+        )
+
+        // This should complete quickly without memory/performance issues
+        const start = Date.now()
+        const averaged = averageExchangeRate([rate1, rate2])
+        const duration = Date.now() - start
+        
+        // Should complete in reasonable time (less than 100ms)
+        expect(duration).toBeLessThan(100)
+        
+        // Should still produce a valid result
+        expect(averaged).toBeInstanceOf(ExchangeRate)
+        expect(averaged.amounts).toHaveLength(2)
+      })
+
+      it("should handle very long arrays efficiently", () => {
+        // Test with 20 rates to ensure scalability
+        const rates = Array.from({ length: 20 }, (_, i) => 
+          new ExchangeRate(
+            { asset: usdCurrency, amount: { amount: BigInt(10000 + i * 100), decimals: 2n } },
+            { asset: btcCurrency, amount: { amount: 100000000n, decimals: 8n } }
+          )
+        )
+
+        const start = Date.now()
+        const averaged = averageExchangeRate(rates)
+        const duration = Date.now() - start
+        
+        // Should complete quickly even with many rates
+        expect(duration).toBeLessThan(50)
+        
+        // Average should be around the middle value: $109.50
+        expect(averaged.amounts[0].amount.amount).toBe(10950n)
+        expect(averaged.source?.name).toBe("Average of 20 sources")
       })
     })
   })

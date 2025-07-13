@@ -6,6 +6,7 @@ import { ExchangeRateSource } from "./exchange-rate-sources"
 import { UNIXTimeSchema } from "./time"
 import { NonNegativeBigIntStringSchema } from "./validation-schemas"
 import { FixedPointNumber } from "./fixed-point"
+import { assetsEqual } from "./assets"
 import "./types/intl-extensions"
 
 /**
@@ -278,3 +279,149 @@ export class ExchangeRate extends Price {
  * JSON representation of an ExchangeRate (inferred from Zod schema)
  */
 export type ExchangeRateJSON = z.infer<typeof ExchangeRateJSONSchema>
+
+/**
+ * Calculate the average of multiple exchange rates
+ *
+ * @param rates - Array of ExchangeRate instances to average
+ * @returns A new ExchangeRate representing the average
+ * @throws Error if rates array is empty or contains incompatible currency pairs
+ */
+export function averageExchangeRate(rates: ExchangeRate[]): ExchangeRate {
+  if (rates.length === 0) {
+    throw new Error("At least one exchange rate is required for averaging")
+  }
+
+  if (rates.length === 1) {
+    // Return a copy of the single rate with average source metadata
+    const rate = rates[0]
+    return new ExchangeRate(rate.amounts[0], rate.amounts[1], rate.time, {
+      name: "Average of 1 source",
+      priority: 1,
+      reliability: rate.source?.reliability ?? 1.0,
+    })
+  }
+
+  // Validate currency compatibility
+  const firstRate = rates[0]
+  const referenceCurrencies = [
+    firstRate.amounts[0].asset,
+    firstRate.amounts[1].asset,
+  ]
+
+  for (let i = 1; i < rates.length; i += 1) {
+    const rate = rates[i]
+    const currentCurrencies = [rate.amounts[0].asset, rate.amounts[1].asset]
+
+    // Check if currencies match in same order or inverted order
+    const sameOrder =
+      assetsEqual(referenceCurrencies[0], currentCurrencies[0]) &&
+      assetsEqual(referenceCurrencies[1], currentCurrencies[1])
+
+    const invertedOrder =
+      assetsEqual(referenceCurrencies[0], currentCurrencies[1]) &&
+      assetsEqual(referenceCurrencies[1], currentCurrencies[0])
+
+    if (!sameOrder && !invertedOrder) {
+      throw new Error(
+        "Incompatible currency pairs: all rates must use the same two currencies",
+      )
+    }
+  }
+
+  // Normalize all rates to have the same currency order (same as first rate)
+  const normalizedRates = rates.map((rate) => {
+    const currentCurrencies = [rate.amounts[0].asset, rate.amounts[1].asset]
+
+    // Check if this rate needs to be inverted to match reference order
+    const needsInversion =
+      assetsEqual(referenceCurrencies[0], currentCurrencies[1]) &&
+      assetsEqual(referenceCurrencies[1], currentCurrencies[0])
+
+    return needsInversion ? rate.invert() : rate
+  })
+
+  // Convert each rate to a ratio for averaging, using performance-optimized precision
+  const ratios = normalizedRates.map((rate) => {
+    const ratio = rate.asRatio()
+    // Convert to FixedPoint with constrained precision to prevent performance issues
+    const fixedPoint = ratio.toFixedPoint({ maxBits: 256 })
+    return new FixedPointNumber(fixedPoint.amount, fixedPoint.decimals)
+  })
+
+  // Calculate the average ratio
+  let sum = ratios[0]
+  for (let i = 1; i < ratios.length; i += 1) {
+    sum = sum.add(ratios[i])
+  }
+  const averageRatio = sum.divide(BigInt(ratios.length))
+
+  // Convert back to asset amounts using the reference rate's structure
+  const referenceRate = normalizedRates[0]
+  const referenceNumeratorAmount = referenceRate.amounts[0].amount
+  const referenceQuoteAmount = referenceRate.amounts[1].amount
+
+  // Calculate the new numerator amount: averageRatio * quoteAmount
+  // Need to handle decimals carefully to preserve original precision
+  const newNumeratorFixedPoint = averageRatio.multiply(
+    new FixedPointNumber(
+      referenceQuoteAmount.amount,
+      referenceQuoteAmount.decimals,
+    ),
+  )
+
+  // Normalize back to the original numerator's decimal precision
+  const originalNumeratorPrecision = new FixedPointNumber(
+    0n,
+    referenceNumeratorAmount.decimals,
+  )
+  const normalizedNumerator = newNumeratorFixedPoint.normalize(
+    originalNumeratorPrecision,
+  )
+
+  // Create the averaged exchange rate
+  const averagedAmounts: [AssetAmount, AssetAmount] = [
+    {
+      asset: referenceRate.amounts[0].asset,
+      amount: {
+        amount: normalizedNumerator.amount,
+        decimals: referenceNumeratorAmount.decimals, // Preserve original decimals
+      },
+    },
+    {
+      asset: referenceRate.amounts[1].asset,
+      amount: referenceRate.amounts[1].amount,
+    },
+  ]
+
+  // Find the most recent timestamp
+  const mostRecentTime = rates.reduce((latest, rate) => {
+    const currentTime = parseInt(rate.time, 10)
+    const latestTime = parseInt(latest, 10)
+    return currentTime > latestTime ? rate.time : latest
+  }, rates[0].time)
+
+  // Create average source metadata
+  const sourceNames = rates.map((rate) => rate.source?.name ?? "Unknown")
+
+  const averageReliability =
+    rates.reduce(
+      (total, rate) => total + (rate.source?.reliability ?? 1.0),
+      0,
+    ) / rates.length
+
+  const averageSource: ExchangeRateSource = {
+    name: sourceNames.some((name) => name !== "Unknown")
+      ? `Average of ${sourceNames.join(", ")}`
+      : `Average of ${rates.length} sources`,
+    priority: 1,
+    reliability: averageReliability,
+  }
+
+  return new ExchangeRate(
+    averagedAmounts[0],
+    averagedAmounts[1],
+    mostRecentTime,
+    averageSource,
+  )
+}
