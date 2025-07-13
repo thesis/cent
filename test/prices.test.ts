@@ -85,21 +85,25 @@ describe("Price", () => {
   })
 
   describe("asRatio", () => {
-    it("should return the ratio of amounts[0] / amounts[1]", () => {
+    it("should return the decimal-normalized ratio of amounts[0] / amounts[1]", () => {
       const price = new Price(usdAmount, eurAmount)
       const ratio = price.asRatio()
 
       expect(ratio).toBeInstanceOf(RationalNumber)
-      expect(ratio.p).toBe(usdAmount.amount.amount)
-      expect(ratio.q).toBe(eurAmount.amount.amount)
+      // $100.00 / €85.00 = 100/85 (both have 2 decimals)
+      // (10000 * 10^2) / (8500 * 10^2) = 1000000 / 850000
+      expect(ratio.p).toBe(1000000n)
+      expect(ratio.q).toBe(850000n)
     })
 
-    it("should work with different asset types", () => {
+    it("should work with different decimal places", () => {
       const price = new Price(btcAmount, usdAmount)
       const ratio = price.asRatio()
 
-      expect(ratio.p).toBe(btcAmount.amount.amount) // 100000000n
-      expect(ratio.q).toBe(usdAmount.amount.amount) // 10000n
+      // 1.00000000 BTC / $100.00 = 1 / 100 = 0.01
+      // (100000000 * 10^2) / (10000 * 10^8) = 10000000000 / 1000000000000
+      expect(ratio.p).toBe(10000000000n)
+      expect(ratio.q).toBe(1000000000000n)
     })
   })
 

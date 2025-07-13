@@ -58,13 +58,18 @@ export class Price implements PricePoint {
 
   /**
    * Get the ratio of amounts[0] / amounts[1] as a Ratio
+   * Accounts for decimal places to return the actual value ratio
    *
    * @returns A RationalNumber representing the ratio
    */
   asRatio(): RationalNumber {
+    const [amount0, amount1] = this.amounts
+    
+    // Create a normalized ratio: (amount0 / 10^decimals0) / (amount1 / 10^decimals1)
+    // This simplifies to: (amount0 * 10^decimals1) / (amount1 * 10^decimals0)
     return new RationalNumber({
-      p: this.amounts[0].amount.amount,
-      q: this.amounts[1].amount.amount,
+      p: amount0.amount.amount * (10n ** amount1.amount.decimals),
+      q: amount1.amount.amount * (10n ** amount0.amount.decimals),
     })
   }
 

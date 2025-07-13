@@ -106,8 +106,10 @@ describe("ExchangeRate", () => {
       const rate = new ExchangeRate(usdAmount, eurAmount)
       const ratio = rate.asRatio()
 
-      expect(ratio.p).toBe(usdAmount.amount.amount)
-      expect(ratio.q).toBe(eurAmount.amount.amount)
+      // Should return decimal-normalized ratio like Price
+      // $100.00 / €85.00 = (10000 * 10^2) / (8500 * 10^2) = 1000000 / 850000
+      expect(ratio.p).toBe(1000000n)
+      expect(ratio.q).toBe(850000n)
     })
 
     it("should inherit multiply method", () => {
@@ -156,8 +158,9 @@ describe("ExchangeRate", () => {
       const rate = new ExchangeRate(usdBase, eurQuote)
       const ratio = rate.asRatio()
 
-      expect(ratio.p).toBe(100n)
-      expect(ratio.q).toBe(85n)
+      // $1.00 / €0.85 = (100 * 10^2) / (85 * 10^2) = 10000 / 8500
+      expect(ratio.p).toBe(10000n)
+      expect(ratio.q).toBe(8500n)
     })
 
     it("should handle BTC/USD exchange rate", () => {
