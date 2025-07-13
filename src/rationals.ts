@@ -1,5 +1,5 @@
 import { z } from "zod"
-import { Ratio, FixedPoint, DecimalString, RationalString } from "./types"
+import { Ratio, FixedPoint, DecimalString, RationalString, LossyConversionOptions, RoundingMode } from "./types"
 import { gcd, getBitSize } from "./math-utils"
 import { BigIntStringSchema } from "./validation-schemas"
 import { FixedPointNumber } from "./fixed-point"
@@ -9,6 +9,180 @@ export const RationalNumberJSONSchema = z.object({
   p: BigIntStringSchema,
   q: BigIntStringSchema,
 })
+
+/**
+ * Apply rounding to a rational number based on the specified rounding mode
+ * 
+ * @param numerator - The numerator of the fraction to round
+ * @param denominator - The denominator of the fraction to round  
+ * @param roundingMode - The rounding mode to apply
+ * @returns The rounded integer value
+ */
+function applyRounding(numerator: bigint, denominator: bigint, roundingMode: RoundingMode): bigint {
+  if (denominator === 0n) {
+    throw new Error("Cannot round with zero denominator")
+  }
+
+  const quotient = numerator / denominator
+  const remainder = numerator % denominator
+
+  // If there's no remainder, no rounding needed
+  if (remainder === 0n) {
+    return quotient
+  }
+
+  const isNegative = (numerator < 0n) !== (denominator < 0n)
+  const absRemainder = remainder < 0n ? -remainder : remainder
+  const absDenominator = denominator < 0n ? -denominator : denominator
+  
+  // For proper comparison, we need to compare 2*remainder with denominator
+  // instead of remainder with denominator/2 (to avoid fractional division)
+  const doubleRemainder = absRemainder * 2n
+
+  switch (roundingMode) {
+    case RoundingMode.CEIL:
+      // Round toward positive infinity
+      return isNegative ? quotient : quotient + 1n
+
+    case RoundingMode.FLOOR:
+      // Round toward negative infinity
+      return isNegative ? quotient - 1n : quotient
+
+    case RoundingMode.EXPAND:
+      // Round away from zero
+      return quotient + (isNegative ? -1n : 1n)
+
+    case RoundingMode.TRUNC:
+      // Round toward zero
+      return quotient
+
+    case RoundingMode.HALF_CEIL:
+      // Round to nearest, ties toward positive infinity
+      if (doubleRemainder > absDenominator) {
+        return quotient + (isNegative ? -1n : 1n)
+      }
+      if (doubleRemainder === absDenominator) {
+        return isNegative ? quotient : quotient + 1n
+      }
+      return quotient
+
+    case RoundingMode.HALF_FLOOR:
+      // Round to nearest, ties toward negative infinity
+      if (doubleRemainder > absDenominator) {
+        return quotient + (isNegative ? -1n : 1n)
+      }
+      if (doubleRemainder === absDenominator) {
+        return isNegative ? quotient - 1n : quotient
+      }
+      return quotient
+
+    case RoundingMode.HALF_EXPAND:
+      // Round to nearest, ties away from zero
+      if (doubleRemainder >= absDenominator) {
+        return quotient + (isNegative ? -1n : 1n)
+      }
+      return quotient
+
+    case RoundingMode.HALF_TRUNC:
+      // Round to nearest, ties toward zero
+      if (doubleRemainder > absDenominator) {
+        return quotient + (isNegative ? -1n : 1n)
+      }
+      return quotient
+
+    case RoundingMode.HALF_EVEN:
+    default:
+      // Round to nearest, ties toward even
+      if (doubleRemainder > absDenominator) {
+        return quotient + (isNegative ? -1n : 1n)
+      }
+      if (doubleRemainder === absDenominator) {
+        // Check if quotient is even
+        const adjustedQuotient = quotient + (isNegative ? -1n : 1n)
+        return adjustedQuotient % 2n === 0n ? adjustedQuotient : quotient
+      }
+      return quotient
+  }
+}
+
+/**
+ * Calculate the maximum precision (decimal places) that can fit within a bit budget
+ * 
+ * @param maxBits - The maximum number of bits to use
+ * @param rationalValue - The rational number being converted
+ * @returns The maximum precision that fits within the bit budget
+ */
+function calculateMaxPrecisionFromBits(maxBits: number, rationalValue: RationalNumber): number {
+  if (maxBits <= 0) {
+    throw new Error("maxBits must be positive")
+  }
+
+  // Try different precision levels and find the highest one that fits
+  // Start from 1 since precision must be positive
+  for (let precision = 1; precision <= 50; precision++) {
+    const testResult = convertToFixedPointWithPrecision(rationalValue, precision, RoundingMode.TRUNC)
+    const totalBits = getBitSize(testResult.amount) + getBitSize(testResult.decimals)
+    
+    if (totalBits > maxBits) {
+      // Previous precision was the maximum that fits
+      return Math.max(1, precision - 1)
+    }
+  }
+  
+  // If we get here, even 50 significant digits fits within the bit budget
+  return 50
+}
+
+/**
+ * Convert a rational number to fixed point with specified precision
+ * 
+ * @param rational - The rational number to convert
+ * @param precision - The number of decimal places
+ * @param roundingMode - The rounding mode to use
+ * @returns The converted FixedPoint
+ */
+function convertToFixedPointWithPrecision(rational: RationalNumber, precision: number, roundingMode: RoundingMode): FixedPoint {
+  if (precision <= 0) {
+    throw new Error("maxPrecision must be positive (represents total significant digits)")
+  }
+
+  // Convert rational to decimal to determine the magnitude
+  const decimalValue = Number(rational.p) / Number(rational.q)
+  
+  // Find the order of magnitude (how many digits before decimal point)
+  let magnitude = 0
+  if (decimalValue !== 0) {
+    magnitude = Math.floor(Math.log10(Math.abs(decimalValue))) + 1
+  }
+  
+  // Calculate how many decimal places we need
+  // precision = total significant digits
+  // magnitude = digits before decimal point
+  // decimalPlaces = precision - magnitude
+  const decimalPlaces = precision - magnitude
+  
+  if (decimalPlaces >= 0) {
+    // Standard case: scale up for more decimal places
+    const scaleFactor = 10n ** BigInt(decimalPlaces)
+    const scaledNumerator = rational.p * scaleFactor
+    const roundedAmount = applyRounding(scaledNumerator, rational.q, roundingMode)
+    
+    return {
+      amount: roundedAmount,
+      decimals: BigInt(decimalPlaces)
+    }
+  } else {
+    // Negative decimal places: scale down for fewer significant digits
+    const scaleFactor = 10n ** BigInt(-decimalPlaces)
+    const scaledDenominator = rational.q * scaleFactor
+    const roundedAmount = applyRounding(rational.p, scaledDenominator, roundingMode)
+    
+    return {
+      amount: roundedAmount,
+      decimals: BigInt(decimalPlaces)
+    }
+  }
+}
 
 /**
  * Helper function to convert string arguments to RationalNumber instances
@@ -327,11 +501,59 @@ export class RationalNumber implements Ratio {
 
   /**
    * Convert this RationalNumber to a FixedPoint
+   * 
+   * When called without parameters, performs exact conversion (denominator must be power of 10)
+   * When called with options, performs lossy conversion with specified precision constraints
    *
+   * @param options - Optional lossy conversion options
+   * @returns A FixedPoint object with amount and decimals
+   * @throws Error if exact conversion fails or invalid options provided
+   */
+  toFixedPoint(options?: LossyConversionOptions): FixedPoint {
+    // If no options provided, use the original exact conversion logic
+    if (!options) {
+      return this.toFixedPointExact()
+    }
+
+    // Validate options
+    if (options.maxPrecision !== undefined && options.maxBits !== undefined) {
+      throw new Error("Cannot specify both maxPrecision and maxBits")
+    }
+
+    if (options.maxPrecision === undefined && options.maxBits === undefined) {
+      throw new Error("Must specify either maxPrecision or maxBits")
+    }
+
+    const roundingMode = options.roundingMode || RoundingMode.TRUNC
+
+    // Handle maxBits option
+    if (options.maxBits !== undefined) {
+      if (options.maxBits <= 0) {
+        throw new Error("maxBits must be positive")
+      }
+      const maxPrecision = calculateMaxPrecisionFromBits(options.maxBits, this)
+      return convertToFixedPointWithPrecision(this, maxPrecision, roundingMode)
+    }
+
+    // Handle maxPrecision option
+    if (options.maxPrecision !== undefined) {
+      if (options.maxPrecision <= 0 || options.maxPrecision > 50) {
+        throw new Error("maxPrecision must be between 1 and 50 (represents total significant digits)")
+      }
+      return convertToFixedPointWithPrecision(this, options.maxPrecision, roundingMode)
+    }
+
+    // This should never be reached due to validation above
+    throw new Error("Invalid conversion options")
+  }
+
+  /**
+   * Convert this RationalNumber to a FixedPoint using exact conversion
+   * 
    * @returns A FixedPoint object with amount and decimals
    * @throws Error if the denominator is not a power of 10
    */
-  toFixedPoint(): FixedPoint {
+  private toFixedPointExact(): FixedPoint {
     // Check if q is a power of 10
     let temp = this.q
     let decimals = 0n

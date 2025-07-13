@@ -131,3 +131,15 @@ export type FormatOptions = {
   /** Include trailing zeros after decimal point (defaults to true) */
   trailingZeroes?: boolean
 }
+
+/**
+ * Options for lossy conversion from RationalNumber to FixedPoint
+ */
+export type LossyConversionOptions = {
+  /** Maximum number of decimal places in the resulting FixedPoint */
+  maxPrecision?: number
+  /** Maximum number of bits to use for the entire FixedPoint representation */
+  maxBits?: number
+  /** Rounding mode to use when precision is lost (defaults to HALF_EVEN) */
+  roundingMode?: RoundingMode
+}

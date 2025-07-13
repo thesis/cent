@@ -1,5 +1,6 @@
 import { RationalNumber, Rational } from "../src/rationals"
-import { Ratio } from "../src/types"
+import { Ratio, RoundingMode } from "../src/types"
+import { getBitSize } from "../src/math-utils"
 
 describe("RationalNumber", () => {
   const oneHalf: Ratio = { p: 1n, q: 2n } // 1/2
@@ -850,6 +851,261 @@ describe("Rational factory function", () => {
         const expectedBits = pBits + qBits
         
         expect(rational.getBitSize()).toBe(expectedBits)
+      })
+    })
+  })
+
+  describe("toFixedPoint with lossy conversion", () => {
+    describe("maxPrecision option", () => {
+      it("should convert 22/7 to 2 significant digits", () => {
+        const rational = new RationalNumber({ p: 22n, q: 7n }) // ≈ 3.142857...
+        const result = rational.toFixedPoint({ maxPrecision: 2 })
+        
+        // 22/7 ≈ 3.142857, truncated to 2 significant digits = 3.1 = 31/10
+        expect(result.amount).toBe(31n)
+        expect(result.decimals).toBe(1n)
+      })
+
+      it("should convert 22/7 to 4 significant digits", () => {
+        const rational = new RationalNumber({ p: 22n, q: 7n }) // ≈ 3.142857...
+        const result = rational.toFixedPoint({ maxPrecision: 4 })
+        
+        // 22/7 ≈ 3.142857, truncated to 4 significant digits = 3.142 = 3142/1000
+        expect(result.amount).toBe(3142n)
+        expect(result.decimals).toBe(3n)
+      })
+
+      it("should handle large numbers with precision reduction", () => {
+        const rational = new RationalNumber({ p: 300000n, q: 1n }) // 300000
+        const result = rational.toFixedPoint({ maxPrecision: 1 })
+        
+        // 300000 truncated to 1 significant digit = 3 × 10^5 = 3/10^(-5)
+        expect(result.amount).toBe(3n)
+        expect(result.decimals).toBe(-5n)
+      })
+
+      it("should handle negative rationals", () => {
+        const rational = new RationalNumber({ p: -22n, q: 7n }) // ≈ -3.142857...
+        const result = rational.toFixedPoint({ maxPrecision: 2 })
+        
+        // -3.142857... truncated to 2 significant digits = -3.1 = -31/10
+        expect(result.amount).toBe(-31n)
+        expect(result.decimals).toBe(1n)
+      })
+
+      it("should handle fractions less than 1", () => {
+        const rational = new RationalNumber({ p: 1n, q: 3n }) // ≈ 0.333333...
+        const result = rational.toFixedPoint({ maxPrecision: 2 })
+        
+        // 1/3 ≈ 0.333333, truncated to 2 significant digits = 0.33 = 33/100
+        expect(result.amount).toBe(33n)
+        expect(result.decimals).toBe(2n)
+      })
+
+      it("should handle single significant digit", () => {
+        const rational = new RationalNumber({ p: 22n, q: 7n }) // ≈ 3.142857...
+        const result = rational.toFixedPoint({ maxPrecision: 1 })
+        
+        // 3.142857... truncated to 1 significant digit = 3 = 3/1
+        expect(result.amount).toBe(3n)
+        expect(result.decimals).toBe(0n)
+      })
+
+      it("should handle different rounding modes", () => {
+        const rational = new RationalNumber({ p: 5n, q: 2n }) // 2.5
+        
+        const ceiling = rational.toFixedPoint({ maxPrecision: 1, roundingMode: RoundingMode.CEIL })
+        expect(ceiling.amount).toBe(3n)
+        expect(ceiling.decimals).toBe(0n)
+        
+        const floor = rational.toFixedPoint({ maxPrecision: 1, roundingMode: RoundingMode.FLOOR })
+        expect(floor.amount).toBe(2n)
+        expect(floor.decimals).toBe(0n)
+        
+        const halfEven = rational.toFixedPoint({ maxPrecision: 1, roundingMode: RoundingMode.HALF_EVEN })
+        expect(halfEven.amount).toBe(2n) // 2.5 rounds to 2 (nearest even)
+        expect(halfEven.decimals).toBe(0n)
+      })
+
+      it("should handle very small numbers", () => {
+        const rational = new RationalNumber({ p: 1n, q: 1000000n }) // 0.000001
+        const result = rational.toFixedPoint({ maxPrecision: 1 })
+        
+        // 0.000001 to 1 significant digit = 0.000001 = 1/1000000 (magnitude is -5, so 1 sig digit means 6 decimals)
+        expect(result.amount).toBe(1n)
+        expect(result.decimals).toBe(6n)
+      })
+
+      it("should handle exact decimal representations", () => {
+        const rational = new RationalNumber({ p: 1n, q: 4n }) // 0.25 (exact)
+        const result = rational.toFixedPoint({ maxPrecision: 2 })
+        
+        // 0.25 to 2 significant digits = 0.25 = 25/100
+        expect(result.amount).toBe(25n)
+        expect(result.decimals).toBe(2n)
+      })
+
+      it("should work with default rounding mode", () => {
+        const rational = new RationalNumber({ p: 22n, q: 7n })
+        const result = rational.toFixedPoint({ maxPrecision: 2 })
+        
+        // Should default to TRUNC and produce a valid result
+        expect(typeof result.amount).toBe("bigint")
+        expect(typeof result.decimals).toBe("bigint")
+        expect(result.decimals).toBe(1n) // 2 significant digits of 3.14... = 3.1
+      })
+    })
+
+    describe("maxBits option", () => {
+      it("should convert using bit-based precision", () => {
+        const rational = new RationalNumber({ p: 22n, q: 7n })
+        const result = rational.toFixedPoint({ maxBits: 16 })
+        
+        // maxBits = 16 means we can use at most 16 bits total
+        // This should determine the appropriate decimal precision automatically
+        const totalBits = getBitSize(result.amount) + getBitSize(result.decimals)
+        expect(totalBits).toBeLessThanOrEqual(16)
+        expect(typeof result.amount).toBe("bigint")
+        expect(typeof result.decimals).toBe("bigint")
+      })
+
+      it("should produce smaller numbers with smaller bit budgets", () => {
+        const rational = new RationalNumber({ p: 22n, q: 7n })
+        
+        const result8 = rational.toFixedPoint({ maxBits: 8 })
+        const result16 = rational.toFixedPoint({ maxBits: 16 })
+        
+        // 16-bit budget should allow for more precision than 8-bit
+        const bits8 = getBitSize(result8.amount) + getBitSize(result8.decimals)
+        const bits16 = getBitSize(result16.amount) + getBitSize(result16.decimals)
+        
+        expect(bits8).toBeLessThanOrEqual(8)
+        expect(bits16).toBeLessThanOrEqual(16)
+        expect(bits16).toBeGreaterThanOrEqual(bits8)
+      })
+
+      it("should handle very small bit budgets", () => {
+        const rational = new RationalNumber({ p: 22n, q: 7n })
+        const result = rational.toFixedPoint({ maxBits: 4 })
+        
+        // With only 4 bits, should still produce a valid result
+        const totalBits = getBitSize(result.amount) + getBitSize(result.decimals)
+        expect(totalBits).toBeLessThanOrEqual(4)
+        expect(typeof result.amount).toBe("bigint")
+        expect(typeof result.decimals).toBe("bigint")
+      })
+
+      it("should handle large bit budgets", () => {
+        const rational = new RationalNumber({ p: 22n, q: 7n })
+        const result = rational.toFixedPoint({ maxBits: 64 })
+        
+        // Large bit budget should allow high precision
+        expect(typeof result.amount).toBe("bigint")
+        expect(typeof result.decimals).toBe("bigint")
+        expect(result.decimals).toBeGreaterThan(0n) // Should have some decimal precision
+      })
+    })
+
+    describe("edge cases and error handling", () => {
+      it("should handle zero rational", () => {
+        const rational = new RationalNumber({ p: 0n, q: 1n })
+        const result = rational.toFixedPoint({ maxPrecision: 2 })
+        
+        expect(result.amount).toBe(0n)
+        expect(result.decimals).toBe(2n)
+      })
+
+      it("should handle very large rationals", () => {
+        const rational = new RationalNumber({ p: 999999999999n, q: 1n })
+        const result = rational.toFixedPoint({ maxPrecision: 1 })
+        
+        // Should successfully convert even very large numbers
+        expect(typeof result.amount).toBe("bigint")
+        expect(result.decimals).toBe(-11n) // 12-digit number truncated to 1 digit needs -11 decimal places
+      })
+
+      it("should throw error for invalid maxPrecision", () => {
+        const rational = new RationalNumber({ p: 22n, q: 7n })
+        
+        expect(() => {
+          rational.toFixedPoint({ maxPrecision: 0 })
+        }).toThrow()
+        
+        expect(() => {
+          rational.toFixedPoint({ maxPrecision: -1 })
+        }).toThrow()
+        
+        expect(() => {
+          rational.toFixedPoint({ maxPrecision: 51 })
+        }).toThrow()
+      })
+
+      it("should throw error for invalid maxBits", () => {
+        const rational = new RationalNumber({ p: 22n, q: 7n })
+        
+        expect(() => {
+          rational.toFixedPoint({ maxBits: 0 })
+        }).toThrow()
+        
+        expect(() => {
+          rational.toFixedPoint({ maxBits: -1 })
+        }).toThrow()
+      })
+
+      it("should throw error when both maxPrecision and maxBits are specified", () => {
+        const rational = new RationalNumber({ p: 22n, q: 7n })
+        
+        expect(() => {
+          rational.toFixedPoint({ 
+            maxPrecision: 2, 
+            maxBits: 16
+          })
+        }).toThrow()
+      })
+
+      it("should throw error when neither maxPrecision nor maxBits are specified", () => {
+        const rational = new RationalNumber({ p: 22n, q: 7n })
+        
+        expect(() => {
+          rational.toFixedPoint({})
+        }).toThrow()
+      })
+    })
+
+    describe("precision loss and rounding accuracy", () => {
+      it("should be consistent with known mathematical results", () => {
+        // Test π approximation (22/7) to various precisions
+        const pi = new RationalNumber({ p: 22n, q: 7n })
+        
+        const result1 = pi.toFixedPoint({ maxPrecision: 1 })
+        expect(result1.amount).toBe(3n) // 1 significant digit = 3
+        expect(result1.decimals).toBe(0n)
+        
+        const result2 = pi.toFixedPoint({ maxPrecision: 2 })
+        expect(result2.amount).toBe(31n) // 2 significant digits = 3.1 (truncated)
+        expect(result2.decimals).toBe(1n)
+      })
+
+      it("should handle different rounding modes consistently", () => {
+        // Test 2.5 (exact tie case) with different rounding modes
+        const tie = new RationalNumber({ p: 5n, q: 2n })
+        
+        const trunc = tie.toFixedPoint({ maxPrecision: 1, roundingMode: RoundingMode.TRUNC })
+        expect(trunc.amount).toBe(2n) // Truncate toward zero
+        
+        const halfEven = tie.toFixedPoint({ maxPrecision: 1, roundingMode: RoundingMode.HALF_EVEN })
+        expect(halfEven.amount).toBe(2n) // Round to even
+        
+        const halfExpand = tie.toFixedPoint({ maxPrecision: 1, roundingMode: RoundingMode.HALF_EXPAND })
+        expect(halfExpand.amount).toBe(3n) // Round away from zero
+      })
+
+      it("should preserve sign through truncation", () => {
+        const negative = new RationalNumber({ p: -5n, q: 2n }) // -2.5
+        
+        const result = negative.toFixedPoint({ maxPrecision: 1 })
+        expect(result.amount).toBe(-2n) // Truncate toward zero
+        expect(result.decimals).toBe(0n)
       })
     })
   })
