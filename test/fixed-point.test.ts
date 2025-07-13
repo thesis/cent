@@ -1837,4 +1837,88 @@ describe("FixedPoint factory function", () => {
       })
     })
   })
+
+  describe("getBitSize", () => {
+    it("should return bit size for zero amount", () => {
+      const fp = new FixedPointNumber(0n, 2n) // 0.00
+      expect(fp.getBitSize()).toBe(2) // getBitSize(0n) + getBitSize(2n) = 0 + 2 = 2
+    })
+
+    it("should return bit size for zero decimals", () => {
+      const fp = new FixedPointNumber(123n, 0n) // 123 (integer)
+      const expectedBits = BigInt(123).toString(2).length + 0 // getBitSize(123n) + getBitSize(0n)
+      expect(fp.getBitSize()).toBe(expectedBits)
+    })
+
+    it("should calculate bit size for simple fixed-point numbers", () => {
+      const fp1 = new FixedPointNumber(123n, 2n) // 1.23
+      const amount1Bits = BigInt(123).toString(2).length // getBitSize(123n)
+      const decimals1Bits = BigInt(2).toString(2).length // getBitSize(2n)
+      expect(fp1.getBitSize()).toBe(amount1Bits + decimals1Bits)
+
+      const fp2 = new FixedPointNumber(1000n, 3n) // 1.000
+      const amount2Bits = BigInt(1000).toString(2).length // getBitSize(1000n)
+      const decimals2Bits = BigInt(3).toString(2).length // getBitSize(3n)
+      expect(fp2.getBitSize()).toBe(amount2Bits + decimals2Bits)
+    })
+
+    it("should handle negative amounts", () => {
+      const fp = new FixedPointNumber(-123n, 2n) // -1.23
+      const amountBits = BigInt(123).toString(2).length // absolute value
+      const decimalsBits = BigInt(2).toString(2).length
+      expect(fp.getBitSize()).toBe(amountBits + decimalsBits)
+    })
+
+    it("should handle large numbers", () => {
+      const largeAmount = BigInt("12345678901234567890")
+      const largeDecimals = BigInt("18")
+      const fp = new FixedPointNumber(largeAmount, largeDecimals)
+      
+      const expectedBits = largeAmount.toString(2).length + largeDecimals.toString(2).length
+      expect(fp.getBitSize()).toBe(expectedBits)
+    })
+
+    it("should be consistent with manual calculation", () => {
+      const testCases = [
+        { amount: 1n, decimals: 0n },
+        { amount: 255n, decimals: 8n },
+        { amount: 1024n, decimals: 10n },
+        { amount: -1000n, decimals: 3n },
+        { amount: 999999999n, decimals: 9n },
+      ]
+
+      testCases.forEach(({ amount, decimals }) => {
+        const fp = new FixedPointNumber(amount, decimals)
+        const amountBits = amount === 0n ? 0 : (amount < 0n ? -amount : amount).toString(2).length
+        const decimalsBits = decimals === 0n ? 0 : decimals.toString(2).length
+        const expectedBits = amountBits + decimalsBits
+        
+        expect(fp.getBitSize()).toBe(expectedBits)
+      })
+    })
+
+    it("should handle edge case with maximum safe integer-like values", () => {
+      // Test with values near JavaScript's max safe integer to ensure bigint handling
+      const amount = BigInt(Number.MAX_SAFE_INTEGER) * 2n
+      const decimals = 15n
+      const fp = new FixedPointNumber(amount, decimals)
+      
+      const expectedBits = amount.toString(2).length + decimals.toString(2).length
+      expect(fp.getBitSize()).toBe(expectedBits)
+    })
+
+    it("should reflect changes after normalization", () => {
+      const fp1 = new FixedPointNumber(1230n, 3n) // 1.230
+      const fp2 = new FixedPointNumber(123n, 2n)  // 1.23
+      
+      const originalBitSize = fp2.getBitSize()
+      const normalized = fp2.normalize(fp1) // normalize fp2 to 3 decimals -> 1230, 3
+      const normalizedBitSize = normalized.getBitSize()
+      
+      // Normalized version should have potentially different bit size
+      expect(normalizedBitSize).toBeGreaterThanOrEqual(originalBitSize)
+      expect(normalized.amount).toBe(1230n)
+      expect(normalized.decimals).toBe(3n)
+    })
+  })
 })

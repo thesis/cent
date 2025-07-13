@@ -786,4 +786,71 @@ describe("Rational factory function", () => {
       })
     })
   })
+
+  describe("getBitSize", () => {
+    it("should return 1 for zero rational", () => {
+      const rational = new RationalNumber({ p: 0n, q: 1n })
+      expect(rational.getBitSize()).toBe(1) // getBitSize(0n) + getBitSize(1n) = 0 + 1 = 1
+    })
+
+    it("should calculate bit size for simple rationals", () => {
+      const rational = new RationalNumber({ p: 1n, q: 2n }) // 1/2
+      expect(rational.getBitSize()).toBe(3) // getBitSize(1n) = 1, getBitSize(2n) = 2, total = 3
+    })
+
+    it("should calculate bit size for various rationals", () => {
+      const rational1 = new RationalNumber({ p: 3n, q: 4n }) // 3/4
+      expect(rational1.getBitSize()).toBe(5) // getBitSize(3n) = 2, getBitSize(4n) = 3, total = 5
+
+      const rational2 = new RationalNumber({ p: 7n, q: 8n }) // 7/8
+      expect(rational2.getBitSize()).toBe(7) // getBitSize(7n) = 3, getBitSize(8n) = 4, total = 7
+
+      const rational3 = new RationalNumber({ p: 15n, q: 16n }) // 15/16
+      expect(rational3.getBitSize()).toBe(9) // getBitSize(15n) = 4, getBitSize(16n) = 5, total = 9
+    })
+
+    it("should handle negative numerators", () => {
+      const rational = new RationalNumber({ p: -1n, q: 2n }) // -1/2
+      expect(rational.getBitSize()).toBe(3) // getBitSize(-1n) = 1, getBitSize(2n) = 2, total = 3
+    })
+
+    it("should handle large numbers", () => {
+      const largeP = BigInt("12345678901234567890")
+      const largeQ = BigInt("98765432109876543210")
+      const rational = new RationalNumber({ p: largeP, q: largeQ })
+      
+      const expectedSize = largeP.toString(2).length + largeQ.toString(2).length
+      expect(rational.getBitSize()).toBe(expectedSize)
+    })
+
+    it("should work with simplified rationals", () => {
+      const unsimplified = new RationalNumber({ p: 6n, q: 9n }) // 6/9 = 2/3
+      const simplified = unsimplified.simplify()
+      
+      // Original: getBitSize(6n) = 3, getBitSize(9n) = 4, total = 7
+      expect(unsimplified.getBitSize()).toBe(7)
+      
+      // Simplified: getBitSize(2n) = 2, getBitSize(3n) = 2, total = 4  
+      expect(simplified.getBitSize()).toBe(4)
+    })
+
+    it("should be consistent with manual calculation", () => {
+      const testCases = [
+        { p: 1n, q: 1n },
+        { p: 2n, q: 3n },
+        { p: 5n, q: 7n },
+        { p: 255n, q: 256n },
+        { p: -1000n, q: 2000n },
+      ]
+
+      testCases.forEach(({ p, q }) => {
+        const rational = new RationalNumber({ p, q })
+        const pBits = p === 0n ? 0 : (p < 0n ? -p : p).toString(2).length
+        const qBits = q === 0n ? 0 : (q < 0n ? -q : q).toString(2).length
+        const expectedBits = pBits + qBits
+        
+        expect(rational.getBitSize()).toBe(expectedBits)
+      })
+    })
+  })
 })

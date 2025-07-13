@@ -1,4 +1,4 @@
-import { gcd, isOnlyFactorsOf2And5 } from "../src/math-utils"
+import { gcd, isOnlyFactorsOf2And5, getBitSize } from "../src/math-utils"
 
 describe("Math Utils", () => {
   describe("gcd", () => {
@@ -75,6 +75,56 @@ describe("Math Utils", () => {
       expect(isOnlyFactorsOf2And5(3125n)).toBe(true) // 5^5
       expect(isOnlyFactorsOf2And5(1000n)).toBe(true) // 2^3 * 5^3
       expect(isOnlyFactorsOf2And5(1023n)).toBe(false) // 3 * 11 * 31
+    })
+  })
+
+  describe("getBitSize", () => {
+    it("should return 0 for zero", () => {
+      expect(getBitSize(0n)).toBe(0)
+    })
+
+    it("should return 1 for 1", () => {
+      expect(getBitSize(1n)).toBe(1)
+    })
+
+    it("should calculate bit size for powers of 2", () => {
+      expect(getBitSize(2n)).toBe(2) // 10 binary
+      expect(getBitSize(4n)).toBe(3) // 100 binary
+      expect(getBitSize(8n)).toBe(4) // 1000 binary
+      expect(getBitSize(16n)).toBe(5) // 10000 binary
+      expect(getBitSize(256n)).toBe(9) // 100000000 binary
+      expect(getBitSize(1024n)).toBe(11) // 10000000000 binary
+    })
+
+    it("should calculate bit size for arbitrary numbers", () => {
+      expect(getBitSize(3n)).toBe(2) // 11 binary
+      expect(getBitSize(5n)).toBe(3) // 101 binary
+      expect(getBitSize(7n)).toBe(3) // 111 binary
+      expect(getBitSize(15n)).toBe(4) // 1111 binary
+      expect(getBitSize(255n)).toBe(8) // 11111111 binary
+      expect(getBitSize(1000n)).toBe(10) // 1111101000 binary
+    })
+
+    it("should handle negative numbers (using absolute value)", () => {
+      expect(getBitSize(-1n)).toBe(1)
+      expect(getBitSize(-2n)).toBe(2)
+      expect(getBitSize(-8n)).toBe(4)
+      expect(getBitSize(-255n)).toBe(8)
+      expect(getBitSize(-1000n)).toBe(10)
+    })
+
+    it("should handle large numbers", () => {
+      const largeBigInt = BigInt("12345678901234567890")
+      const expectedBits = largeBigInt.toString(2).length
+      expect(getBitSize(largeBigInt)).toBe(expectedBits)
+    })
+
+    it("should be consistent with binary representation", () => {
+      const testValues = [1n, 7n, 15n, 31n, 63n, 127n, 255n, 511n, 1023n]
+      testValues.forEach((value) => {
+        const binaryString = value.toString(2)
+        expect(getBitSize(value)).toBe(binaryString.length)
+      })
     })
   })
 })

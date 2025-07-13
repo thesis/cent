@@ -5,7 +5,7 @@ import type {
   DecimalString,
   FormatOptions,
 } from "./types"
-import { isOnlyFactorsOf2And5 } from "./math-utils"
+import { isOnlyFactorsOf2And5, getBitSize } from "./math-utils"
 
 export const FixedPointJSONSchema = z
   .string()
@@ -310,31 +310,26 @@ export class FixedPointNumber implements FixedPointType, Ratio {
     // if decimals is 0, just return the whole part
     if (numberToFormat.decimals === 0n) {
       result = wholePart.toString()
-    } else {
-      // Handle negative numbers correctly
-      if (numberToFormat.amount < 0n && wholePart === 0n) {
-        // For negative numbers where wholePart is 0 (e.g., -0.5)
-        // we need to preserve the negative sign and use absolute value of fractionPart
-        const absFractionPart = -fractionPart
-        let fractionStr = absFractionPart.toString()
-        const padding = Number(numberToFormat.decimals) - fractionStr.length
-        if (padding > 0) {
-          fractionStr = "0".repeat(padding) + fractionStr
-        }
-        result = `-0.${fractionStr}`
-      } else {
-        // For positive numbers or negative numbers with non-zero whole part
-        // convert fraction part to string and pad with leading zeros if needed
-        let fractionStr =
-          fractionPart < 0n
-            ? (-fractionPart).toString()
-            : fractionPart.toString()
-        const padding = Number(numberToFormat.decimals) - fractionStr.length
-        if (padding > 0) {
-          fractionStr = "0".repeat(padding) + fractionStr
-        }
-        result = `${wholePart.toString()}.${fractionStr}`
+    } else if (numberToFormat.amount < 0n && wholePart === 0n) {
+      // For negative numbers where wholePart is 0 (e.g., -0.5)
+      // we need to preserve the negative sign and use absolute value of fractionPart
+      const absFractionPart = -fractionPart
+      let fractionStr = absFractionPart.toString()
+      const padding = Number(numberToFormat.decimals) - fractionStr.length
+      if (padding > 0) {
+        fractionStr = "0".repeat(padding) + fractionStr
       }
+      result = `-0.${fractionStr}`
+    } else {
+      // For positive numbers or negative numbers with non-zero whole part
+      // convert fraction part to string and pad with leading zeros if needed
+      let fractionStr =
+        fractionPart < 0n ? (-fractionPart).toString() : fractionPart.toString()
+      const padding = Number(numberToFormat.decimals) - fractionStr.length
+      if (padding > 0) {
+        fractionStr = "0".repeat(padding) + fractionStr
+      }
+      result = `${wholePart.toString()}.${fractionStr}`
     }
 
     // Remove trailing zeros if trailingZeroes is false (default is true)
@@ -514,6 +509,16 @@ export class FixedPointNumber implements FixedPointType, Ratio {
    */
   isZero(): boolean {
     return this.amount === 0n
+  }
+
+  /**
+   * Calculate the total bit size required to store this fixed-point number
+   * Returns log₂(|amount|) + log₂(decimals), where |x| is the absolute value
+   *
+   * @returns The total number of bits required to represent both amount and decimal places
+   */
+  getBitSize(): number {
+    return getBitSize(this.amount) + getBitSize(this.decimals)
   }
 
   /**

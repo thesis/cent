@@ -45,3 +45,20 @@ export function isOnlyFactorsOf2And5(n: bigint): boolean {
   // If only factors of 2 and 5, we should be left with 1
   return remaining === 1n
 }
+
+/**
+ * Calculate the bit size (log2) of a bigint value
+ * For zero values, returns 0
+ * For negative values, uses the absolute value
+ *
+ * @param n - The number to calculate bit size for
+ * @returns The number of bits required to represent the absolute value of n
+ */
+export function getBitSize(n: bigint): number {
+  if (n === 0n) {
+    return 0
+  }
+
+  const abs = n < 0n ? -n : n
+  return abs.toString(2).length
+}

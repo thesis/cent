@@ -1,6 +1,6 @@
 import { z } from "zod"
 import { Ratio, FixedPoint, DecimalString, RationalString } from "./types"
-import { gcd } from "./math-utils"
+import { gcd, getBitSize } from "./math-utils"
 import { BigIntStringSchema } from "./validation-schemas"
 import { FixedPointNumber } from "./fixed-point"
 import { parseFraction, getRationalStringType } from "./rational-strings"
@@ -313,6 +313,16 @@ export class RationalNumber implements Ratio {
     }
 
     return new RationalNumber({ p: newP, q: newQ })
+  }
+
+  /**
+   * Calculate the total bit size required to store this rational number
+   * Returns log₂(|p|) + log₂(|q|), where |x| is the absolute value
+   *
+   * @returns The total number of bits required to represent both numerator and denominator
+   */
+  getBitSize(): number {
+    return getBitSize(this.p) + getBitSize(this.q)
   }
 
   /**
