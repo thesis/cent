@@ -45,12 +45,12 @@ function fixedPointToDecimalString(fp: FixedPointNumber): string {
 }
 
 // Schema for basic Asset
-const AssetJSONSchema = z.object({
+export const AssetJSONSchema = z.object({
   name: z.string(),
 })
 
 // Schema for FungibleAsset (extends Asset)
-const FungibleAssetJSONSchema = AssetJSONSchema.extend({
+export const FungibleAssetJSONSchema = AssetJSONSchema.extend({
   code: z.string(),
   decimals: NonNegativeBigIntStringSchema,
   fractionalUnit: z
@@ -63,12 +63,13 @@ const FungibleAssetJSONSchema = AssetJSONSchema.extend({
 })
 
 // Schema for Currency (extends FungibleAsset)
-const CurrencyJSONSchema = FungibleAssetJSONSchema.extend({
+export const CurrencyJSONSchema = FungibleAssetJSONSchema.extend({
   symbol: z.string(),
+  iso4217Support: z.boolean().optional(),
 })
 
 // Union schema for any asset type
-const AnyAssetJSONSchema = z.union([
+export const AnyAssetJSONSchema = z.union([
   CurrencyJSONSchema,
   FungibleAssetJSONSchema,
   AssetJSONSchema,

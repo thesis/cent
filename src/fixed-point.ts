@@ -297,8 +297,10 @@ export class FixedPointNumber implements FixedPointType, Ratio {
    */
   toString(options?: FormatOptions): DecimalString {
     // If percentage formatting is requested, multiply by 100 first
-    const numberToFormat = options?.asPercentage ? this.multiply(new FixedPointNumber(100n, 0n)) : this
-    
+    const numberToFormat = options?.asPercentage
+      ? this.multiply(new FixedPointNumber(100n, 0n))
+      : this
+
     const factor = 10n ** numberToFormat.decimals
     const wholePart = numberToFormat.amount / factor
     const fractionPart = numberToFormat.amount % factor
@@ -324,7 +326,9 @@ export class FixedPointNumber implements FixedPointType, Ratio {
         // For positive numbers or negative numbers with non-zero whole part
         // convert fraction part to string and pad with leading zeros if needed
         let fractionStr =
-          fractionPart < 0n ? (-fractionPart).toString() : fractionPart.toString()
+          fractionPart < 0n
+            ? (-fractionPart).toString()
+            : fractionPart.toString()
         const padding = Number(numberToFormat.decimals) - fractionStr.length
         if (padding > 0) {
           fractionStr = "0".repeat(padding) + fractionStr
@@ -334,11 +338,11 @@ export class FixedPointNumber implements FixedPointType, Ratio {
     }
 
     // Remove trailing zeros if trailingZeroes is false (default is true)
-    if (options?.trailingZeroes === false && result.includes('.')) {
+    if (options?.trailingZeroes === false && result.includes(".")) {
       // Remove trailing zeros after decimal point
-      result = result.replace(/\.?0+$/, '')
+      result = result.replace(/\.?0+$/, "")
       // If we removed all decimal places, don't leave a trailing dot
-      if (result.endsWith('.')) {
+      if (result.endsWith(".")) {
         result = result.slice(0, -1)
       }
     }
@@ -680,7 +684,7 @@ export class FixedPointNumber implements FixedPointType, Ratio {
 /**
  * Factory function for creating FixedPointNumber instances
  * Supports string parsing (including percentage strings), FixedPoint objects, and original constructor signatures
- * 
+ *
  * @example
  * FixedPoint("123.45")     // Parses as 123.45
  * FixedPoint("51.1%")      // Parses as 0.511 (percentage converted to decimal)
@@ -697,16 +701,16 @@ export function FixedPoint(
   if (typeof amountOrStrOrFixedPoint === "string") {
     // String parsing mode
     const str = amountOrStrOrFixedPoint
-    
+
     // Check if it's a percentage string (ends with %)
-    if (str.endsWith('%')) {
+    if (str.endsWith("%")) {
       // Remove the % suffix and parse as decimal
       const percentageStr = str.slice(0, -1)
       const percentage = FixedPointNumber.fromDecimalString(percentageStr)
       // Convert percentage to decimal by dividing by 100
       return percentage.divide(new FixedPointNumber(100n, 0n))
     }
-    
+
     return FixedPointNumber.fromDecimalString(amountOrStrOrFixedPoint)
   }
   if (

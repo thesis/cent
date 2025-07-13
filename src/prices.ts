@@ -76,12 +76,11 @@ export class Price implements PricePoint {
    * @throws Error if multiplying by another Price without shared assets
    */
   multiply(multiplier: bigint | FixedPoint | Ratio | Price): Price {
-    // Handle Price-to-Price multiplication
+    // handle Price-to-Price multiplication
     if (multiplier instanceof Price) {
       return this.multiplyByPrice(multiplier)
     }
 
-    // Handle scalar multiplication (existing logic)
     const scalar = multiplier
     let multiplierP: bigint
     let multiplierQ: bigint

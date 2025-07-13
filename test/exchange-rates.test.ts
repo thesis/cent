@@ -1,4 +1,4 @@
-import { ExchangeRate } from "../src/exchange-rates"
+import { ExchangeRate, ExchangeRateJSON } from "../src/exchange-rates"
 import { Currency, AssetAmount } from "../src/types"
 import { Money } from "../src/money"
 import { ExchangeRateSource } from "../src/exchange-rate-sources"
@@ -212,6 +212,257 @@ describe("ExchangeRate", () => {
       const age = rate.getAge()
       expect(age).toBeGreaterThan(29000) // Allow for small timing differences
       expect(age).toBeLessThan(35000)
+    })
+  })
+
+  describe("JSON serialization", () => {
+    it("should serialize to JSON with all required fields", () => {
+      const source: ExchangeRateSource = {
+        name: "Coinbase",
+        priority: 1,
+        reliability: 0.95,
+      }
+      const customTime = "1609459200"
+      const rate = new ExchangeRate(usdAmount, eurAmount, customTime, source)
+
+      const json = rate.toJSON()
+
+      expect(json).toEqual({
+        amounts: [
+          {
+            asset: usdCurrency,
+            amount: {
+              amount: "10000",
+              decimals: "2",
+            },
+          },
+          {
+            asset: eurCurrency,
+            amount: {
+              amount: "8500",
+              decimals: "2",
+            },
+          },
+        ],
+        time: customTime,
+        source,
+      })
+    })
+
+    it("should serialize to JSON without source metadata", () => {
+      const customTime = "1609459200"
+      const rate = new ExchangeRate(usdAmount, eurAmount, customTime)
+
+      const json = rate.toJSON()
+
+      expect(json.source).toBeUndefined()
+      expect(json.time).toBe(customTime)
+      expect(json.amounts).toHaveLength(2)
+    })
+
+    it("should convert BigInt amounts to strings", () => {
+      const rate = new ExchangeRate(usdAmount, eurAmount)
+      const json = rate.toJSON()
+
+      expect(typeof json.amounts[0].amount.amount).toBe("string")
+      expect(typeof json.amounts[0].amount.decimals).toBe("string")
+      expect(typeof json.amounts[1].amount.amount).toBe("string")
+      expect(typeof json.amounts[1].amount.decimals).toBe("string")
+    })
+  })
+
+  describe("JSON deserialization", () => {
+    const sampleJSON: ExchangeRateJSON = {
+      amounts: [
+        {
+          asset: {
+            name: "US Dollar",
+            code: "USD",
+            decimals: "2",
+            symbol: "$",
+          },
+          amount: {
+            amount: "10000",
+            decimals: "2",
+          },
+        },
+        {
+          asset: {
+            name: "Euro",
+            code: "EUR",
+            decimals: "2",
+            symbol: "€",
+          },
+          amount: {
+            amount: "8500",
+            decimals: "2",
+          },
+        },
+      ],
+      time: "1609459200" as any,
+      source: {
+        name: "Coinbase",
+        priority: 1,
+        reliability: 0.95,
+      },
+    }
+
+    it("should deserialize from JSON with all fields", () => {
+      const rate = ExchangeRate.fromJSON(sampleJSON)
+
+      expect(rate.amounts[0].asset).toEqual(sampleJSON.amounts[0].asset)
+      expect(rate.amounts[0].amount.amount).toBe(10000n)
+      expect(rate.amounts[0].amount.decimals).toBe(2n)
+      expect(rate.amounts[1].asset).toEqual(sampleJSON.amounts[1].asset)
+      expect(rate.amounts[1].amount.amount).toBe(8500n)
+      expect(rate.amounts[1].amount.decimals).toBe(2n)
+      expect(rate.time).toBe("1609459200")
+      expect(rate.source).toEqual(sampleJSON.source)
+    })
+
+    it("should deserialize from JSON without source", () => {
+      const jsonWithoutSource = { ...sampleJSON }
+      delete jsonWithoutSource.source
+
+      const rate = ExchangeRate.fromJSON(jsonWithoutSource)
+
+      expect(rate.source).toBeUndefined()
+      expect(rate.amounts).toHaveLength(2)
+    })
+
+    it("should roundtrip serialize -> deserialize correctly", () => {
+      const source: ExchangeRateSource = {
+        name: "Binance",
+        priority: 2,
+        reliability: 0.9,
+      }
+      const originalRate = new ExchangeRate(
+        usdAmount,
+        eurAmount,
+        "1609459200",
+        source,
+      )
+
+      const json = originalRate.toJSON()
+      const reconstructedRate = ExchangeRate.fromJSON(json)
+
+      // Check amounts match (values should be identical)
+      expect(reconstructedRate.amounts[0].amount).toEqual(originalRate.amounts[0].amount)
+      expect(reconstructedRate.amounts[1].amount).toEqual(originalRate.amounts[1].amount)
+      
+      // Check asset properties match (allowing for some structural differences in validation)
+      expect(reconstructedRate.amounts[0].asset.name).toBe(originalRate.amounts[0].asset.name)
+      expect(reconstructedRate.amounts[1].asset.name).toBe(originalRate.amounts[1].asset.name)
+      
+      expect(reconstructedRate.time).toBe(originalRate.time)
+      expect(reconstructedRate.source).toEqual(originalRate.source)
+    })
+
+    it("should throw error for null/undefined JSON", () => {
+      expect(() => ExchangeRate.fromJSON(null)).toThrow(
+        "Invalid ExchangeRate JSON",
+      )
+      expect(() => ExchangeRate.fromJSON(undefined)).toThrow(
+        "Invalid ExchangeRate JSON",
+      )
+    })
+
+    it("should throw error for invalid amounts array", () => {
+      const invalidJSON = { ...sampleJSON, amounts: [] }
+      expect(() => ExchangeRate.fromJSON(invalidJSON)).toThrow(
+        "Invalid ExchangeRate JSON",
+      )
+
+      const invalidJSON2 = { ...sampleJSON, amounts: [sampleJSON.amounts[0]] }
+      expect(() => ExchangeRate.fromJSON(invalidJSON2)).toThrow(
+        "Invalid ExchangeRate JSON",
+      )
+    })
+
+    it("should throw error for missing time", () => {
+      const invalidJSON = { ...sampleJSON }
+      delete invalidJSON.time
+      expect(() => ExchangeRate.fromJSON(invalidJSON)).toThrow(
+        "Invalid ExchangeRate JSON",
+      )
+    })
+
+    it("should throw error for invalid BigInt conversion", () => {
+      const invalidJSON = {
+        ...sampleJSON,
+        amounts: [
+          {
+            ...sampleJSON.amounts[0],
+            amount: { amount: "invalid", decimals: "2" },
+          },
+          sampleJSON.amounts[1],
+        ],
+      }
+      expect(() => ExchangeRate.fromJSON(invalidJSON)).toThrow(
+        "Invalid ExchangeRate JSON",
+      )
+    })
+
+    it("should handle large BigInt values", () => {
+      const largeValueJSON: ExchangeRateJSON = {
+        amounts: [
+          {
+            asset: {
+              name: "Bitcoin",
+              code: "BTC",
+              decimals: "8",
+              symbol: "₿",
+            },
+            amount: {
+              amount: "100000000000000000", // Very large number
+              decimals: "8",
+            },
+          },
+          {
+            asset: {
+              name: "US Dollar",
+              code: "USD",
+              decimals: "2",
+              symbol: "$",
+            },
+            amount: {
+              amount: "5000000000000",
+              decimals: "2",
+            },
+          },
+        ],
+        time: "1609459200" as any,
+      }
+
+      const rate = ExchangeRate.fromJSON(largeValueJSON)
+      expect(rate.amounts[0].amount.amount).toBe(100000000000000000n)
+      expect(rate.amounts[1].amount.amount).toBe(5000000000000n)
+    })
+
+    it("should provide detailed validation error messages", () => {
+      const invalidJSON = {
+        amounts: [
+          {
+            asset: { name: "USD" }, // Missing required fields
+            amount: { amount: "-123", decimals: "2" }, // Negative amount (invalid)
+          },
+        ],
+        time: "not-a-timestamp",
+        source: { name: "test", priority: "invalid", reliability: 2 }, // Invalid types
+      }
+
+      expect(() => ExchangeRate.fromJSON(invalidJSON)).toThrow(
+        "Invalid ExchangeRate JSON",
+      )
+
+      // Test specific validation error details
+      try {
+        ExchangeRate.fromJSON(invalidJSON)
+      } catch (error) {
+        expect(error).toBeInstanceOf(Error)
+        const errorMessage = (error as Error).message
+        expect(errorMessage).toContain("Invalid ExchangeRate JSON")
+      }
     })
   })
 })
