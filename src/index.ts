@@ -1,3 +1,6 @@
+// Import type extensions first
+import "./types/intl-extensions"
+
 // Core classes
 export {
   MoneyJSONSchema,

@@ -6,6 +6,7 @@ import { ExchangeRateSource } from "./exchange-rate-sources"
 import { UNIXTimeSchema } from "./time"
 import { NonNegativeBigIntStringSchema } from "./validation-schemas"
 import { FixedPointNumber } from "./fixed-point"
+import "./types/intl-extensions"
 
 /**
  * Get symbol for currency if requested, otherwise empty string

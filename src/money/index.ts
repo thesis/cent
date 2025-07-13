@@ -429,7 +429,7 @@ export function formatWithIntlCurrency(
   )
 
   // Convert decimal string to number for formatting
-  return formatter.format(parseFloat(decimalString))
+  return formatter.format(decimalString)
 }
 
 /**
@@ -530,7 +530,7 @@ export function formatWithCustomFormatting(
   )
 
   // Convert decimal string to number for formatting
-  const formattedNumber = formatter.format(parseFloat(decimalString))
+  const formattedNumber = formatter.format(decimalString)
 
   // Handle symbol vs code formatting
   if (preferSymbol && "symbol" in money.currency && !unitSuffix) {
