@@ -252,7 +252,90 @@ describe("ExchangeRate", () => {
 
       expect(averaged.baseCurrency).toBe(USD)
       expect(averaged.quoteCurrency).toBe(EUR)
-      expect(averaged.rate.toString()).toBe("1.100") // (1.00 + 1.20) / 2
+      expect(averaged.rate.toString()).toBe("1.1000000000000000000000000000000000000000000000000") // (1.00 + 1.20) / 2
+    })
+
+    it("should average three compatible rates", () => {
+      const rate1 = new ExchangeRate(
+        USD,
+        EUR,
+        new FixedPointNumber(100n, 2n), // 1.00 EUR per USD
+      )
+
+      const rate2 = new ExchangeRate(
+        USD,
+        EUR,
+        new FixedPointNumber(120n, 2n), // 1.20 EUR per USD
+      )
+
+      const rate3 = new ExchangeRate(
+        USD,
+        EUR,
+        new FixedPointNumber(150n, 2n), // 1.50 EUR per USD
+      )
+
+      const averaged = new ExchangeRate(
+        ExchangeRate.average([rate1.toData(), rate2.toData(), rate3.toData()]),
+      )
+
+      expect(averaged.baseCurrency).toBe(USD)
+      expect(averaged.quoteCurrency).toBe(EUR)
+      expect(averaged.rate.toString()).toBe("1.2333333333333333333333333333333333333333333333333") // (1.00 + 1.20 + 1.50) / 3
+    })
+
+    it("should average seven compatible rates", () => {
+      const rates = [
+        new ExchangeRate(USD, EUR, new FixedPointNumber(100n, 2n)), // 1.00
+        new ExchangeRate(USD, EUR, new FixedPointNumber(110n, 2n)), // 1.10
+        new ExchangeRate(USD, EUR, new FixedPointNumber(120n, 2n)), // 1.20
+        new ExchangeRate(USD, EUR, new FixedPointNumber(130n, 2n)), // 1.30
+        new ExchangeRate(USD, EUR, new FixedPointNumber(140n, 2n)), // 1.40
+        new ExchangeRate(USD, EUR, new FixedPointNumber(150n, 2n)), // 1.50
+        new ExchangeRate(USD, EUR, new FixedPointNumber(160n, 2n)), // 1.60
+      ]
+
+      const averaged = new ExchangeRate(
+        ExchangeRate.average(rates.map(r => r.toData())),
+      )
+
+      expect(averaged.baseCurrency).toBe(USD)
+      expect(averaged.quoteCurrency).toBe(EUR)
+      expect(averaged.rate.toString()).toBe("1.3000000000000000000000000000000000000000000000000") // (1.00 + 1.10 + 1.20 + 1.30 + 1.40 + 1.50 + 1.60) / 7
+    })
+
+    it("should not error when averaging rates where length is not divisible by 2 or 5", () => {
+      // This test specifically addresses the bug where averaging 3 or 7 rates would error
+      // because the old implementation used FixedPointNumber.divide(BigInt) which only supports
+      // divisors that are factors of 2 and 5. The fix uses RationalNumber for division.
+      
+      const rates = [
+        new ExchangeRate(USD, EUR, new FixedPointNumber(100n, 2n)),
+        new ExchangeRate(USD, EUR, new FixedPointNumber(110n, 2n)),
+        new ExchangeRate(USD, EUR, new FixedPointNumber(120n, 2n)),
+        new ExchangeRate(USD, EUR, new FixedPointNumber(130n, 2n)),
+        new ExchangeRate(USD, EUR, new FixedPointNumber(140n, 2n)),
+        new ExchangeRate(USD, EUR, new FixedPointNumber(150n, 2n)),
+        new ExchangeRate(USD, EUR, new FixedPointNumber(160n, 2n)),
+        new ExchangeRate(USD, EUR, new FixedPointNumber(170n, 2n)),
+        new ExchangeRate(USD, EUR, new FixedPointNumber(180n, 2n)),
+        new ExchangeRate(USD, EUR, new FixedPointNumber(190n, 2n)),
+        new ExchangeRate(USD, EUR, new FixedPointNumber(200n, 2n)),
+      ]
+
+      // Test various problematic lengths (not divisible by 2 or 5)
+      const problematicLengths = [3, 7, 9, 11]
+      
+      problematicLengths.forEach(length => {
+        const subset = rates.slice(0, length)
+        expect(() => {
+          const averaged = new ExchangeRate(
+            ExchangeRate.average(subset.map(r => r.toData())),
+          )
+          expect(averaged.baseCurrency).toBe(USD)
+          expect(averaged.quoteCurrency).toBe(EUR)
+          expect(typeof averaged.rate.toString()).toBe("string")
+        }).not.toThrow()
+      })
     })
   })
 
