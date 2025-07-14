@@ -601,5 +601,123 @@ describe("ExchangeRate", () => {
         })
       })
     })
+
+    describe("spread()", () => {
+      it("should create bid/ask rates with decimal string spread", () => {
+        const rate = new ExchangeRate(USD, EUR, "1.2000")
+        const result = rate.spread("0.02") // 2% spread
+
+        expect(result.mid.rate.toString()).toBe("1.2000")
+        expect(result.bid.rate.toString()).toBe("1.1880") // 1.2 - (1.2 * 0.01)
+        expect(result.ask.rate.toString()).toBe("1.2120") // 1.2 + (1.2 * 0.01)
+      })
+
+      it("should create bid/ask rates with percentage string spread", () => {
+        const rate = new ExchangeRate(USD, EUR, "1.0000")
+        const result = rate.spread("2%") // 2% spread
+
+        expect(result.mid.rate.toString()).toBe("1.0000")
+        expect(result.bid.rate.toString()).toBe("0.9900") // 1.0 - (1.0 * 0.01)
+        expect(result.ask.rate.toString()).toBe("1.0100") // 1.0 + (1.0 * 0.01)
+      })
+
+      it("should create bid/ask rates with FixedPointNumber spread", () => {
+        const rate = new ExchangeRate(USD, EUR, "2.0000")
+        const spread = new FixedPointNumber(4n, 2n) // 0.04 (4% spread)
+        const result = rate.spread(spread)
+
+        expect(result.mid.rate.toString()).toBe("2.0000")
+        expect(result.bid.rate.toString()).toBe("1.9600") // 2.0 - (2.0 * 0.02)
+        expect(result.ask.rate.toString()).toBe("2.0400") // 2.0 + (2.0 * 0.02)
+      })
+
+      it("should maintain currency information in spread results", () => {
+        const rate = new ExchangeRate(USD, EUR, "1.2000")
+        const result = rate.spread("0.02")
+
+        expect(result.bid.baseCurrency).toBe(USD)
+        expect(result.bid.quoteCurrency).toBe(EUR)
+        expect(result.ask.baseCurrency).toBe(USD)
+        expect(result.ask.quoteCurrency).toBe(EUR)
+        expect(result.mid.baseCurrency).toBe(USD)
+        expect(result.mid.quoteCurrency).toBe(EUR)
+      })
+
+      it("should maintain timestamp and source information", () => {
+        const timestamp = nowUNIXTime()
+        const source: ExchangeRateSource = {
+          name: "Test Source",
+          priority: 1,
+          reliability: 0.95,
+        }
+        const rate = new ExchangeRate({
+          baseCurrency: USD,
+          quoteCurrency: EUR,
+          rate: new FixedPointNumber(12000n, 4n),
+          timestamp,
+          source,
+        })
+        const result = rate.spread("0.02")
+
+        expect(result.bid.timestamp).toBe(timestamp)
+        expect(result.ask.timestamp).toBe(timestamp)
+        expect(result.mid.timestamp).toBe(timestamp)
+        expect(result.bid.source).toBe(source)
+        expect(result.ask.source).toBe(source)
+        expect(result.mid.source).toBe(source)
+      })
+
+      it("should handle different currency decimal places", () => {
+        const rate = new ExchangeRate(USD, JPY, "150.00")
+        const result = rate.spread("1%")
+
+        expect(result.mid.rate.toString()).toBe("150.00")
+        expect(result.bid.rate.toString()).toBe("149.250") // 150 - (150 * 0.005)
+        expect(result.ask.rate.toString()).toBe("150.750") // 150 + (150 * 0.005)
+      })
+
+      it("should handle very small spreads", () => {
+        const rate = new ExchangeRate(USD, EUR, "1.0000")
+        const result = rate.spread("0.0001") // 0.01% spread
+
+        expect(result.mid.rate.toString()).toBe("1.0000")
+        expect(result.bid.rate.toString()).toBe("0.99995") // 1.0 - (1.0 * 0.00005)
+        expect(result.ask.rate.toString()).toBe("1.00005") // 1.0 + (1.0 * 0.00005)
+      })
+
+      it("should handle large spreads", () => {
+        const rate = new ExchangeRate(USD, EUR, "1.0000")
+        const result = rate.spread("50%") // 50% spread
+
+        expect(result.mid.rate.toString()).toBe("1.0000")
+        expect(result.bid.rate.toString()).toBe("0.7500") // 1.0 - (1.0 * 0.25)
+        expect(result.ask.rate.toString()).toBe("1.2500") // 1.0 + (1.0 * 0.25)
+      })
+
+      it("should create immutable results", () => {
+        const rate = new ExchangeRate(USD, EUR, "1.2000")
+        const result = rate.spread("0.02")
+
+        // Original rate should be unchanged
+        expect(rate.rate.toString()).toBe("1.2000")
+
+        // Each result should be a new instance
+        expect(result.bid).not.toBe(rate)
+        expect(result.ask).not.toBe(rate)
+        expect(result.mid).not.toBe(rate)
+        expect(result.bid).not.toBe(result.ask)
+        expect(result.bid).not.toBe(result.mid)
+        expect(result.ask).not.toBe(result.mid)
+      })
+
+      it("should handle BTC rates with high precision", () => {
+        const rate = new ExchangeRate(BTC, USD, "50000.00000000")
+        const result = rate.spread("0.1%") // 0.1% spread
+
+        expect(result.mid.rate.toString()).toBe("50000.00000000")
+        expect(result.bid.rate.toString()).toBe("49975.00000000") // 50000 - (50000 * 0.0005)
+        expect(result.ask.rate.toString()).toBe("50025.00000000") // 50000 + (50000 * 0.0005)
+      })
+    })
   })
 })

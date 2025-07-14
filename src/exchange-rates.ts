@@ -1,6 +1,6 @@
 import { z } from "zod"
 import { Currency, UNIXTime } from "./types"
-import { FixedPointNumber } from "./fixed-point"
+import { FixedPointNumber, FixedPoint } from "./fixed-point"
 import { RationalNumber } from "./rationals"
 import { ExchangeRateSource } from "./exchange-rate-sources"
 import { nowUNIXTime, UNIXTimeSchema } from "./time"
@@ -182,6 +182,65 @@ export class ExchangeRate implements ExchangeRateData {
     locale?: string
   }): string {
     return ExchangeRate.toString(this.toData(), options)
+  }
+
+  /**
+   * Apply a spread to create bid/ask rates around this rate
+   * @param spread - The spread as a FixedPointNumber, decimal string, or percent string
+   * @returns An object containing bid, ask, and mid rates
+   */
+  spread(spread: FixedPointNumber | string): {
+    bid: ExchangeRate
+    ask: ExchangeRate
+    mid: ExchangeRate
+  } {
+    // Parse the spread parameter into a FixedPointNumber
+    let spreadFixed: FixedPointNumber
+    if (typeof spread === "string") {
+      spreadFixed = FixedPoint(spread)
+    } else {
+      spreadFixed = spread
+    }
+
+    // Calculate half the spread for symmetric application
+    const halfSpread = spreadFixed.divide(new FixedPointNumber(2n, 0n))
+
+    // Create bid rate: rate - (rate * halfSpread)
+    const bidRate = this.rate.subtract(this.rate.multiply(halfSpread))
+
+    // Create ask rate: rate + (rate * halfSpread)
+    const askRate = this.rate.add(this.rate.multiply(halfSpread))
+
+    // Create the bid, ask, and mid exchange rates
+    const bidExchangeRate = new ExchangeRate({
+      baseCurrency: this.baseCurrency,
+      quoteCurrency: this.quoteCurrency,
+      rate: bidRate,
+      timestamp: this.timestamp,
+      source: this.source,
+    })
+
+    const askExchangeRate = new ExchangeRate({
+      baseCurrency: this.baseCurrency,
+      quoteCurrency: this.quoteCurrency,
+      rate: askRate,
+      timestamp: this.timestamp,
+      source: this.source,
+    })
+
+    const midExchangeRate = new ExchangeRate({
+      baseCurrency: this.baseCurrency,
+      quoteCurrency: this.quoteCurrency,
+      rate: this.rate,
+      timestamp: this.timestamp,
+      source: this.source,
+    })
+
+    return {
+      bid: bidExchangeRate,
+      ask: askExchangeRate,
+      mid: midExchangeRate,
+    }
   }
 
   /**

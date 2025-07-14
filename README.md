@@ -296,6 +296,15 @@ console.log(usdEur.toString({ format: "ratio" })) // "1 USD = 1.08 EUR" (ratio f
 const serialized = usdEur.toJSON()
 const restored = ExchangeRate.fromJSON(serialized)
 console.log(restored.equals(usdEur)) // true
+
+// create bid/ask spreads for trading
+const rate = new ExchangeRate(USD, EUR, "1.2000")
+
+// apply spread using decimal string (2% spread)
+const { bid, ask, mid } = rate.spread("0.02") // "2%" also works
+console.log(bid.rate.toString()) // "1.1880" (1.2000 - 1% of 1.2000)
+console.log(ask.rate.toString()) // "1.2120" (1.2000 + 1% of 1.2000)
+console.log(mid.rate.toString()) // "1.2000" (original rate)
 ```
 
 `Price` is appropriate for arbitrary price pairs, covering the edge cases where `ExchangeRate` might not be appropriate.
