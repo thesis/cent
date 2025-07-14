@@ -217,7 +217,7 @@ function tryParseCryptoSubUnit(input: string): MoneyParseResult | null {
   const unitLower = unit.toLowerCase()
 
   // Bitcoin sub-units
-  if (["sat", "satoshi", "satoshis"].includes(unitLower)) {
+  if (["sat", "sats", "satoshi", "satoshis"].includes(unitLower)) {
     const parsed = parseNumber(amountStr, "US") // Satoshis are always integers
     return {
       currency: currencies.BTC,
@@ -235,7 +235,14 @@ function tryParseCryptoSubUnit(input: string): MoneyParseResult | null {
   }
 
   if (
-    ["msat", "millisat", "millisatoshi", "millisatoshis"].includes(unitLower)
+    [
+      "msat",
+      "msats",
+      "millisat",
+      "millisats",
+      "millisatoshi",
+      "millisatoshis",
+    ].includes(unitLower)
   ) {
     const parsed = parseNumber(amountStr, "US")
     const { amount } = parsed

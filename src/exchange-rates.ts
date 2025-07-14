@@ -464,7 +464,9 @@ export class ExchangeRate implements ExchangeRateData {
     const sumRational = new RationalNumber(sum)
 
     const averageRational = sumRational.divide(BigInt(normalizedRates.length))
-    const averageRate = new FixedPointNumber(averageRational.toFixedPoint({ maxBits: 256 }))
+    const averageRate = new FixedPointNumber(
+      averageRational.toFixedPoint({ maxBits: 256 }),
+    )
 
     // Find the most recent timestamp
     const mostRecentTime = rates.reduce((latest, rate) => {

@@ -383,9 +383,7 @@ export class FixedPointNumber implements FixedPointType, Ratio {
       return this.amount === otherFP.amount
     }
     if (this.decimals > otherFP.decimals) {
-      return new FixedPointNumber(otherFP)
-        .normalize(this)
-        .equals(this)
+      return new FixedPointNumber(otherFP).normalize(this).equals(this)
     }
 
     return this.normalize(otherFP).equals(otherFP)
