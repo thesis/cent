@@ -87,6 +87,27 @@ describe("RationalNumber", () => {
       expect(result).toBeInstanceOf(RationalNumber)
       expect(result).not.toBe(rational1)
     })
+
+    it("should divide by bigint correctly", () => {
+      // (1/2) / 4 = 1/2 * 1/4 = 1/8
+      const rational1 = new RationalNumber(oneHalf)
+      const result = rational1.divide(4n)
+      expect(result.p).toBe(1n)
+      expect(result.q).toBe(8n)
+    })
+
+    it("should divide by negative bigint correctly", () => {
+      // (1/2) / (-3) = 1/2 * 1/(-3) = 1/(-6) = -1/6
+      const rational1 = new RationalNumber(oneHalf)
+      const result = rational1.divide(-3n)
+      expect(result.p).toBe(1n)
+      expect(result.q).toBe(-6n)
+    })
+
+    it("should throw error when dividing by zero bigint", () => {
+      const rational1 = new RationalNumber(oneHalf)
+      expect(() => rational1.divide(0n)).toThrow("Cannot divide by zero")
+    })
   })
 
   describe("add", () => {

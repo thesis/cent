@@ -293,15 +293,26 @@ export class RationalNumber implements Ratio {
   }
 
   /**
-   * Divide this rational number by another ratio
+   * Divide this rational number by another ratio or bigint
    *
    * Formula: (a/b) / (c/d) = (a/b) * (d/c) = (a*d)/(b*c)
+   * For bigint: (a/b) / c = (a/b) * (1/c) = a/(b*c)
    *
-   * @param other - The ratio to divide by (Ratio or string)
+   * @param other - The ratio to divide by (Ratio, string, or bigint)
    * @returns A new RationalNumber instance with the quotient
-   * @throws Error if the divisor numerator is zero
+   * @throws Error if the divisor is zero
    */
-  divide(other: Ratio | string): RationalNumber {
+  divide(other: Ratio | string | bigint): RationalNumber {
+    if (typeof other === "bigint") {
+      if (other === 0n) {
+        throw new Error("Cannot divide by zero")
+      }
+      return new RationalNumber({
+        p: this.p,
+        q: this.q * other,
+      })
+    }
+
     const otherRational =
       typeof other === "string" ? parseStringToRational(other) : other
     if (otherRational.p === 0n) {
