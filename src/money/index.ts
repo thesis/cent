@@ -1505,12 +1505,27 @@ export class Money {
   convert(
     price: import("../prices").Price | import("../exchange-rates").ExchangeRate,
   ): Money {
-    // Get the price amounts - both Price and ExchangeRate have amounts array
-    const [amount1, amount2] = price.amounts
+    // Handle different price types
+    let money1: Money
+    let money2: Money
 
-    // Convert AssetAmount to Money for easier handling
-    const money1 = new Money(amount1)
-    const money2 = new Money(amount2)
+    if ("amounts" in price) {
+      // Price class has amounts array
+      const [amount1, amount2] = price.amounts
+      money1 = new Money(amount1)
+      money2 = new Money(amount2)
+    } else {
+      // ExchangeRate class has baseCurrency/quoteCurrency structure
+      const exchangeRate = price as import("../exchange-rates").ExchangeRate
+      money1 = new Money({
+        asset: exchangeRate.baseCurrency,
+        amount: { amount: 1n, decimals: exchangeRate.baseCurrency.decimals },
+      })
+      money2 = new Money({
+        asset: exchangeRate.quoteCurrency,
+        amount: exchangeRate.rate,
+      })
+    }
 
     // Determine conversion direction
     let fromMoney: Money

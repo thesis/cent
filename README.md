@@ -222,12 +222,86 @@ const fixedPoint = FixedPoint(decimalStr) // Auto-detects 3 decimals
 console.log(fixedPoint.toString()) // "0.375"
 ```
 
-## Price operations
+## Prices and Exchange Rates
 
-`cent` includes `Price` and `ExchangeRate` classes for representing price ratios between assets with mathematical operations:
+`cent` includes `Price` and `ExchangeRate` classes for representing price ratios between assets with mathematical operations.
+
+`ExchangeRate` has base/quote currency semantics, time-based operations, and everything you'd expect in a fintech app.
 
 ```typescript
-import { Price, ExchangeRate } from '@your-org/cent'
+import { ExchangeRate, USD, EUR, BTC, JPY } from '@your-org/cent'
+
+// 1. Individual arguments with auto-timestamping
+const usdEur = new ExchangeRate(USD, EUR, "1.08") // 1.08 EUR per USD
+console.log(usdEur.toString()) // "1.08 €/$"
+
+// 2. Individual arguments with custom timestamp and source
+const btcUsd = new ExchangeRate(
+  BTC, USD, "50000", "1640995200", // 2022-01-01 timestamp
+  { name: "Coinbase", priority: 1, reliability: 0.95 }
+)
+
+const eurJpy = new ExchangeRate({
+  baseCurrency: EUR,
+  quoteCurrency: JPY,
+  rate: "162.50",
+  timestamp: "1640995200",
+  source: { name: "ECB", priority: 1, reliability: 0.99 }
+})
+
+console.log(usdEur.baseCurrency.code) // "USD" (1 USD costs...)
+console.log(usdEur.quoteCurrency.code) // "EUR" (...1.08 EUR)
+
+// Rate inversion - swap base and quote
+const eurUsd = usdEur.invert() // 1 EUR = 0.925925... USD
+console.log(eurUsd.toString()) // "0.925925925925925926 $/@"
+
+// Cross-currency calculations via multiplication
+// EUR/USD × USD/JPY = EUR/JPY (USD cancels out)
+const eurUsdRate = new ExchangeRate(EUR, USD, "1.0842")
+const usdJpyRate = new ExchangeRate(USD, JPY, "149.85")
+const eurJpyCalculated = eurUsdRate.multiply(usdJpyRate)
+
+console.log(eurJpyCalculated.baseCurrency.code) // "EUR"
+console.log(eurJpyCalculated.quoteCurrency.code) // "JPY"
+console.log(eurJpyCalculated.rate.toString()) // "162.4673" (1.0842 × 149.85)
+
+// Currency conversion with exchange rates
+const amount = new FixedPointNumber(10000n, 2n) // $100.00
+const converted = usdEur.convert(amount, USD, EUR)
+console.log(converted.toString()) // "108.00" (€108.00)
+
+// Reverse conversion
+const backConverted = usdEur.convert(converted, EUR, USD)
+console.log(backConverted.toString()) // "100.00" ($100.00)
+
+// Exchange rate averaging for multiple sources
+const rate1 = new ExchangeRate(USD, EUR, "1.07")
+const rate2 = new ExchangeRate(USD, EUR, "1.09")
+const averaged = new ExchangeRate(
+  ExchangeRate.average([rate1, rate2])
+)
+console.log(averaged.rate.toString()) // "1.080" (average of 1.07 and 1.09)
+
+// Time-based operations
+const currentRate = new ExchangeRate(USD, EUR, "1.08")
+console.log(currentRate.isStale(300000)) // false (less than 5 minutes old)
+
+// Formatting options
+console.log(usdEur.toString()) // "1.08 €/$" (symbol format)
+console.log(usdEur.toString({ format: "code" })) // "1.08 EUR/USD" (code format)
+console.log(usdEur.toString({ format: "ratio" })) // "1 USD = 1.08 EUR" (ratio format)
+
+// JSON serialization with BigInt support
+const serialized = usdEur.toJSON()
+const restored = ExchangeRate.fromJSON(serialized)
+console.log(restored.equals(usdEur)) // true
+```
+
+`Price` is appropriate for arbitrary price pairs, covering the edge cases where `ExchangeRate` might not be appropriate.
+
+```typescript
+import { Price, USD, EUR, BTC, JPY } from '@your-org/cent'
 
 // Define custom assets (for demonstration purposes)
 const APPLE = {
@@ -238,7 +312,7 @@ const APPLE = {
 }
 
 const ORANGE = {
-  name: 'Orange', 
+  name: 'Orange',
   code: 'ORANGE',
   decimals: 0n,
   symbol: '🍊'
@@ -261,23 +335,6 @@ const applesPerBtc = new Price(
 const usdPerBtc = usdPerApple.multiply(applesPerBtc)
 console.log(usdPerBtc.amounts[0].amount.amount) // 5000000n ($50,000.00)
 
-// Real-world FX example: Calculate USD/BTC from USD/EUR and BTC/EUR rates
-const usdPerEur = new ExchangeRate(
-  Money("$1.08"), // $1.08
-  Money("€1.00")  // €1.00
-)
-
-const btcPerEur = new ExchangeRate(
-  Money("1 BTC"), // 1.00000000 BTC
-  Money("€45,000.00")    // €45,000.00
-)
-
-// USD/EUR × EUR/BTC = USD/BTC (EUR cancels out)
-// Note: We need to invert btcPerEur to get EUR/BTC
-const eurPerBtc = btcPerEur.invert() // €45,000/1 BTC
-const usdPerBtcFx = usdPerEur.multiply(eurPerBtc) // $1.08/€1 × €45,000/1 BTC = $48,600/1 BTC
-console.log(usdPerBtcFx.amounts[0].amount.amount) // 4860000n ($48,600.00)
-
 // Price-to-Price division
 // $50,000/BTC ÷ $5/apple = 10,000 apples/BTC
 const calculatedApplesPerBtc = usdPerBtc.divide(usdPerApple)
@@ -288,12 +345,6 @@ const halfPrice = usdPerApple.divide("2")      // $2.50/apple
 
 // Convert to mathematical ratio
 const ratio = usdPerApple.asRatio() // RationalNumber: 500/1
-
-// Exchange rates with timestamps
-const exchangeRate = new ExchangeRate(
-  Money("$1.17"), // $1.17
-  Money("€1.00")  // €1.00
-) // Automatically timestamped
 
 // Price operations validate shared assets
 try {
@@ -337,7 +388,7 @@ Safe serialization for APIs and storage:
 ```typescript
 const money = Money("$1,234,567,890,123.45")
 
-// Serialize (BigInt becomes string)
+// serialize (BigInt becomes string)
 const json = money.toJSON()
 console.log(JSON.stringify(json))
 // {"asset":{"name":"United States dollar","code":"USD","decimals":"2","symbol":"$"},"amount":"1234567890123.45"}
@@ -358,7 +409,7 @@ console.log(restoredFp.equals(fp)) // true
 `cent` automatically handles different precisions:
 
 ```typescript
-// Different decimal places are automatically normalized
+// different decimal places are automatically normalized
 const fp1 = FixedPoint("10.0") // 1 decimal
 const fp2 = FixedPoint("5.00") // 2 decimals
 
@@ -390,10 +441,7 @@ If you need division that would break out of what's possible to represent in
 fixed point, you can mix `FixedPointNumber` and `RationalNumber`.
 
 ```typescript
-Rational("1/3").multiply(FixedPoint("100")) // Can mix types when needed
-
-// Also supports original constructor for explicit control
-const explicit = new FixedPointNumber(100n, 0n) // Same as FixedPoint("100")
+Rational("1/3").multiply(FixedPoint("100"))
 ```
 
 ## Use cases
@@ -569,9 +617,20 @@ console.log(change.toString()) // "$0.00123" (sub-unit precision)
 
 ### `ExchangeRate`
 
-- Inherits all `Price` methods
-- `constructor(a, b, time?)` - Create with optional timestamp
-- Automatic timestamping for exchange rate tracking
+**Constructor Overloads:**
+- `new ExchangeRate(data)` - Create from ExchangeRateData object
+- `new ExchangeRate(baseCurrency, quoteCurrency, rate, timestamp?, source?)` - Create from individual arguments
+-
+**Exchange Rate Specific:**
+- `multiply(scalar | ExchangeRate)` - Scalar multiplication or cross-currency rate calculation
+- `divide(scalar | ExchangeRate)` - Scalar division or rate division
+- `invert()` - Swap base and quote currencies (1/rate)
+- `convert(amount, fromCurrency, toCurrency)` - Convert amounts between currencies
+- `isStale(thresholdMs)` - Check if rate is older than threshold
+- `toString(options?)` - Format as "rate quote/base" with symbol, code, or ratio formats
+- `toJSON()` - Serialize to JSON with BigInt string conversion
+- `fromJSON(json)` - Deserialize from JSON
+- `average(rates[])` - Static method to average multiple rates
 
 ## Comparison with dinero.js
 

@@ -1,28 +1,18 @@
-import {
-  AnyAsset,
-  AssetAmount,
-  Ratio,
-  FixedPoint,
-  PricePoint,
-  UNIXTime,
-} from "./types"
+import { AssetAmount, FixedPoint, Ratio, UNIXTime, AnyAsset } from "./types"
 import { Money as MoneyClass } from "./money"
 import { assetsEqual } from "./assets"
 import { RationalNumber } from "./rationals"
 import { nowUNIXTime, toUNIXTime } from "./time"
 
-export class Price implements PricePoint {
+/**
+ * Price class for representing price ratios between assets
+ * This is a simplified version for backward compatibility
+ */
+export class Price {
   readonly amounts: [AssetAmount, AssetAmount]
 
   readonly time: UNIXTime
 
-  /**
-   * Create a new Price instance
-   *
-   * @param a - The first asset amount or Money instance
-   * @param b - The second asset amount or Money instance
-   * @param time - Optional UNIX timestamp (string or UNIXTime). Defaults to current time
-   */
   constructor(
     a: AssetAmount | MoneyClass,
     b: AssetAmount | MoneyClass,
@@ -33,8 +23,6 @@ export class Price implements PricePoint {
     const amountB = b instanceof MoneyClass ? b.balance : b
 
     this.amounts = [amountA, amountB]
-
-    // Set time - if provided as string, convert to UNIXTime, otherwise use current time
     if (time) {
       this.time = typeof time === "string" ? toUNIXTime(time) : time
     } else {
@@ -44,13 +32,6 @@ export class Price implements PricePoint {
 
   /**
    * Invert this Price by swapping the order of amounts
-   *
-   * @returns A new Price instance with amounts swapped
-   */
-  /**
-   * Invert this Price by swapping the order of amounts
-   *
-   * @returns A new Price instance with amounts swapped
    */
   invert(): Price {
     return new Price(this.amounts[1], this.amounts[0], this.time)
@@ -58,9 +39,6 @@ export class Price implements PricePoint {
 
   /**
    * Get the ratio of amounts[0] / amounts[1] as a Ratio
-   * Accounts for decimal places to return the actual value ratio
-   *
-   * @returns A RationalNumber representing the ratio
    */
   asRatio(): RationalNumber {
     const [amount0, amount1] = this.amounts
@@ -74,18 +52,15 @@ export class Price implements PricePoint {
   }
 
   /**
-   * Multiply this Price by a scalar value or another Price.
-   *
-   * @param multiplier - The value to multiply by (bigint, FixedPoint, Ratio, or Price)
-   * @returns A new Price instance with scaled amounts
-   * @throws Error if multiplying by another Price without shared assets
+   * Multiply this Price by a scalar value or another Price
    */
   multiply(multiplier: bigint | FixedPoint | Ratio | Price): Price {
-    // handle Price-to-Price multiplication
+    // Handle Price-to-Price multiplication
     if (multiplier instanceof Price) {
       return this.multiplyByPrice(multiplier)
     }
 
+    // Handle scalar multiplication
     const scalar = multiplier
     let multiplierP: bigint
     let multiplierQ: bigint
@@ -127,18 +102,12 @@ export class Price implements PricePoint {
 
   /**
    * Divide this Price by a scalar value or another Price
-   *
-   * @param divisor - The value to divide by (bigint, FixedPoint, Ratio, or Price)
-   * @returns A new Price instance with scaled amounts
-   * @throws Error if the divisor is zero or if dividing by another Price without shared assets
    */
   divide(divisor: bigint | FixedPoint | Ratio | Price): Price {
     // Handle Price-to-Price division (multiply by inverse)
     if (divisor instanceof Price) {
       return this.multiplyByPrice(divisor.invert())
     }
-
-    // Handle scalar division (existing logic)
     // Division is multiplication by the inverted ratio
     let invertedRatio: Ratio
 
@@ -166,10 +135,6 @@ export class Price implements PricePoint {
 
   /**
    * Check if this Price is equal to another Price
-   * Considers prices equal if they have the same asset pairs (regardless of order) and time
-   *
-   * @param other - The other Price instance to compare with
-   * @returns true if the prices are equal, false otherwise
    */
   equals(other: Price): boolean {
     // Check if times are equal
@@ -195,14 +160,10 @@ export class Price implements PricePoint {
 
   /**
    * Multiply this Price by another Price with asset validation
-   *
-   * @param other - The other Price to multiply by
-   * @returns A new Price instance with the result
-   * @throws Error if no shared asset is found
    */
   private multiplyByPrice(other: Price): Price {
     // Check for shared assets that allow multiplication
-    // Case 1: this.amounts[1].asset === other.amounts[0].asset (A/B * B/C = (A*B)/(B*C) = A/C after cancellation)
+    // Case 1: this.amounts[1].asset === other.amounts[0].asset (A/B * B/C = A/C)
     if (assetsEqual(this.amounts[1].asset, other.amounts[0].asset)) {
       const newAmountA = {
         asset: this.amounts[0].asset,
@@ -225,7 +186,7 @@ export class Price implements PricePoint {
       return new Price(newAmountA, newAmountB, this.time)
     }
 
-    // Case 2: this.amounts[0].asset === other.amounts[1].asset (A/B * C/A = (A*C)/(B*A) = C/B after cancellation)
+    // Case 2: this.amounts[0].asset === other.amounts[1].asset (A/B * C/A = C/B)
     if (assetsEqual(this.amounts[0].asset, other.amounts[1].asset)) {
       const newAmountA = {
         asset: other.amounts[0].asset,

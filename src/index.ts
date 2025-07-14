@@ -13,7 +13,8 @@ export {
 export { FixedPointNumber, FixedPointJSONSchema } from "./fixed-point"
 export { RationalNumber, RationalNumberJSONSchema, Rational } from "./rationals"
 export { Price } from "./prices"
-export { ExchangeRate, averageExchangeRate } from "./exchange-rates"
+export { ExchangeRate } from "./exchange-rates"
+export type { ExchangeRateData } from "./exchange-rates"
 export { ExchangeRateSourceUtils } from "./exchange-rate-sources"
 export type {
   ExchangeRateSource,

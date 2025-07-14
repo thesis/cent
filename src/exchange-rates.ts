@@ -1,236 +1,528 @@
 import { z } from "zod"
-import { AssetAmount, UNIXTime, Currency } from "./types"
-import { Money as MoneyClass, AnyAssetJSONSchema } from "./money"
-import { Price } from "./prices"
-import { ExchangeRateSource } from "./exchange-rate-sources"
-import { UNIXTimeSchema } from "./time"
-import { NonNegativeBigIntStringSchema } from "./validation-schemas"
+import { Currency, UNIXTime } from "./types"
 import { FixedPointNumber } from "./fixed-point"
+import { RationalNumber } from "./rationals"
+import { ExchangeRateSource } from "./exchange-rate-sources"
+import { nowUNIXTime, UNIXTimeSchema } from "./time"
+import { NonNegativeBigIntStringSchema } from "./validation-schemas"
+import { AnyAssetJSONSchema } from "./money"
 import { assetsEqual } from "./assets"
-import "./types/intl-extensions"
 
 /**
- * Get symbol for currency if requested, otherwise empty string
+ * ExchangeRate data structure with clear base/quote semantics
  */
-function getSymbolForCurrency(currency: Currency, useSymbol: boolean): string {
-  if (!useSymbol || !("symbol" in currency)) {
-    return ""
-  }
-  return (currency as { symbol: string }).symbol
+export type ExchangeRateData = {
+  baseCurrency: Currency // The "1 unit" reference currency
+  quoteCurrency: Currency // The "price per unit" currency
+  rate: FixedPointNumber // Quote units per base unit
+  timestamp?: UNIXTime // When rate was recorded (optional, auto-filled)
+  source?: ExchangeRateSource // Optional source metadata
 }
 
-/**
- * Get currency code for display
- */
-function getCurrencyCode(currency: Currency): string {
-  return currency.code
-}
-
-// Schema for FixedPoint amounts in JSON (object format for exchange rates)
-const FixedPointObjectJSONSchema = z.object({
+// JSON schema for FixedPointNumber in exchange rates
+const FixedPointJSONSchema = z.object({
   amount: NonNegativeBigIntStringSchema,
   decimals: NonNegativeBigIntStringSchema,
 })
 
-// Schema for AssetAmount in JSON
-const AssetAmountJSONSchema = z.object({
-  asset: AnyAssetJSONSchema,
-  amount: FixedPointObjectJSONSchema,
-})
-
-// Schema for ExchangeRateSource
+// JSON schema for ExchangeRateSource
 const ExchangeRateSourceJSONSchema = z.object({
   name: z.string(),
   priority: z.number(),
   reliability: z.number().min(0).max(1),
 })
 
-// Schema for ExchangeRate JSON
+// JSON schema for ExchangeRateData
 export const ExchangeRateJSONSchema = z.object({
-  amounts: z.tuple([AssetAmountJSONSchema, AssetAmountJSONSchema]),
-  time: UNIXTimeSchema,
+  baseCurrency: AnyAssetJSONSchema,
+  quoteCurrency: AnyAssetJSONSchema,
+  rate: FixedPointJSONSchema,
+  timestamp: UNIXTimeSchema.optional(),
   source: ExchangeRateSourceJSONSchema.optional(),
 })
 
-export class ExchangeRate extends Price {
-  public readonly source?: ExchangeRateSource
+export type ExchangeRateJSON = z.infer<typeof ExchangeRateJSONSchema>
+
+/**
+ * ExchangeRate utility class providing static methods for exchange rate operations
+ * Constructor supports both ExchangeRateData objects and individual arguments
+ */
+export class ExchangeRate implements ExchangeRateData {
+  readonly baseCurrency: Currency
+
+  readonly quoteCurrency: Currency
+
+  readonly rate: FixedPointNumber
+
+  readonly timestamp: UNIXTime
+
+  readonly source?: ExchangeRateSource
 
   /**
-   * Create a new ExchangeRate instance
-   *
-   * @param a - The first asset amount or Money instance
-   * @param b - The second asset amount or Money instance
-   * @param time - Optional UNIX timestamp (string or UNIXTime). Defaults to current time
-   * @param source - Optional source metadata for this rate
+   * Create an ExchangeRate from ExchangeRateData
+   */
+  constructor(data: ExchangeRateData)
+  /**
+   * Create an ExchangeRate from individual arguments
    */
   constructor(
-    a: AssetAmount | MoneyClass,
-    b: AssetAmount | MoneyClass,
-    time?: UNIXTime | string,
+    baseCurrency: Currency,
+    quoteCurrency: Currency,
+    rate: FixedPointNumber | string,
+    timestamp?: UNIXTime,
+    source?: ExchangeRateSource,
+  )
+  constructor(
+    dataOrBaseCurrency: ExchangeRateData | Currency,
+    quoteCurrency?: Currency,
+    rate?: FixedPointNumber | string,
+    timestamp?: UNIXTime,
     source?: ExchangeRateSource,
   ) {
-    super(a, b, time)
-    this.source = source
+    if (
+      typeof dataOrBaseCurrency === "object" &&
+      "baseCurrency" in dataOrBaseCurrency
+    ) {
+      // ExchangeRateData constructor
+      const data = dataOrBaseCurrency as ExchangeRateData
+      this.baseCurrency = data.baseCurrency
+      this.quoteCurrency = data.quoteCurrency
+      this.rate = data.rate
+      this.timestamp = data.timestamp || nowUNIXTime()
+      this.source = data.source
+    } else {
+      // Individual arguments constructor
+      const baseCurrency = dataOrBaseCurrency as Currency
+      if (!quoteCurrency || !rate) {
+        throw new Error("Missing required arguments: quoteCurrency and rate")
+      }
+      this.baseCurrency = baseCurrency
+      this.quoteCurrency = quoteCurrency
+      this.rate =
+        typeof rate === "string"
+          ? FixedPointNumber.fromDecimalString(rate)
+          : rate
+      this.timestamp = timestamp || nowUNIXTime()
+      this.source = source
+    }
   }
 
   /**
-   * Invert this ExchangeRate by swapping the order of amounts
-   *
-   * @returns A new ExchangeRate instance with amounts swapped
+   * Convert this ExchangeRate to ExchangeRateData format
+   */
+  toData(): ExchangeRateData {
+    return {
+      baseCurrency: this.baseCurrency,
+      quoteCurrency: this.quoteCurrency,
+      rate: this.rate,
+      timestamp: this.timestamp,
+      source: this.source,
+    }
+  }
+
+  /**
+   * Instance method to invert this exchange rate
    */
   invert(): ExchangeRate {
-    return new ExchangeRate(
-      this.amounts[1],
-      this.amounts[0],
-      this.time,
-      this.source,
+    return new ExchangeRate(ExchangeRate.invert(this.toData()))
+  }
+
+  /**
+   * Instance method to multiply this exchange rate
+   */
+  multiply(
+    multiplier: FixedPointNumber | string | bigint | ExchangeRate,
+  ): ExchangeRate {
+    if (multiplier instanceof ExchangeRate) {
+      return new ExchangeRate(
+        ExchangeRate.multiply(this.toData(), multiplier.toData()),
+      )
+    }
+    return new ExchangeRate(ExchangeRate.multiply(this.toData(), multiplier))
+  }
+
+  /**
+   * Instance method to convert amounts using this exchange rate
+   */
+  convert(
+    amount: FixedPointNumber,
+    fromCurrency: Currency,
+    toCurrency: Currency,
+  ): FixedPointNumber {
+    return ExchangeRate.convert(amount, fromCurrency, toCurrency, this.toData())
+  }
+
+  /**
+   * Instance method to check if this rate is stale
+   */
+  isStale(maxAge: number): boolean {
+    return ExchangeRate.isStale(this.toData(), maxAge)
+  }
+
+  /**
+   * Instance method to get the age of this rate
+   */
+  getAge(): number {
+    return ExchangeRate.getAge(this.toData())
+  }
+
+  /**
+   * Instance method to serialize this rate to JSON
+   */
+  toJSON(): ExchangeRateJSON {
+    return ExchangeRate.toJSON(this.toData())
+  }
+
+  /**
+   * Instance method to format this rate as a string
+   */
+  toString(options?: {
+    format?: "symbol" | "code" | "ratio"
+    precision?: number
+    locale?: string
+  }): string {
+    return ExchangeRate.toString(this.toData(), options)
+  }
+
+  /**
+   * Static method to create from JSON
+   */
+  static fromJSON(json: unknown): ExchangeRate {
+    return new ExchangeRate(ExchangeRate.fromJSONData(json))
+  }
+
+  /**
+   * Invert an ExchangeRate by swapping base and quote currencies
+   */
+  static invert(rate: ExchangeRateData): ExchangeRateData {
+    if (rate.rate.amount === 0n) {
+      throw new Error("Cannot invert zero rate")
+    }
+
+    // Use RationalNumber for division, then convert back to FixedPointNumber
+    const rateRational = new RationalNumber({
+      p: rate.rate.amount,
+      q: 10n ** rate.rate.decimals,
+    })
+
+    const oneRational = new RationalNumber({ p: 1n, q: 1n })
+    const invertedRational = oneRational.divide(rateRational)
+
+    // Convert back to FixedPointNumber with appropriate precision
+    const invertedFixed = invertedRational.toFixedPoint({ maxBits: 256 })
+
+    return {
+      baseCurrency: rate.quoteCurrency,
+      quoteCurrency: rate.baseCurrency,
+      rate: new FixedPointNumber(invertedFixed.amount, invertedFixed.decimals),
+      timestamp: rate.timestamp,
+      source: rate.source,
+    }
+  }
+
+  /**
+   * Multiply an ExchangeRate by a scalar or another ExchangeRate
+   */
+  static multiply(
+    rate: ExchangeRateData,
+    scalar: FixedPointNumber | string | bigint,
+  ): ExchangeRateData
+  static multiply(
+    rate1: ExchangeRateData,
+    rate2: ExchangeRateData,
+  ): ExchangeRateData
+  static multiply(
+    rate: ExchangeRateData,
+    multiplier: FixedPointNumber | string | bigint | ExchangeRateData,
+  ): ExchangeRateData {
+    if (typeof multiplier === "object" && "baseCurrency" in multiplier) {
+      // Rate-to-rate multiplication
+      const rate2 = multiplier as ExchangeRateData
+
+      // Check for shared currency that allows multiplication
+      // Case 1: rate1.quoteCurrency === rate2.baseCurrency (A/B * B/C = A/C)
+      if (assetsEqual(rate.quoteCurrency, rate2.baseCurrency)) {
+        return {
+          baseCurrency: rate.baseCurrency,
+          quoteCurrency: rate2.quoteCurrency,
+          rate: rate.rate.multiply(rate2.rate),
+          timestamp: rate.timestamp || rate2.timestamp,
+          source: rate.source, // Use first rate's source
+        }
+      }
+
+      // Case 2: rate1.baseCurrency === rate2.quoteCurrency (A/B * C/A = C/B)
+      if (assetsEqual(rate.baseCurrency, rate2.quoteCurrency)) {
+        return {
+          baseCurrency: rate2.baseCurrency,
+          quoteCurrency: rate.quoteCurrency,
+          rate: rate2.rate.multiply(rate.rate),
+          timestamp: rate.timestamp || rate2.timestamp,
+          source: rate.source, // Use first rate's source
+        }
+      }
+
+      const getAssetName = (asset: Currency) => asset.name || asset.code
+      throw new Error(
+        `Cannot multiply rates: no shared currency found between ${getAssetName(rate.baseCurrency)}/${getAssetName(rate.quoteCurrency)} and ${getAssetName(rate2.baseCurrency)}/${getAssetName(rate2.quoteCurrency)}`,
+      )
+    }
+
+    // Scalar multiplication
+    let multiplierFixed: FixedPointNumber
+    if (typeof multiplier === "string") {
+      multiplierFixed = FixedPointNumber.fromDecimalString(multiplier)
+    } else if (typeof multiplier === "bigint") {
+      multiplierFixed = new FixedPointNumber(multiplier, 0n)
+    } else {
+      multiplierFixed = multiplier
+    }
+
+    return {
+      baseCurrency: rate.baseCurrency,
+      quoteCurrency: rate.quoteCurrency,
+      rate: rate.rate.multiply(multiplierFixed),
+      timestamp: rate.timestamp,
+      source: rate.source,
+    }
+  }
+
+  /**
+   * Convert an amount from one currency to another using an exchange rate
+   */
+  static convert(
+    amount: FixedPointNumber,
+    fromCurrency: Currency,
+    toCurrency: Currency,
+    rate: ExchangeRateData,
+  ): FixedPointNumber {
+    // Check if we can convert directly (from = base, to = quote)
+    if (
+      assetsEqual(fromCurrency, rate.baseCurrency) &&
+      assetsEqual(toCurrency, rate.quoteCurrency)
+    ) {
+      return amount.multiply(rate.rate)
+    }
+
+    // Check if we can convert in reverse (from = quote, to = base)
+    if (
+      assetsEqual(fromCurrency, rate.quoteCurrency) &&
+      assetsEqual(toCurrency, rate.baseCurrency)
+    ) {
+      // Use RationalNumber for division, then convert back to FixedPointNumber
+      const amountRational = new RationalNumber({
+        p: amount.amount,
+        q: 10n ** amount.decimals,
+      })
+
+      const rateRational = new RationalNumber({
+        p: rate.rate.amount,
+        q: 10n ** rate.rate.decimals,
+      })
+
+      const resultRational = amountRational.divide(rateRational)
+      const resultFixed = resultRational.toFixedPoint({ maxBits: 256 })
+
+      // Normalize to match the original amount's precision
+      const result = new FixedPointNumber(
+        resultFixed.amount,
+        resultFixed.decimals,
+      )
+      const targetPrecision = new FixedPointNumber(0n, amount.decimals)
+      return result.normalize(targetPrecision)
+    }
+
+    throw new Error(
+      `Currency mismatch: cannot convert ${fromCurrency.code} to ${toCurrency.code} using rate ${rate.baseCurrency.code}/${rate.quoteCurrency.code}`,
     )
   }
 
   /**
-   * Check if this rate is stale based on its timestamp
-   * @param maxAge - Maximum age in milliseconds
-   * @returns Whether the rate is stale
+   * Average multiple exchange rates
    */
-  isStale(maxAge: number): boolean {
+  static average(rates: ExchangeRateData[]): ExchangeRateData {
+    if (rates.length === 0) {
+      throw new Error("At least one exchange rate is required for averaging")
+    }
+
+    if (rates.length === 1) {
+      return {
+        ...rates[0],
+        source: {
+          name: "Average of 1 source",
+          priority: 1,
+          reliability: rates[0].source?.reliability ?? 1.0,
+        },
+      }
+    }
+
+    // Validate currency compatibility
+    const firstRate = rates[0]
+    const referenceCurrencies = [
+      firstRate.baseCurrency,
+      firstRate.quoteCurrency,
+    ]
+
+    for (let i = 1; i < rates.length; i += 1) {
+      const rate = rates[i]
+      const currentCurrencies = [rate.baseCurrency, rate.quoteCurrency]
+
+      // Check if currencies match in same order or inverted order
+      const sameOrder =
+        assetsEqual(referenceCurrencies[0], currentCurrencies[0]) &&
+        assetsEqual(referenceCurrencies[1], currentCurrencies[1])
+
+      const invertedOrder =
+        assetsEqual(referenceCurrencies[0], currentCurrencies[1]) &&
+        assetsEqual(referenceCurrencies[1], currentCurrencies[0])
+
+      if (!sameOrder && !invertedOrder) {
+        throw new Error(
+          "Incompatible currency pairs: all rates must use the same two currencies",
+        )
+      }
+    }
+
+    // Normalize all rates to have the same currency order (same as first rate)
+    const normalizedRates = rates.map((rate) => {
+      const currentCurrencies = [rate.baseCurrency, rate.quoteCurrency]
+
+      // Check if this rate needs to be inverted to match reference order
+      const needsInversion =
+        assetsEqual(referenceCurrencies[0], currentCurrencies[1]) &&
+        assetsEqual(referenceCurrencies[1], currentCurrencies[0])
+
+      return needsInversion ? ExchangeRate.invert(rate) : rate
+    })
+
+    // Calculate the average rate
+    let sum = normalizedRates[0].rate
+    for (let i = 1; i < normalizedRates.length; i += 1) {
+      sum = sum.add(normalizedRates[i].rate)
+    }
+    const averageRate = sum.divide(BigInt(normalizedRates.length))
+
+    // Find the most recent timestamp
+    const mostRecentTime = rates.reduce((latest, rate) => {
+      if (!rate.timestamp) return latest
+      if (!latest) return rate.timestamp
+
+      const currentTime = parseInt(rate.timestamp, 10)
+      const latestTime = parseInt(latest, 10)
+      return currentTime > latestTime ? rate.timestamp : latest
+    }, rates[0].timestamp)
+
+    // Create average source metadata
+    const sourceNames = rates.map((rate) => rate.source?.name ?? "Unknown")
+    const averageReliability =
+      rates.reduce(
+        (total, rate) => total + (rate.source?.reliability ?? 1.0),
+        0,
+      ) / rates.length
+
+    const averageSource: ExchangeRateSource = {
+      name: sourceNames.some((name) => name !== "Unknown")
+        ? `Average of ${sourceNames.join(", ")}`
+        : `Average of ${rates.length} sources`,
+      priority: 1,
+      reliability: averageReliability,
+    }
+
+    return {
+      baseCurrency: firstRate.baseCurrency,
+      quoteCurrency: firstRate.quoteCurrency,
+      rate: averageRate,
+      timestamp: mostRecentTime,
+      source: averageSource,
+    }
+  }
+
+  /**
+   * Format an ExchangeRate as a human-readable string
+   */
+  static toString(
+    rate: ExchangeRateData,
+    options?: {
+      format?: "symbol" | "code" | "ratio"
+      precision?: number
+      locale?: string
+    },
+  ): string {
+    const { format = "symbol", precision = 2, locale = "en-US" } = options || {}
+
+    const rateString = rate.rate.toString()
+    const numberFormatter = new Intl.NumberFormat(locale, {
+      minimumFractionDigits: precision,
+      maximumFractionDigits: precision,
+    })
+
+    const formattedRate = numberFormatter.format(rateString)
+
+    const baseSymbol = rate.baseCurrency.symbol || rate.baseCurrency.code
+    const quoteSymbol = rate.quoteCurrency.symbol || rate.quoteCurrency.code
+
+    if (format === "ratio") {
+      return `1 ${rate.baseCurrency.code} = ${formattedRate} ${rate.quoteCurrency.code}`
+    }
+
+    if (format === "code") {
+      return `${formattedRate} ${rate.quoteCurrency.code}/${rate.baseCurrency.code}`
+    }
+
+    // Default symbol format
+    return `${formattedRate} ${quoteSymbol}/${baseSymbol}`
+  }
+
+  /**
+   * Check if a rate is stale based on its timestamp
+   */
+  static isStale(rate: ExchangeRateData, maxAge: number): boolean {
+    if (!rate.timestamp) return false
+
     const now = Date.now()
-    const rateTime =
-      typeof this.time === "string"
-        ? parseInt(this.time, 10)
-        : parseInt(this.time, 10)
+    const rateTime = parseInt(rate.timestamp, 10)
     const age = now - rateTime
 
     return age > maxAge
   }
 
   /**
-   * Get the age of this rate in milliseconds
-   * @returns Age in milliseconds
+   * Get the age of a rate in milliseconds
    */
-  getAge(): number {
-    const now = Date.now()
-    const rateTime =
-      typeof this.time === "string"
-        ? parseInt(this.time, 10)
-        : parseInt(this.time, 10)
+  static getAge(rate: ExchangeRateData): number {
+    if (!rate.timestamp) return 0
 
+    const now = Date.now()
+    const rateTime = parseInt(rate.timestamp, 10)
     return now - rateTime
   }
 
   /**
-   * Serialize this ExchangeRate to a JSON-compatible object
-   * @returns Serializable object representation
+   * Serialize an ExchangeRate to JSON
    */
-  toJSON(): ExchangeRateJSON {
+  static toJSON(rate: ExchangeRateData): ExchangeRateJSON {
     return {
-      amounts: [
-        {
-          asset: this.amounts[0].asset,
-          amount: {
-            amount: this.amounts[0].amount.amount.toString(),
-            decimals: this.amounts[0].amount.decimals.toString(),
-          },
-        },
-        {
-          asset: this.amounts[1].asset,
-          amount: {
-            amount: this.amounts[1].amount.amount.toString(),
-            decimals: this.amounts[1].amount.decimals.toString(),
-          },
-        },
-      ],
-      time: this.time,
-      source: this.source,
+      baseCurrency: {
+        ...rate.baseCurrency,
+        decimals: rate.baseCurrency.decimals.toString(),
+      },
+      quoteCurrency: {
+        ...rate.quoteCurrency,
+        decimals: rate.quoteCurrency.decimals.toString(),
+      },
+      rate: {
+        amount: rate.rate.amount.toString(),
+        decimals: rate.rate.decimals.toString(),
+      },
+      timestamp: rate.timestamp,
+      source: rate.source,
     }
   }
 
   /**
-   * Format this ExchangeRate as a human-readable string
-   * @param options - Formatting options
-   * @returns Formatted string representation
+   * Deserialize an ExchangeRateData from JSON
    */
-  toString(options?: {
-    format?: "symbol" | "code" | "ratio"
-    precision?: number
-    locale?: string
-    showSymbolFor?: "numerator" | "denominator" | "both" | "none"
-  }): string {
-    const {
-      format = "symbol",
-      precision,
-      locale = "en-US",
-      showSymbolFor = "denominator",
-    } = options || {}
-
-    // Get the ratio and convert to a FixedPoint for rounding
-    const ratio = this.asRatio()
-
-    // Determine precision: use provided value or base currency decimals (numerator)
-    const [baseAsset] = this.amounts
-    const defaultPrecision =
-      "decimals" in baseAsset.asset ? Number(baseAsset.asset.decimals) : 0
-    const finalPrecision =
-      precision !== undefined ? precision : defaultPrecision
-
-    // Convert ratio to FixedPoint with sufficient precision for display
-    const fixedPointData = ratio.toFixedPoint({ maxBits: 256 })
-
-    // Create a FixedPointNumber instance to access toString() method
-    const roundedRatio = new FixedPointNumber(
-      fixedPointData.amount,
-      fixedPointData.decimals,
-    )
-
-    // Get decimal string representation (no Number conversion needed!)
-    const decimalString = roundedRatio.toString()
-
-    // Create Money instances for easier currency access
-    const baseMoney = new MoneyClass(this.amounts[0])
-    const quoteMoney = new MoneyClass(this.amounts[1])
-
-    // Create number formatter
-    const numberFormatter = new Intl.NumberFormat(locale, {
-      minimumFractionDigits: finalPrecision,
-      maximumFractionDigits: finalPrecision,
-    })
-
-    const formattedRate = numberFormatter.format(decimalString)
-
-    if (format === "ratio") {
-      // Format: "117,000.00 USD/BTC"
-      return `${formattedRate} ${getCurrencyCode(baseMoney.currency)}/${getCurrencyCode(quoteMoney.currency)}`
-    }
-
-    if (format === "code") {
-      // Format: "$117,000.00 BTCUSD"
-      const symbol = getSymbolForCurrency(
-        baseMoney.currency,
-        showSymbolFor !== "none",
-      )
-      const pairCode = `${getCurrencyCode(quoteMoney.currency)}${getCurrencyCode(baseMoney.currency)}`
-      return `${symbol}${formattedRate} ${pairCode}`
-    }
-
-    // Default symbol format: "$117,000.00 / BTC"
-    const symbol = getSymbolForCurrency(
-      baseMoney.currency,
-      showSymbolFor !== "none",
-    )
-    const denomSymbol =
-      showSymbolFor === "both"
-        ? getSymbolForCurrency(quoteMoney.currency, true)
-        : getCurrencyCode(quoteMoney.currency)
-
-    return `${symbol}${formattedRate} / ${denomSymbol}`
-  }
-
-  /**
-   * Create an ExchangeRate from a JSON representation
-   * @param json - JSON object to deserialize
-   * @returns New ExchangeRate instance
-   * @throws Error if JSON is invalid or malformed
-   */
-  static fromJSON(json: unknown): ExchangeRate {
+  static fromJSONData(json: unknown): ExchangeRateData {
     const validationResult = ExchangeRateJSONSchema.safeParse(json)
 
     if (!validationResult.success) {
@@ -244,184 +536,37 @@ export class ExchangeRate extends Price {
     const validatedData = validationResult.data
 
     try {
-      const amounts: [AssetAmount, AssetAmount] = [
-        {
-          asset: validatedData.amounts[0].asset,
-          amount: {
-            amount: BigInt(validatedData.amounts[0].amount.amount),
-            decimals: BigInt(validatedData.amounts[0].amount.decimals),
-          },
-        },
-        {
-          asset: validatedData.amounts[1].asset,
-          amount: {
-            amount: BigInt(validatedData.amounts[1].amount.amount),
-            decimals: BigInt(validatedData.amounts[1].amount.decimals),
-          },
-        },
-      ]
+      // Type guard function to check if an object has a decimals property
+      const hasDecimals = (obj: unknown): obj is { decimals: string } =>
+        typeof obj === "object" && obj !== null && "decimals" in obj
 
-      return new ExchangeRate(
-        amounts[0],
-        amounts[1],
-        validatedData.time,
-        validatedData.source,
-      )
+      if (
+        !hasDecimals(validatedData.baseCurrency) ||
+        !hasDecimals(validatedData.quoteCurrency)
+      ) {
+        throw new Error("Invalid currency data: missing decimals property")
+      }
+
+      return {
+        baseCurrency: {
+          ...validatedData.baseCurrency,
+          decimals: BigInt(validatedData.baseCurrency.decimals),
+        } as Currency,
+        quoteCurrency: {
+          ...validatedData.quoteCurrency,
+          decimals: BigInt(validatedData.quoteCurrency.decimals),
+        } as Currency,
+        rate: new FixedPointNumber(
+          BigInt(validatedData.rate.amount),
+          BigInt(validatedData.rate.decimals),
+        ),
+        timestamp: validatedData.timestamp as UNIXTime,
+        source: validatedData.source,
+      }
     } catch (error) {
       throw new Error(
         `Failed to parse ExchangeRate from JSON: ${error instanceof Error ? error.message : "Unknown error"}`,
       )
     }
   }
-}
-
-/**
- * JSON representation of an ExchangeRate (inferred from Zod schema)
- */
-export type ExchangeRateJSON = z.infer<typeof ExchangeRateJSONSchema>
-
-/**
- * Calculate the average of multiple exchange rates
- *
- * @param rates - Array of ExchangeRate instances to average
- * @returns A new ExchangeRate representing the average
- * @throws Error if rates array is empty or contains incompatible currency pairs
- */
-export function averageExchangeRate(rates: ExchangeRate[]): ExchangeRate {
-  if (rates.length === 0) {
-    throw new Error("At least one exchange rate is required for averaging")
-  }
-
-  if (rates.length === 1) {
-    // Return a copy of the single rate with average source metadata
-    const rate = rates[0]
-    return new ExchangeRate(rate.amounts[0], rate.amounts[1], rate.time, {
-      name: "Average of 1 source",
-      priority: 1,
-      reliability: rate.source?.reliability ?? 1.0,
-    })
-  }
-
-  // Validate currency compatibility
-  const firstRate = rates[0]
-  const referenceCurrencies = [
-    firstRate.amounts[0].asset,
-    firstRate.amounts[1].asset,
-  ]
-
-  for (let i = 1; i < rates.length; i += 1) {
-    const rate = rates[i]
-    const currentCurrencies = [rate.amounts[0].asset, rate.amounts[1].asset]
-
-    // Check if currencies match in same order or inverted order
-    const sameOrder =
-      assetsEqual(referenceCurrencies[0], currentCurrencies[0]) &&
-      assetsEqual(referenceCurrencies[1], currentCurrencies[1])
-
-    const invertedOrder =
-      assetsEqual(referenceCurrencies[0], currentCurrencies[1]) &&
-      assetsEqual(referenceCurrencies[1], currentCurrencies[0])
-
-    if (!sameOrder && !invertedOrder) {
-      throw new Error(
-        "Incompatible currency pairs: all rates must use the same two currencies",
-      )
-    }
-  }
-
-  // Normalize all rates to have the same currency order (same as first rate)
-  const normalizedRates = rates.map((rate) => {
-    const currentCurrencies = [rate.amounts[0].asset, rate.amounts[1].asset]
-
-    // Check if this rate needs to be inverted to match reference order
-    const needsInversion =
-      assetsEqual(referenceCurrencies[0], currentCurrencies[1]) &&
-      assetsEqual(referenceCurrencies[1], currentCurrencies[0])
-
-    return needsInversion ? rate.invert() : rate
-  })
-
-  // Convert each rate to a ratio for averaging, using performance-optimized precision
-  const ratios = normalizedRates.map((rate) => {
-    const ratio = rate.asRatio()
-    // Convert to FixedPoint with constrained precision to prevent performance issues
-    const fixedPoint = ratio.toFixedPoint({ maxBits: 256 })
-    return new FixedPointNumber(fixedPoint.amount, fixedPoint.decimals)
-  })
-
-  // Calculate the average ratio
-  let sum = ratios[0]
-  for (let i = 1; i < ratios.length; i += 1) {
-    sum = sum.add(ratios[i])
-  }
-  const averageRatio = sum.divide(BigInt(ratios.length))
-
-  // Convert back to asset amounts using the reference rate's structure
-  const referenceRate = normalizedRates[0]
-  const referenceNumeratorAmount = referenceRate.amounts[0].amount
-  const referenceQuoteAmount = referenceRate.amounts[1].amount
-
-  // Calculate the new numerator amount: averageRatio * quoteAmount
-  // Need to handle decimals carefully to preserve original precision
-  const newNumeratorFixedPoint = averageRatio.multiply(
-    new FixedPointNumber(
-      referenceQuoteAmount.amount,
-      referenceQuoteAmount.decimals,
-    ),
-  )
-
-  // Normalize back to the original numerator's decimal precision
-  const originalNumeratorPrecision = new FixedPointNumber(
-    0n,
-    referenceNumeratorAmount.decimals,
-  )
-  const normalizedNumerator = newNumeratorFixedPoint.normalize(
-    originalNumeratorPrecision,
-  )
-
-  // Create the averaged exchange rate
-  const averagedAmounts: [AssetAmount, AssetAmount] = [
-    {
-      asset: referenceRate.amounts[0].asset,
-      amount: {
-        amount: normalizedNumerator.amount,
-        decimals: referenceNumeratorAmount.decimals, // Preserve original decimals
-      },
-    },
-    {
-      asset: referenceRate.amounts[1].asset,
-      amount: referenceRate.amounts[1].amount,
-    },
-  ]
-
-  // Find the most recent timestamp
-  const mostRecentTime = rates.reduce((latest, rate) => {
-    const currentTime = parseInt(rate.time, 10)
-    const latestTime = parseInt(latest, 10)
-    return currentTime > latestTime ? rate.time : latest
-  }, rates[0].time)
-
-  // Create average source metadata
-  const sourceNames = rates.map((rate) => rate.source?.name ?? "Unknown")
-
-  const averageReliability =
-    rates.reduce(
-      (total, rate) => total + (rate.source?.reliability ?? 1.0),
-      0,
-    ) / rates.length
-
-  const averageSource: ExchangeRateSource = {
-    name: sourceNames.some((name) => name !== "Unknown")
-      ? `Average of ${sourceNames.join(", ")}`
-      : `Average of ${rates.length} sources`,
-    priority: 1,
-    reliability: averageReliability,
-  }
-
-  return new ExchangeRate(
-    averagedAmounts[0],
-    averagedAmounts[1],
-    mostRecentTime,
-    averageSource,
-  )
 }
