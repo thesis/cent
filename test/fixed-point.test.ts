@@ -18,6 +18,33 @@ describe("FixedPointNumber", () => {
       expect(fp.amount).toBe(0n)
       expect(fp.decimals).toBe(0n)
     })
+
+    it("should create a FixedPointNumber from a FixedPoint object", () => {
+      const fixedPoint = { amount: 123n, decimals: 2n }
+      const fp = new FixedPointNumber(fixedPoint)
+      expect(fp.amount).toBe(123n)
+      expect(fp.decimals).toBe(2n)
+    })
+
+    it("should create a FixedPointNumber from another FixedPointNumber", () => {
+      const original = new FixedPointNumber(456n, 3n)
+      const copy = new FixedPointNumber(original)
+      expect(copy.amount).toBe(456n)
+      expect(copy.decimals).toBe(3n)
+      expect(copy).not.toBe(original) // Should be a new instance
+    })
+
+    it("should maintain immutability when copying from FixedPoint objects", () => {
+      const fixedPoint = { amount: 789n, decimals: 4n }
+      const fp = new FixedPointNumber(fixedPoint)
+      
+      // Modify the original object
+      fixedPoint.amount = 999n
+      
+      // FixedPointNumber should be unaffected
+      expect(fp.amount).toBe(789n)
+      expect(fp.decimals).toBe(4n)
+    })
   })
 
   describe("add", () => {

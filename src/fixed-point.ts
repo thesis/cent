@@ -61,14 +61,33 @@ export class FixedPointNumber implements FixedPointType, Ratio {
   }
 
   /**
+   * Create a new FixedPointNumber instance from a FixedPoint object
+   *
+   * @param fixedPoint - The FixedPoint object to copy
+   */
+  constructor(fixedPoint: FixedPointType)
+  /**
    * Create a new FixedPointNumber instance
    *
    * @param amount - The raw amount value as a bigint
    * @param decimals - The number of decimal places
    */
-  constructor(amount?: bigint, decimals?: bigint) {
-    this.#amount = amount ?? 0n
-    this.#decimals = decimals ?? 0n
+  constructor(amount?: bigint, decimals?: bigint)
+  constructor(amountOrFixedPoint?: bigint | FixedPointType, decimals?: bigint) {
+    if (
+      typeof amountOrFixedPoint === "object" &&
+      amountOrFixedPoint !== null &&
+      "amount" in amountOrFixedPoint &&
+      "decimals" in amountOrFixedPoint
+    ) {
+      // FixedPoint object constructor
+      this.#amount = amountOrFixedPoint.amount
+      this.#decimals = amountOrFixedPoint.decimals
+    } else {
+      // Original constructor (bigint)
+      this.#amount = (amountOrFixedPoint as bigint) ?? 0n
+      this.#decimals = decimals ?? 0n
+    }
   }
 
   /**
@@ -79,7 +98,7 @@ export class FixedPointNumber implements FixedPointType, Ratio {
       return FixedPointNumber.fromDecimalString(other)
     }
     if (typeof other === "object" && "amount" in other && "decimals" in other) {
-      return FixedPointNumber.fromFixedPoint(other)
+      return new FixedPointNumber(other)
     }
     return other as FixedPointNumber
   }
@@ -105,7 +124,7 @@ export class FixedPointNumber implements FixedPointType, Ratio {
     const normalizedOther =
       otherFP.decimals === maxDecimals
         ? otherFP
-        : FixedPointNumber.fromFixedPoint(otherFP).normalize({
+        : new FixedPointNumber(otherFP).normalize({
             amount: 0n,
             decimals: maxDecimals,
           })
@@ -133,7 +152,7 @@ export class FixedPointNumber implements FixedPointType, Ratio {
     const normalizedOther =
       otherFP.decimals === maxDecimals
         ? otherFP
-        : FixedPointNumber.fromFixedPoint(otherFP).normalize({
+        : new FixedPointNumber(otherFP).normalize({
             amount: 0n,
             decimals: maxDecimals,
           })
@@ -165,7 +184,7 @@ export class FixedPointNumber implements FixedPointType, Ratio {
     const normalizedOther =
       otherFP.decimals === maxDecimals
         ? otherFP
-        : FixedPointNumber.fromFixedPoint(otherFP).normalize({
+        : new FixedPointNumber(otherFP).normalize({
             amount: 0n,
             decimals: maxDecimals,
           })
@@ -364,7 +383,7 @@ export class FixedPointNumber implements FixedPointType, Ratio {
       return this.amount === otherFP.amount
     }
     if (this.decimals > otherFP.decimals) {
-      return FixedPointNumber.fromFixedPoint(otherFP)
+      return new FixedPointNumber(otherFP)
         .normalize(this)
         .equals(this)
     }
@@ -731,7 +750,7 @@ export class FixedPointNumber implements FixedPointType, Ratio {
     const normalizedOther =
       otherFP.decimals === maxDecimals
         ? otherFP
-        : FixedPointNumber.fromFixedPoint(otherFP).normalize({
+        : new FixedPointNumber(otherFP).normalize({
             amount: 0n,
             decimals: maxDecimals,
           })
@@ -770,7 +789,7 @@ export class FixedPointNumber implements FixedPointType, Ratio {
     const normalizedOther =
       otherFP.decimals === maxDecimals
         ? otherFP
-        : FixedPointNumber.fromFixedPoint(otherFP).normalize({
+        : new FixedPointNumber(otherFP).normalize({
             amount: 0n,
             decimals: maxDecimals,
           })
@@ -823,7 +842,7 @@ export class FixedPointNumber implements FixedPointType, Ratio {
     )
     return others.reduce((maxValue: FixedPointNumber, fp) => {
       if (maxValue.lessThan(fp)) {
-        return FixedPointNumber.fromFixedPoint(fp)
+        return new FixedPointNumber(fp)
       }
       return maxValue
     }, this)
@@ -846,7 +865,7 @@ export class FixedPointNumber implements FixedPointType, Ratio {
     )
     return others.reduce((minValue: FixedPointNumber, fp) => {
       if (minValue.greaterThan(fp)) {
-        return FixedPointNumber.fromFixedPoint(fp)
+        return new FixedPointNumber(fp)
       }
       return minValue
     }, this)
@@ -913,7 +932,7 @@ export function FixedPoint(
     "decimals" in amountOrStrOrFixedPoint
   ) {
     // FixedPoint object mode
-    return FixedPointNumber.fromFixedPoint(amountOrStrOrFixedPoint)
+    return new FixedPointNumber(amountOrStrOrFixedPoint)
   }
   // Original constructor mode (bigint)
   if (decimals === undefined) {
