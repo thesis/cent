@@ -1599,6 +1599,19 @@ export const currencies: Record<string, Currency> = {
 }
 
 /**
+ * Helper function to get currency from code or throw.
+ *
+ * @throws an error if `code` isn't a support currency code
+ */
+export function getCurrencyFromCode(code: string): Currency {
+  const currency = currencies[code.toUpperCase()]
+  if (!currency) {
+    throw new Error(`Unsupported currency code: ${code}`)
+  }
+  return currency
+}
+
+/**
  * Primary currency mapping for symbol disambiguation
  *
  * Priority based on global trading volume (Bank for International Settlements, 2022):
