@@ -1658,7 +1658,6 @@ export const PRIMARY_SYMBOL_MAP = {
   "₹": INR, // Indian Rupee - primary rupee symbol
   R$: BRL, // Brazilian Real - unambiguous
   "₽": RUB, // Russian Ruble - unambiguous
-  "¢": USD, // US Cent (maps to USD)
   "₴": UAH, // Ukrainian Hryvnia - unambiguous
   "₺": TRY, // Turkish Lira - unambiguous
   "₸": KZT, // Kazakhstani Tenge - unambiguous
@@ -1781,3 +1780,58 @@ export const SYMBOL_PRIORITY_NOTES = {
   "₹": "INR (primary Indian Rupee symbol)",
   "﷼": "SAR (Saudi Riyal - most traded riyal)",
 } as const
+
+/**
+ * Fractional unit symbol information
+ */
+export interface FractionalUnitSymbol {
+  unit: string // Unit name: "sat", "cent", "pence"
+  symbol: string // Symbol: "§", "¢", "p"
+  decimals: number // Decimal places for this unit relative to base currency
+  currency: Currency // Base currency this fractional unit belongs to
+}
+
+/**
+ * Mapping of fractional unit symbols to their information
+ * Priority based on usage frequency and disambiguation needs
+ */
+export const FRACTIONAL_UNIT_SYMBOLS: Record<string, FractionalUnitSymbol> = {
+  "§": {
+    unit: "sat",
+    symbol: "§",
+    decimals: 8,
+    currency: BTC,
+  },
+  "¢": {
+    unit: "cent",
+    symbol: "¢",
+    decimals: 2,
+    currency: USD,
+  },
+  p: {
+    unit: "pence",
+    symbol: "p",
+    decimals: 2,
+    currency: GBP,
+  },
+} as const
+
+export type FractionalUnitSymbolKey = keyof typeof FRACTIONAL_UNIT_SYMBOLS
+
+/**
+ * Get fractional unit information for a given symbol
+ */
+export function getFractionalUnitInfo(
+  symbol: string,
+): FractionalUnitSymbol | undefined {
+  return FRACTIONAL_UNIT_SYMBOLS[symbol as FractionalUnitSymbolKey]
+}
+
+/**
+ * Check if a symbol is a fractional unit symbol
+ */
+export function isFractionalUnitSymbol(
+  symbol: string,
+): symbol is FractionalUnitSymbolKey {
+  return symbol in FRACTIONAL_UNIT_SYMBOLS
+}

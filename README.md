@@ -81,6 +81,11 @@ const satoshis = Money('1000 sat')      // 1000 satoshis = 0.00001000 BTC
 const wei = Money('1000000 wei')        // 1000000 wei = 0.000000000001 ETH
 const gwei = Money('50 gwei')           // 50 gwei = 0.00000005 ETH
 
+// Parse with fractional unit symbols
+const sats = Money('§10000')            // 10000 satoshis = 0.0001 BTC
+const cents = Money('¢50')              // 50 cents = $0.50
+const pence = Money('p75')              // 75 pence = £0.75
+
 // Supports negative amounts
 const debt = Money('-$500.25')
 const refund = Money('€-123.45')
@@ -124,6 +129,12 @@ console.log(euros.equals(euros)) // true
 // Formatting options
 console.log(euros.toString({ locale: 'de-DE' })) // "500,25 €"
 console.log(euros.toString({ compact: true })) // "€500"
+
+// Fractional unit symbol formatting
+const btc = Money("0.01 BTC")
+console.log(btc.toString({ preferredUnit: "sat" })) // "1,000,000 sats"
+console.log(btc.toString({ preferredUnit: "sat", preferFractionalSymbol: true })) // "§1,000,000"
+console.log(btc.toString({ preferredUnit: "sat", preferFractionalSymbol: true, compact: true })) // "§1M"
 
 // Allocation and distribution
 const budget = Money("$1000")

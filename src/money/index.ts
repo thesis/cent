@@ -6,6 +6,7 @@ import { RationalNumber, RationalNumberJSONSchema } from "../rationals"
 import { assetsEqual, isAssetAmount } from "../assets"
 import { NonNegativeBigIntStringSchema } from "../validation-schemas"
 import { parseMoneyString } from "./parsing"
+import { FRACTIONAL_UNIT_SYMBOLS } from "../currencies"
 import {
   isFixedPointNumber,
   isRationalNumber,
@@ -128,6 +129,8 @@ export interface MoneyToStringOptions {
   preferredUnit?: string
   /** Prefer symbol formatting over code for non-ISO currencies */
   preferSymbol?: boolean
+  /** Use fractional unit symbol (e.g., "§10K" instead of "10K sats") */
+  preferFractionalSymbol?: boolean
   /** Rounding mode for number formatting */
   roundingMode?: RoundingMode
 }
@@ -441,6 +444,7 @@ export function formatWithIntlCurrency(
  * @param maxDecimals - Maximum decimal places
  * @param preferredUnit - Preferred fractional unit
  * @param preferSymbol - Whether to prefer symbol over code
+ * @param preferFractionalSymbol - Whether to use fractional unit symbol
  * @param roundingMode - Rounding mode for number formatting
  * @returns Formatted string using custom formatting
  */
@@ -452,6 +456,7 @@ export function formatWithCustomFormatting(
   minDecimals?: number | bigint,
   preferredUnit?: string,
   preferSymbol: boolean = false,
+  preferFractionalSymbol: boolean = false,
   roundingMode?: RoundingMode,
 ): string {
   // Handle fractional unit conversion if specified
@@ -531,6 +536,24 @@ export function formatWithCustomFormatting(
 
   // Convert decimal string to number for formatting
   const formattedNumber = formatter.format(decimalString)
+
+  // Handle fractional unit symbol formatting
+  if (preferFractionalSymbol && preferredUnit && unitSuffix) {
+    // Look for a fractional unit symbol that matches the currency and unit
+    const fractionalSymbol = Object.values(FRACTIONAL_UNIT_SYMBOLS).find(
+      (info) =>
+        info.currency.code === money.currency.code &&
+        (info.unit === preferredUnit ||
+          (preferredUnit === "sat" && info.unit === "sat") ||
+          (preferredUnit === "satoshi" && info.unit === "sat") ||
+          (preferredUnit === "cent" && info.unit === "cent") ||
+          (preferredUnit === "pence" && info.unit === "pence")),
+    )
+
+    if (fractionalSymbol) {
+      return `${fractionalSymbol.symbol}${formattedNumber}`
+    }
+  }
 
   // Handle symbol vs code formatting
   if (preferSymbol && "symbol" in money.currency && !unitSuffix) {
@@ -1453,6 +1476,7 @@ export class Money {
       minDecimals,
       preferredUnit,
       preferSymbol = false,
+      preferFractionalSymbol = false,
       roundingMode,
     } = options
 
@@ -1482,6 +1506,7 @@ export class Money {
       minDecimals,
       preferredUnit,
       preferSymbol,
+      preferFractionalSymbol,
       roundingMode,
     )
   }

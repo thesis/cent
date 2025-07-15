@@ -3,6 +3,8 @@ import {
   currencies,
   PRIMARY_SYMBOL_MAP,
   getPrimaryCurrency,
+  FRACTIONAL_UNIT_SYMBOLS,
+  getFractionalUnitInfo,
 } from "../currencies"
 import { FixedPointNumber } from "../fixed-point"
 
@@ -329,6 +331,84 @@ function tryParseCurrencyCode(input: string): MoneyParseResult | null {
 }
 
 /**
+ * Try to parse fractional unit symbol (prefix only)
+ * Examples: "§10000", "¢50", "p75"
+ */
+function tryParseFractionalUnitSymbol(input: string): MoneyParseResult | null {
+  // Handle negative prefix: "-§100" -> negative=true, remaining="§100"
+  let isNegative = false
+  let cleanInput = input
+
+  if (input.startsWith("-") || input.startsWith("−")) {
+    isNegative = true
+    cleanInput = input.slice(1).trim()
+  }
+
+  // Check for symbol conflicts first - throw error if both currency and fractional symbols found
+  const currencySymbols = Object.keys(PRIMARY_SYMBOL_MAP)
+  const fractionalSymbols = Object.keys(FRACTIONAL_UNIT_SYMBOLS)
+
+  let foundCurrencySymbol = false
+  let foundFractionalSymbol = false
+
+  for (let i = 0; i < currencySymbols.length; i += 1) {
+    const symbol = currencySymbols[i]
+    if (cleanInput.includes(symbol)) {
+      foundCurrencySymbol = true
+      break
+    }
+  }
+
+  for (let i = 0; i < fractionalSymbols.length; i += 1) {
+    const symbol = fractionalSymbols[i]
+    if (cleanInput.includes(symbol)) {
+      foundFractionalSymbol = true
+      break
+    }
+  }
+
+  if (foundCurrencySymbol && foundFractionalSymbol) {
+    throw new Error(
+      `Cannot parse money string with both currency and fractional unit symbols: "${input}"`,
+    )
+  }
+
+  // Try all fractional unit symbols from longest to shortest to avoid conflicts
+  const symbols = Object.keys(FRACTIONAL_UNIT_SYMBOLS).sort(
+    (a, b) => b.length - a.length,
+  )
+
+  for (let i = 0; i < symbols.length; i += 1) {
+    const symbol = symbols[i]
+    // Only prefix format supported for fractional units: "§10000", "¢50"
+    if (cleanInput.startsWith(symbol)) {
+      const amountStr = cleanInput.slice(symbol.length).trim()
+      if (amountStr) {
+        const fractionalInfo = getFractionalUnitInfo(symbol)!
+        const { currency, decimals } = fractionalInfo
+
+        // Parse the number (fractional units are typically integers)
+        const format = detectNumberFormat(amountStr, currency)
+        let parsed = parseNumber(amountStr, format)
+
+        // Apply negative if we found one at the start
+        if (isNegative) {
+          parsed = { amount: -parsed.amount, decimals: parsed.decimals }
+        }
+
+        // Create FixedPointNumber with the fractional unit's decimal precision
+        return {
+          currency,
+          amount: new FixedPointNumber(parsed.amount, BigInt(decimals)),
+        }
+      }
+    }
+  }
+
+  return null
+}
+
+/**
  * Try to parse currency symbol (prefix or suffix)
  */
 function tryParseSymbol(input: string): MoneyParseResult | null {
@@ -412,6 +492,12 @@ export function parseMoneyString(input: string): MoneyParseResult {
   const codeResult = tryParseCurrencyCode(trimmed)
   if (codeResult) {
     return codeResult
+  }
+
+  // Try fractional unit symbol parsing (before regular symbol parsing)
+  const fractionalSymbolResult = tryParseFractionalUnitSymbol(trimmed)
+  if (fractionalSymbolResult) {
+    return fractionalSymbolResult
   }
 
   // Try symbol parsing (prefix or suffix)
