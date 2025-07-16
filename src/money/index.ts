@@ -6,7 +6,7 @@ import { RationalNumber, RationalNumberJSONSchema } from "../rationals"
 import { assetsEqual, isAssetAmount } from "../assets"
 import { NonNegativeBigIntStringSchema } from "../validation-schemas"
 import { parseMoneyString } from "./parsing"
-import { FRACTIONAL_UNIT_SYMBOLS } from "../currencies"
+import { FRACTIONAL_UNIT_SYMBOLS, getCurrencyFromCode } from "../currencies"
 import {
   isFixedPointNumber,
   isRationalNumber,
@@ -1313,9 +1313,13 @@ export class Money {
   /**
    * Serialize this Money instance to JSON
    *
+   * @param options - Serialization options
+   * @param options.compact - If true, serialize currency as just the currency code string
    * @returns A validated JSON-serializable object with currency and amount
    */
-  toJSON(): MoneyJSON {
+  toJSON(options: { compact?: boolean } = {}): MoneyJSON {
+    const { compact = false } = options
+
     // Helper function to serialize any value, converting bigints to strings
     const serializeValue = (value: unknown): unknown => {
       if (typeof value === "bigint") {
@@ -1339,9 +1343,24 @@ export class Money {
       ? this.amount.toJSON() // {amount: string, decimals: string}
       : this.amount.toJSON() // {p: string, q: string}
 
+    let currencyData: unknown
+    if (compact) {
+      // For compact format, just use the currency code
+      currencyData = this.currency.code || this.currency.name
+    } else {
+      // For regular format, serialize the full currency object
+      currencyData = serializeValue(this.currency)
+    }
+
     const result = {
-      currency: serializeValue(this.currency),
+      currency: currencyData,
       amount: amountData,
+    }
+
+    // Note: For compact format, we don't use the existing MoneyJSONSchema validation
+    // since it expects a full currency object, not just a string
+    if (compact) {
+      return result as MoneyJSON
     }
 
     // Validate the output using Zod schema for type safety
@@ -1460,33 +1479,47 @@ export class Money {
       })
     }
 
-    // New format - validate with Zod schema
-    const parsed = MoneyJSONSchema.parse(json)
+    const jsonObj = json as { currency: unknown; amount: unknown }
 
-    // Helper function to deserialize currency, converting string bigints back to bigints
-    const deserializeCurrency = (currency: unknown): Currency => {
-      const result: Record<string, unknown> = {
-        ...(currency as Record<string, unknown>),
+    // Check if this is compact format (currency is a string)
+    let currency: Currency
+    if (typeof jsonObj.currency === "string") {
+      // Compact format - look up currency by code
+      currency = getCurrencyFromCode(jsonObj.currency)
+    } else {
+      // Regular format - validate with Zod schema first
+      const parsed = MoneyJSONSchema.parse(json)
+
+      // Helper function to deserialize currency, converting string bigints back to bigints
+      const deserializeCurrency = (currencyData: unknown): Currency => {
+        const result: Record<string, unknown> = {
+          ...(currencyData as Record<string, unknown>),
+        }
+
+        // Convert decimals back to bigint if present (FungibleAsset/Currency)
+        if ("decimals" in result && typeof result.decimals === "string") {
+          result.decimals = BigInt(result.decimals)
+        }
+
+        return result as Currency
       }
 
-      // Convert decimals back to bigint if present (FungibleAsset/Currency)
-      if ("decimals" in result && typeof result.decimals === "string") {
-        result.decimals = BigInt(result.decimals)
-      }
-
-      return result as Currency
+      currency = deserializeCurrency(parsed.currency)
     }
-
-    const currency = deserializeCurrency(parsed.currency)
 
     // Deserialize amount based on structure - infer type from fields
     let amount: MoneyAmount
-    if (typeof parsed.amount === "string") {
-      amount = FixedPointNumber.fromJSON(parsed.amount) // string -> FixedPointNumber
-    } else if ("p" in parsed.amount && "q" in parsed.amount) {
-      amount = RationalNumber.fromJSON(parsed.amount) // {p, q} -> RationalNumber
+    if (typeof jsonObj.amount === "string") {
+      amount = FixedPointNumber.fromJSON(jsonObj.amount) // string -> FixedPointNumber
+    } else if (typeof jsonObj.amount === "object" && jsonObj.amount !== null) {
+      const amountObj = jsonObj.amount as Record<string, unknown>
+      if ("p" in amountObj && "q" in amountObj) {
+        amount = RationalNumber.fromJSON(jsonObj.amount) // {p, q} -> RationalNumber
+      } else {
+        amount = FixedPointNumber.fromJSON(jsonObj.amount) // legacy {amount, decimals} -> FixedPointNumber
+      }
     } else {
-      amount = FixedPointNumber.fromJSON(parsed.amount) // legacy {amount, decimals} -> FixedPointNumber
+      throw new Error("Invalid amount format in JSON")
     }
 
     return new Money(currency, amount)

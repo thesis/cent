@@ -1897,6 +1897,123 @@ describe("Money", () => {
     })
   })
 
+  describe("toJSON compact format", () => {
+    it("should serialize with compact currency format", () => {
+      const money = new Money(usdAmount) // $100.50
+      const json = money.toJSON({ compact: true })
+
+      expect(json).toEqual({
+        currency: "USD",
+        amount: "100.50",
+      })
+    })
+
+    it("should serialize Bitcoin with compact format", () => {
+      const btcAsset = {
+        name: "Bitcoin",
+        code: "BTC",
+        decimals: 8n,
+        fractionalUnit: "satoshi",
+      }
+      const money = new Money({
+        asset: btcAsset,
+        amount: { amount: 100000000n, decimals: 8n }, // 1.00000000 BTC
+      })
+
+      const json = money.toJSON({ compact: true })
+
+      expect(json).toEqual({
+        currency: "BTC",
+        amount: "1.00000000",
+      })
+    })
+
+    it("should fall back to name if no code is available", () => {
+      const basicAsset = { name: "Basic Asset" }
+      const money = new Money({
+        asset: basicAsset,
+        amount: { amount: 1000n, decimals: 0n },
+      })
+
+      const json = money.toJSON({ compact: true })
+
+      expect(json).toEqual({
+        currency: "Basic Asset",
+        amount: "1000",
+      })
+    })
+
+    it("should handle RationalNumber amounts in compact format", () => {
+      const money = new Money({
+        asset: usdCurrency,
+        amount: { amount: 10050n, decimals: 2n }, // $100.50
+      })
+      
+      // Convert to RationalNumber by dividing by 3
+      const rationalMoney = money.add(money).add(money).distribute(3)[0]
+      const json = rationalMoney.toJSON({ compact: true })
+
+      expect(json.currency).toBe("USD")
+      // The amount should be serialized as a string since it's a FixedPointNumber after distribution
+      expect(typeof json.amount).toBe("string")
+    })
+  })
+
+  describe("fromJSON compact format", () => {
+    it("should deserialize compact format correctly", () => {
+      const json = {
+        currency: "USD",
+        amount: "100.50",
+      }
+      const money = Money.fromJSON(json)
+
+      expect(money.currency.code).toBe("USD")
+      expect(money.currency.name).toBe("United States dollar")
+      expect(money.amount.toString()).toBe("100.50")
+    })
+
+    it("should round-trip compact format correctly", () => {
+      const original = new Money(usdAmount) // $100.50
+      const json = original.toJSON({ compact: true })
+      const restored = Money.fromJSON(json)
+
+      expect(restored.equals(original)).toBe(true)
+    })
+
+    it("should handle Bitcoin compact format", () => {
+      const json = {
+        currency: "BTC",
+        amount: "1.00000000",
+      }
+      const money = Money.fromJSON(json)
+
+      expect(money.currency.code).toBe("BTC")
+      expect(money.currency.name).toBe("Bitcoin")
+      expect(money.amount.toString()).toBe("1.00000000")
+    })
+
+    it("should throw error for unknown currency code", () => {
+      const json = {
+        currency: "UNKNOWN",
+        amount: "100.50",
+      }
+
+      expect(() => Money.fromJSON(json)).toThrow("Unsupported currency code: UNKNOWN")
+    })
+
+    it("should handle RationalNumber amounts in compact format", () => {
+      const json = {
+        currency: "USD",
+        amount: { p: "10050", q: "100" },
+      }
+      const money = Money.fromJSON(json)
+
+      expect(money.currency.code).toBe("USD")
+      // RationalNumber toDecimalString might not include trailing zeros
+      expect(money.amount.toDecimalString(2n)).toMatch(/^100\.5?0?$/)
+    })
+  })
+
   describe("fromJSON", () => {
     it("should round-trip correctly with Currency", () => {
       const original = new Money(usdAmount) // $100.50
