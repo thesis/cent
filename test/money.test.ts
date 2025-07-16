@@ -1769,6 +1769,95 @@ describe("Money", () => {
     })
   })
 
+  describe("compare", () => {
+    it("should return -1 when this money is less than other", () => {
+      const money1 = new Money({
+        asset: usdCurrency,
+        amount: { amount: 5000n, decimals: 2n }, // $50.00
+      })
+      const money2 = new Money(usdAmount) // $100.50
+
+      expect(money1.compare(money2)).toBe(-1)
+    })
+
+    it("should return 1 when this money is greater than other", () => {
+      const money1 = new Money(usdAmount) // $100.50
+      const money2 = new Money({
+        asset: usdCurrency,
+        amount: { amount: 5000n, decimals: 2n }, // $50.00
+      })
+
+      expect(money1.compare(money2)).toBe(1)
+    })
+
+    it("should return 0 when money instances are equal", () => {
+      const money1 = new Money(usdAmount)
+      const money2 = new Money(usdAmount)
+
+      expect(money1.compare(money2)).toBe(0)
+    })
+
+    it("should return 0 for equivalent amounts with different precision", () => {
+      const money1 = new Money({
+        asset: usdCurrency,
+        amount: { amount: 1000n, decimals: 2n }, // $10.00
+      })
+      const money2 = new Money({
+        asset: usdCurrency,
+        amount: { amount: 10000n, decimals: 3n }, // $10.000
+      })
+
+      expect(money1.compare(money2)).toBe(0)
+    })
+
+    it("should work with string representations", () => {
+      const money = new Money({
+        asset: usdCurrency,
+        amount: { amount: 5000n, decimals: 2n }, // $50.00
+      })
+
+      expect(money.compare("$100.00")).toBe(-1)
+      expect(money.compare("$25.00")).toBe(1)
+      expect(money.compare("$50.00")).toBe(0)
+    })
+
+    it("should work with AssetAmount", () => {
+      const money = new Money({
+        asset: usdCurrency,
+        amount: { amount: 5000n, decimals: 2n }, // $50.00
+      })
+      const assetAmount: AssetAmount = {
+        asset: usdCurrency,
+        amount: { amount: 7500n, decimals: 2n }, // $75.00
+      }
+
+      expect(money.compare(assetAmount)).toBe(-1)
+    })
+
+    it("should throw error when comparing different currencies", () => {
+      const usdMoney = new Money(usdAmount)
+      const eurMoney = new Money(eurAmount)
+
+      expect(() => usdMoney.compare(eurMoney)).toThrow(
+        "Cannot compare Money with different asset types"
+      )
+    })
+
+    it("should work for sorting arrays", () => {
+      const amounts = [
+        new Money({ asset: usdCurrency, amount: { amount: 10000n, decimals: 2n } }), // $100.00
+        new Money({ asset: usdCurrency, amount: { amount: 5000n, decimals: 2n } }),  // $50.00
+        new Money({ asset: usdCurrency, amount: { amount: 7500n, decimals: 2n } }),  // $75.00
+      ]
+
+      const sorted = amounts.sort((a, b) => a.compare(b))
+
+      expect(sorted[0].balance.amount.amount).toBe(5000n)  // $50.00
+      expect(sorted[1].balance.amount.amount).toBe(7500n)  // $75.00
+      expect(sorted[2].balance.amount.amount).toBe(10000n) // $100.00
+    })
+  })
+
   describe("equals", () => {
     it("should return true for Money instances with same asset and amount", () => {
       const money1 = new Money(usdAmount)

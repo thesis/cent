@@ -1349,6 +1349,36 @@ export class Money {
   }
 
   /**
+   * Compare this Money instance with another Money instance
+   *
+   * @param other - The Money, AssetAmount, or string representation to compare with
+   * @returns -1 if this money is less than other, 1 if this money is greater than other, 0 if equal
+   * @throws Error if the assets are not the same type
+   */
+  compare(other: Money | AssetAmount | string): -1 | 0 | 1 {
+    let otherMoney: Money
+    if (typeof other === "string") {
+      otherMoney = Money.parseStringToMoney(other, this.currency)
+    } else if (other instanceof Money) {
+      otherMoney = other
+    } else {
+      otherMoney = new Money(other)
+    }
+
+    if (!assetsEqual(this.currency, otherMoney.currency)) {
+      throw new Error("Cannot compare Money with different asset types")
+    }
+
+    if (this.lessThan(otherMoney)) {
+      return -1
+    }
+    if (this.greaterThan(otherMoney)) {
+      return 1
+    }
+    return 0
+  }
+
+  /**
    * Check if this Money instance is equal to another Money instance
    *
    * @param other - The other Money instance or string representation to compare with

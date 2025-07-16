@@ -126,6 +126,11 @@ console.log(euros.greaterThan(dollars)) // Error: Different currencies
 console.log(euros.isPositive()) // true
 console.log(euros.equals(euros)) // true
 
+// Sorting arrays using compare method
+const amounts = [Money("$100"), Money("$50"), Money("$200")]
+const sorted = amounts.sort((a, b) => a.compare(b))
+console.log(sorted.map(m => m.toString())) // ["$50.00", "$100.00", "$200.00"]
+
 // Formatting options
 console.log(euros.toString({ locale: 'de-DE' })) // "500,25 €"
 console.log(euros.toString({ compact: true })) // "€500"
@@ -564,6 +569,7 @@ console.log(change.toString()) // "$0.00123" (sub-unit precision)
 - `concretize()` - Split into concrete amount and change
 
 **Comparison Methods (accept Money objects or currency strings):**
+- `compare(other)` - Compare values: returns -1 if less, 0 if equal, 1 if greater
 - `equals(other)` - Check equality
 - `lessThan(other)` - Less than comparison
 - `greaterThan(other)` - Greater than comparison
