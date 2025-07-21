@@ -384,6 +384,117 @@ try {
 }
 ```
 
+## Price Ranges
+
+`cent` includes a `PriceRange` class for representing and manipulating price ranges with precision. Perfect for e-commerce filters, pricing strategies, and financial analysis.
+
+```typescript
+import { PriceRange, Money, USD, EUR } from '@your-org/cent'
+
+// Create ranges from strings
+const range1 = PriceRange("$50 - $100")
+const range2 = PriceRange("$50-100")        // Compact format
+const range3 = PriceRange("€25 - €75")
+
+// Create from Money instances
+const range4 = PriceRange(Money("$50"), Money("$100"))
+
+// Mixed creation
+const range5 = PriceRange("$50", Money("$100"))
+
+console.log(range1.min.toString())      // "$50.00"
+console.log(range1.max.toString())      // "$100.00"
+console.log(range1.span.toString())     // "$50.00" (difference)
+console.log(range1.midpoint.toString()) // "$75.00" (precise midpoint)
+
+// Range operations and queries
+console.log(range1.contains(Money("$75")))    // true
+console.log(range1.contains("$25"))           // false
+console.log(range1.isAbove(Money("$40")))     // true (entire range above $40)
+console.log(range1.isBelow(Money("$120")))    // true (entire range below $120)
+
+// Range mathematics
+const range6 = PriceRange("$80 - $150")
+console.log(range1.overlaps(range6))          // true
+
+const intersection = range1.intersect(range6)
+console.log(intersection?.toString())         // "$80.00 - $100.00"
+
+const union = range1.union(range6)
+console.log(union.toString())                 // "$50.00 - $150.00"
+
+// Split ranges into equal parts
+const parts = range1.split(3)
+console.log(parts[0].toString())              // "$50.00 - $66.67"
+console.log(parts[1].toString())              // "$66.67 - $83.33"
+console.log(parts[2].toString())              // "$83.33 - $100.00"
+
+// Static factory methods for common patterns
+const underRange = PriceRange.under(Money("$100"))        // "$0.00 - $100.00"
+const overRange = PriceRange.over(Money("$50"), Money("$500")) // "$50.00 - $500.00"
+const aroundRange = PriceRange.around(Money("$100"), "10%") // "$90.00 - $110.00"
+
+// Create price buckets for filters
+const buckets = PriceRange.createBuckets(Money("$0"), Money("$500"), 5)
+buckets.forEach((bucket, i) => {
+  console.log(`Bucket ${i + 1}: ${bucket.toString()}`)
+})
+// Bucket 1: $0.00 - $100.00
+// Bucket 2: $100.00 - $200.00
+// Bucket 3: $200.00 - $300.00
+// Bucket 4: $300.00 - $400.00
+// Bucket 5: $400.00 - $500.00
+
+// Display formatting options
+console.log(range1.toString())                            // "$50.00 - $100.00" (default)
+console.log(range1.toString({ format: "compact" }))       // "$50-100"
+console.log(range1.toString({ format: "from" }))          // "From $50.00"
+console.log(range1.toString({ format: "upTo" }))          // "Up to $100.00"
+console.log(range1.toString({ format: "range" }))         // "$50.00 to $100.00"
+console.log(range1.toString({ format: "between" }))       // "Between $50.00 and $100.00"
+
+// Localized formatting
+const eurRange = PriceRange("€50 - €100")
+console.log(eurRange.toString({ locale: "de-DE" }))       // "50,00 € - 100,00 €"
+
+// Large ranges with compact notation
+const largeRange = PriceRange("$1000000 - $5000000")
+console.log(largeRange.toString({ compact: true }))       // "$1M - $5M"
+
+// Currency conversion
+const exchangeRate = new ExchangeRate(USD, EUR, "0.85")
+const convertedRange = range1.convert(exchangeRate)
+console.log(convertedRange.toString())                    // "€42.50 - €85.00"
+
+// E-commerce product filtering
+const products = [
+  { name: "Budget Widget", price: Money("$45") },
+  { name: "Standard Widget", price: Money("$75") },
+  { name: "Premium Widget", price: Money("$125") },
+  { name: "Deluxe Widget", price: Money("$95") }
+]
+
+const priceFilter = PriceRange("$50 - $100")
+const affordableProducts = products.filter(product =>
+  priceFilter.contains(product.price)
+)
+
+console.log(affordableProducts.map(p => p.name))
+// ["Standard Widget", "Deluxe Widget"]
+
+// JSON serialization for APIs and storage
+const serialized = range1.toJSON()
+console.log(JSON.stringify(serialized))
+
+const restored = PriceRange.fromJSON(serialized)
+console.log(restored.equals(range1))                     // true
+
+// Cryptocurrency ranges with full precision
+const btcRange = PriceRange("₿0.001 - ₿0.01")
+console.log(btcRange.contains(Money("₿0.005")))          // true
+console.log(btcRange.toString({ preferredUnit: "sat" })) // "100,000 sats - 1,000,000 sats"
+```
+
 ## Other features
 
 ### Currency support
@@ -554,6 +665,10 @@ console.log(change.toString()) // "$0.00123" (sub-unit precision)
 - `Rational(p, q)` - Create from bigint numerator and denominator (e.g., `Rational(22n, 7n)`)
 - `Rational(ratio)` - Create from Ratio object (e.g., `Rational({ p: 1n, q: 3n })`)
 
+**`PriceRange()`** - Create price ranges with intelligent parsing
+- `PriceRange(str)` - Parse range strings (e.g., `PriceRange('$50 - $100')`, `PriceRange('$50-100')`)
+- `PriceRange(min, max)` - Create from Money instances or strings (e.g., `PriceRange(Money('$50'), '$100')`)
+
 ### `Money`
 
 **Arithmetic Operations (add/subtract accept Money objects or currency strings):**
@@ -657,6 +772,39 @@ console.log(change.toString()) // "$0.00123" (sub-unit precision)
 - `toJSON()` - Serialize to JSON with BigInt string conversion
 - `fromJSON(json)` - Deserialize from JSON
 - `average(rates[])` - Static method to average multiple rates
+
+### `PriceRange`
+
+**Properties:**
+- `min` - Minimum price (Money instance)
+- `max` - Maximum price (Money instance)
+- `span` - Difference between max and min (Money instance)
+- `midpoint` - Precise midpoint of the range (Money instance)
+- `isEmpty` - True if min equals max
+- `currency` - Currency of the range
+
+**Range Operations:**
+- `contains(price)` - Check if price is within range (inclusive)
+- `isAbove(price)` - Check if entire range is above a price
+- `isBelow(price)` - Check if entire range is below a price
+- `overlaps(other)` - Check if ranges overlap
+- `intersect(other)` - Get intersection range (or null)
+- `union(other)` - Get union range
+- `split(parts)` - Split into N equal parts
+
+**Conversion & Formatting:**
+- `convert(exchangeRate)` - Convert to different currency
+- `toString(options?)` - Format for display with multiple format styles
+- `toJSON(options?)` - Serialize to JSON
+- `fromJSON(json)` - Deserialize from JSON (static)
+- `equals(other)` - Check equality
+
+**Static Factory Methods:**
+- `under(max)` - Create range from zero to max
+- `over(min, max)` - Create range from min to max
+- `between(min, max)` - Alias for constructor
+- `around(basePrice, percentage)` - Create range around price with margin
+- `createBuckets(min, max, count)` - Create N equal price buckets
 
 ## Comparison with dinero.js
 

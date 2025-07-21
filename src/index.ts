@@ -14,6 +14,7 @@ export { FixedPointNumber, FixedPointJSONSchema } from "./fixed-point"
 export { RationalNumber, RationalNumberJSONSchema, Rational } from "./rationals"
 export { Price } from "./prices"
 export { ExchangeRate } from "./exchange-rates"
+export { PriceRange as PriceRangeClass, PriceRangeFactory } from "./price-range"
 export type { ExchangeRateData } from "./exchange-rates"
 export { ExchangeRateSourceUtils } from "./exchange-rate-sources"
 export type {
@@ -25,6 +26,7 @@ export type {
 // Factory functions
 export { MoneyFactory as Money } from "./money"
 export { FixedPoint } from "./fixed-point"
+export { PriceRangeFactory as PriceRange } from "./price-range"
 
 // All currency constants
 export * from "./currencies"
