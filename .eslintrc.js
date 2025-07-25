@@ -24,7 +24,7 @@ module.exports = {
   },
   rules: {
     "import/prefer-default-export": "off",
-    "import/no-cycle": "warn",
+    "import/no-cycle": "off",
     "@typescript-eslint/no-explicit-any": "warn",
     "react/react-in-jsx-scope": "off",
     "react/jsx-props-no-spreading": "off",
