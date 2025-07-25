@@ -1,0 +1,72 @@
+name: Version Bump
+
+on:
+  workflow_dispatch:
+    inputs:
+      version_type:
+        description: 'Version bump type'
+        required: true
+        default: 'patch'
+        type: choice
+        options:
+        - patch
+        - minor
+        - major
+
+jobs:
+  version-bump:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Install pnpm
+      uses: pnpm/action-setup@v2
+      with:
+        version: latest
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'pnpm'
+
+    - name: Install dependencies
+      run: pnpm install
+
+    - name: Configure git
+      run: |
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+
+    - name: Bump version
+      run: |
+        NEW_VERSION=$(npm version ${{ github.event.inputs.version_type }} --no-git-tag-version)
+        echo "NEW_VERSION=$NEW_VERSION" >> $GITHUB_ENV
+        echo "Version bumped to $NEW_VERSION"
+
+    - name: Create Pull Request
+      uses: peter-evans/create-pull-request@v5
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+        commit-message: "chore: bump version to ${{ env.NEW_VERSION }}"
+        title: "chore: bump version to ${{ env.NEW_VERSION }}"
+        body: |
+          ## Version Bump
+
+          This PR bumps the version to `${{ env.NEW_VERSION }}` using a `${{ github.event.inputs.version_type }}` increment.
+
+          ### Changes
+          - Updated version in `package.json`
+
+          ### Next Steps
+          1. Review and merge this PR
+          2. Create a GitHub release with tag `${{ env.NEW_VERSION }}`
+          3. The package will be automatically published to NPM when the release is created
+        branch: version-bump/${{ env.NEW_VERSION }}
+        delete-branch: true

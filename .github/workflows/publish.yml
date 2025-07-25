@@ -1,14 +1,15 @@
-name: CI
+name: Publish to NPM
 
 on:
-  push:
-    branches: [ main ]
-  pull_request:
-    branches: [ main ]
+  release:
+    types: [published]
 
 jobs:
-  lint-and-test:
+  publish:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write # for npm provenance
 
     steps:
     - uses: actions/checkout@v4
@@ -23,6 +24,7 @@ jobs:
       with:
         node-version: '18'
         cache: 'pnpm'
+        registry-url: 'https://registry.npmjs.org'
 
     - name: Install dependencies
       run: pnpm install
@@ -35,3 +37,8 @@ jobs:
 
     - name: Build package
       run: pnpm run build
+
+    - name: Publish to npm
+      run: npm publish --provenance --access public
+      env:
+        NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
