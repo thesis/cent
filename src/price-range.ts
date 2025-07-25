@@ -1,4 +1,8 @@
-import { Money as MoneyClass, MoneyFactory as Money, MoneyToStringOptions } from "./money"
+import {
+  Money as MoneyClass,
+  MoneyFactory as Money,
+  MoneyToStringOptions,
+} from "./money"
 import { Currency } from "./types"
 import { assetsEqual } from "./assets"
 import { ExchangeRate } from "./exchange-rates"

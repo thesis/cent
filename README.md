@@ -2,7 +2,7 @@
 
 **Arbitrary-precision currency library for TypeScript/JavaScript**
 
-`cent` is a next-generation monetary computation library designed to handle currencies with **perfect precision**, no matter how large the values or how many decimal places are required.
+`cent` is a next-generation monetary math library designed to handle currencies with **fixed precision**, no matter how large the values or how many decimal places are required.
 
 This makes `cent` a good choice for accounting, F/X, trading, and cryptocurrency applications.
 
@@ -31,7 +31,7 @@ Popular libraries like [dinero.js](https://dinerojs.com/) are built on JavaScrip
 ## Quick start 💰
 
 ```typescript
-import { Money, Price } from '@your-org/cent'
+import { Money, Price } from '@thesis/cent'
 
 // Creation
 const usd = Money("$100.50")
@@ -60,7 +60,7 @@ btc.toString({ preferredUnit: "satoshi" })        // "50,000,000 sat"
 The `Money()` factory function makes working with currencies simple:
 
 ```typescript
-import { Money } from '@your-org/cent'
+import { Money } from '@thesis/cent'
 
 // Parse currency symbols with auto-detection
 const usd = Money('$1,234.56')    // US Dollar: $1,234.56
@@ -100,7 +100,7 @@ const microYen = Money('¥1000.001')    // Sub-yen precision
 The `Money` class provides safe monetary operations with automatic precision handling:
 
 ```typescript
-import { Money, EUR, USD } from '@your-org/cent'
+import { Money, EUR, USD } from '@thesis/cent'
 
 // Create money instances
 const euros = new Money({
@@ -173,7 +173,7 @@ applications.
 ### Examples
 
 ```typescript
-import { FixedPoint, Rational } from '@your-org/cent'
+import { FixedPoint, Rational } from '@thesis/cent'
 
 // FixedPoint - Perfect for decimal numbers
 const price = FixedPoint('1255.50')  // Auto-detects 2 decimals
@@ -245,7 +245,7 @@ console.log(fixedPoint.toString()) // "0.375"
 `ExchangeRate` has base/quote currency semantics, time-based operations, and everything you'd expect in a fintech app.
 
 ```typescript
-import { ExchangeRate, USD, EUR, BTC, JPY } from '@your-org/cent'
+import { ExchangeRate, USD, EUR, BTC, JPY } from '@thesis/cent'
 
 // 1. Individual arguments with auto-timestamping
 const usdEur = new ExchangeRate(USD, EUR, "1.08") // 1.08 EUR per USD
@@ -326,7 +326,7 @@ console.log(mid.rate.toString()) // "1.2000" (original rate)
 `Price` is appropriate for arbitrary price pairs, covering the edge cases where `ExchangeRate` might not be appropriate.
 
 ```typescript
-import { Price, USD, EUR, BTC, JPY } from '@your-org/cent'
+import { Price, USD, EUR, BTC, JPY } from '@thesis/cent'
 
 // Define custom assets (for demonstration purposes)
 const APPLE = {
@@ -389,7 +389,7 @@ try {
 `cent` includes a `PriceRange` class for representing and manipulating price ranges with precision. Perfect for e-commerce filters, pricing strategies, and financial analysis.
 
 ```typescript
-import { PriceRange, Money, USD, EUR } from '@your-org/cent'
+import { PriceRange, Money, USD, EUR } from '@thesis/cent'
 
 // Create ranges from strings
 const range1 = PriceRange("$50 - $100")
@@ -502,7 +502,7 @@ console.log(btcRange.toString({ preferredUnit: "sat" })) // "100,000 sats - 1,00
 `cent` includes comprehensive currency metadata for accurate formatting:
 
 ```typescript
-import { USD, EUR, BTC, ETH, JPY } from '@your-org/cent'
+import { USD, EUR, BTC, ETH, JPY } from '@thesis/cent'
 
 // Traditional currencies
 console.log(USD.decimals) // 2n
