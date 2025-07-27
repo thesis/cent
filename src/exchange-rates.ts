@@ -3,7 +3,7 @@ import { Currency, UNIXTime } from "./types"
 import { FixedPointNumber, FixedPoint } from "./fixed-point"
 import { RationalNumber } from "./rationals"
 import { ExchangeRateSource } from "./exchange-rate-sources"
-import { nowUNIXTime, UNIXTimeSchema } from "./time"
+import { nowUNIXTime, UNIXTimeSchema, toUNIXTime } from "./time"
 import { NonNegativeBigIntStringSchema } from "./validation-schemas"
 import { AnyAssetJSONSchema } from "./money"
 import { assetsEqual } from "./assets"
@@ -15,7 +15,7 @@ export type ExchangeRateData = {
   baseCurrency: Currency // The "1 unit" reference currency
   quoteCurrency: Currency // The "price per unit" currency
   rate: FixedPointNumber // Quote units per base unit
-  timestamp?: UNIXTime // When rate was recorded (optional, auto-filled)
+  timestamp?: UNIXTime | string // When rate was recorded (optional, auto-filled)
   source?: ExchangeRateSource // Optional source metadata
 }
 
@@ -69,14 +69,14 @@ export class ExchangeRate implements ExchangeRateData {
     baseCurrency: Currency,
     quoteCurrency: Currency,
     rate: FixedPointNumber | string,
-    timestamp?: UNIXTime,
+    timestamp?: UNIXTime | string,
     source?: ExchangeRateSource,
   )
   constructor(
     dataOrBaseCurrency: ExchangeRateData | Currency,
     quoteCurrency?: Currency,
     rate?: FixedPointNumber | string,
-    timestamp?: UNIXTime,
+    timestamp?: UNIXTime | string,
     source?: ExchangeRateSource,
   ) {
     if (
@@ -88,7 +88,14 @@ export class ExchangeRate implements ExchangeRateData {
       this.baseCurrency = data.baseCurrency
       this.quoteCurrency = data.quoteCurrency
       this.rate = data.rate
-      this.timestamp = data.timestamp || nowUNIXTime()
+      if (data.timestamp) {
+        this.timestamp =
+          typeof data.timestamp === "string"
+            ? toUNIXTime(data.timestamp)
+            : data.timestamp
+      } else {
+        this.timestamp = nowUNIXTime()
+      }
       this.source = data.source
     } else {
       // Individual arguments constructor
@@ -102,7 +109,12 @@ export class ExchangeRate implements ExchangeRateData {
         typeof rate === "string"
           ? FixedPointNumber.fromDecimalString(rate)
           : rate
-      this.timestamp = timestamp || nowUNIXTime()
+      if (timestamp) {
+        this.timestamp =
+          typeof timestamp === "string" ? toUNIXTime(timestamp) : timestamp
+      } else {
+        this.timestamp = nowUNIXTime()
+      }
       this.source = source
     }
   }
