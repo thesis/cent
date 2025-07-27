@@ -145,6 +145,46 @@ describe("ExchangeRate", () => {
       expect(rate.timestamp).toBe("1609459200")
       expect(rate.source?.name).toBe("ECB")
     })
+
+    it("should accept string timestamp and validate it", () => {
+      // Test individual arguments constructor with string timestamp
+      const stringTimestamp = "1609459200000" // 2021-01-01 in milliseconds
+      const rate1 = new ExchangeRate(USD, EUR, "1.08", stringTimestamp)
+      
+      expect(rate1.timestamp).toBe(stringTimestamp)
+      expect(typeof rate1.timestamp).toBe("string")
+
+      // Test ExchangeRateData constructor with string timestamp
+      const data: ExchangeRateData = {
+        baseCurrency: USD,
+        quoteCurrency: EUR,
+        rate: new FixedPointNumber(108n, 2n),
+        timestamp: stringTimestamp,
+      }
+      const rate2 = new ExchangeRate(data)
+      
+      expect(rate2.timestamp).toBe(stringTimestamp)
+      expect(typeof rate2.timestamp).toBe("string")
+    })
+
+    it("should throw error for invalid string timestamp", () => {
+      // Test invalid string timestamp
+      const invalidTimestamp = "invalid-timestamp"
+      
+      expect(() => {
+        new ExchangeRate(USD, EUR, "1.08", invalidTimestamp)
+      }).toThrow("Invalid UNIX timestamp")
+
+      expect(() => {
+        const data: ExchangeRateData = {
+          baseCurrency: USD,
+          quoteCurrency: EUR,
+          rate: new FixedPointNumber(108n, 2n),
+          timestamp: invalidTimestamp,
+        }
+        new ExchangeRate(data)
+      }).toThrow("Invalid UNIX timestamp")
+    })
   })
 
   describe("ExchangeRate.invert()", () => {
