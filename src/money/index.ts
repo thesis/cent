@@ -133,6 +133,8 @@ export interface MoneyToStringOptions {
   preferFractionalSymbol?: boolean
   /** Rounding mode for number formatting */
   roundingMode?: RoundingMode
+  /** Exclude currency symbol/code from the formatted string */
+  excludeCurrency?: boolean
 }
 
 /**
@@ -345,6 +347,7 @@ export function formatWithIntlCurrency(
   maxDecimals?: number | bigint,
   minDecimals?: number | bigint,
   roundingMode?: RoundingMode,
+  excludeCurrency: boolean = false,
 ): string {
   // Money should have FixedPointNumber amount here due to formatting conversion
   const fp = money.amount as FixedPointNumber
@@ -414,8 +417,8 @@ export function formatWithIntlCurrency(
   }
 
   const formatterOptions: NumberFormatOptionsWithRounding = {
-    style: "currency",
-    currency: currencyCode,
+    style: excludeCurrency ? "decimal" : "currency",
+    currency: excludeCurrency ? undefined : currencyCode,
     notation: compact ? "compact" : "standard",
     compactDisplay: compact ? "short" : undefined,
     minimumFractionDigits: finalMinDecimals,
@@ -458,6 +461,7 @@ export function formatWithCustomFormatting(
   preferSymbol: boolean = false,
   preferFractionalSymbol: boolean = false,
   roundingMode?: RoundingMode,
+  excludeCurrency: boolean = false,
 ): string {
   // Handle fractional unit conversion if specified
   const { decimalString, unitSuffix } = convertToPreferredUnit(
@@ -536,6 +540,11 @@ export function formatWithCustomFormatting(
 
   // Convert decimal string to number for formatting
   const formattedNumber = formatter.format(decimalString)
+
+  // Return just the formatted number if currency should be excluded
+  if (excludeCurrency) {
+    return formattedNumber
+  }
 
   // Handle fractional unit symbol formatting
   if (preferFractionalSymbol && preferredUnit && unitSuffix) {
@@ -1541,6 +1550,7 @@ export class Money {
       preferSymbol = false,
       preferFractionalSymbol = false,
       roundingMode,
+      excludeCurrency = false,
     } = options
 
     // Convert RationalNumber to FixedPointNumber for formatting
@@ -1559,6 +1569,7 @@ export class Money {
         maxDecimals,
         minDecimals,
         roundingMode,
+        excludeCurrency,
       )
     }
     return formatWithCustomFormatting(
@@ -1571,6 +1582,7 @@ export class Money {
       preferSymbol,
       preferFractionalSymbol,
       roundingMode,
+      excludeCurrency,
     )
   }
 

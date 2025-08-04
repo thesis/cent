@@ -2552,6 +2552,53 @@ describe("Money", () => {
         expect(money.toString({ minDecimals: 2, preferredUnit: "satoshi" })).toBe("100,000,000.00 satoshis")
       })
     })
+    describe("excludeCurrency option", () => {
+      it("should exclude currency symbol/code when excludeCurrency is true for ISO currencies", () => {
+        const money = new Money({
+          asset: usd,
+          amount: { amount: 100050n, decimals: 2n }, // $1000.50
+        })
+        expect(money.toString({ excludeCurrency: true })).toBe("1,000.50")
+        expect(money.toString({ excludeCurrency: false })).toBe("$1,000.50")
+        expect(money.toString()).toBe("$1,000.50") // default behavior
+      })
+      it("should exclude currency code when excludeCurrency is true for non-ISO currencies", () => {
+        const money = new Money({
+          asset: btc,
+          amount: { amount: 150000000n, decimals: 8n }, // 1.5 BTC
+        })
+        expect(money.toString({ excludeCurrency: true })).toBe("1.5")
+        expect(money.toString({ excludeCurrency: false })).toBe("1.5 BTC")
+        expect(money.toString()).toBe("1.5 BTC") // default behavior
+      })
+      it("should exclude symbol when using preferSymbol and excludeCurrency is true", () => {
+        const money = new Money({
+          asset: btc,
+          amount: { amount: 200000000n, decimals: 8n }, // 2.0 BTC
+        })
+        expect(money.toString({ preferSymbol: true, excludeCurrency: true })).toBe("2")
+        expect(money.toString({ preferSymbol: true, excludeCurrency: false })).toBe("₿2")
+        expect(money.toString({ preferSymbol: true })).toBe("₿2") // default behavior
+      })
+      it("should exclude fractional unit when using preferredUnit and excludeCurrency is true", () => {
+        const money = new Money({
+          asset: btc,
+          amount: { amount: 100000000n, decimals: 8n }, // 1.0 BTC
+        })
+        expect(money.toString({ preferredUnit: "sat", excludeCurrency: true })).toBe("100,000,000")
+        expect(money.toString({ preferredUnit: "sat", excludeCurrency: false })).toBe("100,000,000 sats")
+        expect(money.toString({ preferredUnit: "sat" })).toBe("100,000,000 sats") // default behavior
+      })
+      it("should work with other formatting options", () => {
+        const money = new Money({
+          asset: usd,
+          amount: { amount: 123456n, decimals: 2n }, // $1234.56
+        })
+        expect(money.toString({ excludeCurrency: true, locale: "de-DE" })).toBe("1.234,56")
+        expect(money.toString({ excludeCurrency: true, maxDecimals: 1 })).toBe("1,234.6")
+        expect(money.toString({ excludeCurrency: true, minDecimals: 3 })).toBe("1,234.560")
+      })
+    })
   })
 
   describe("formatting utility functions", () => {
