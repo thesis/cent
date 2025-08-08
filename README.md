@@ -242,7 +242,7 @@ console.log(fixedPoint.toString()) // "0.375"
 
 `cent` includes `Price` and `ExchangeRate` classes for representing price ratios between assets with mathematical operations.
 
-`ExchangeRate` has base/quote currency semantics, time-based operations, and everything you'd expect in a fintech app.
+`ExchangeRate` has base/quote currency semantics, time-based operations, and everything you'd expect in a fintech app. It's appropriate rates retrieved from outside services like exchanges.
 
 ```typescript
 import { ExchangeRate, Money, USD, EUR, BTC, JPY } from '@thesis/cent'
@@ -298,11 +298,11 @@ const usd100 = Money("$100")
 const eur108 = rate.convert(usd100)        // USD → EUR: $100 → €108
 console.log(eur108.toString())             // "€108.00"
 
-const convertBack = rate.convert(eur108)   // EUR → USD: €108 → $100  
+const convertBack = rate.convert(eur108)   // EUR → USD: €108 → $100
 console.log(convertBack.toString())        // "$100.00"
 
 // Works with any amount and either currency in the rate
-const moreEuros = Money("€540")           // €540 
+const moreEuros = Money("€540")           // €540
 const convertedDollars = rate.convert(moreEuros)   // €540 ÷ 1.08 = $500
 console.log(convertedDollars.toString())           // "$500.00"
 
@@ -338,7 +338,7 @@ console.log(ask.rate.toString()) // "1.2120" (1.2000 + 1% of 1.2000)
 console.log(mid.rate.toString()) // "1.2000" (original rate)
 ```
 
-`Price` is appropriate for arbitrary price pairs, covering the edge cases where `ExchangeRate` might not be appropriate.
+`Price` is appropriate for arbitrary price pairs, covering the edge cases where `ExchangeRate` might not be appropriate. It's easier to construct a new `Price` and do math with it.
 
 ```typescript
 import { Price, USD, EUR, BTC, JPY } from '@thesis/cent'
@@ -770,6 +770,7 @@ console.log(change.toString()) // "$0.00123" (sub-unit precision)
 - `asRatio()` - Convert to RationalNumber ratio
 - `invert()` - Swap numerator and denominator
 - `equals(other)` - Check equality (including time for timed prices)
+- `toExchangeRate(options?)` - Convert to ExchangeRate with configurable precision and base currency selection
 
 ### `ExchangeRate`
 
@@ -787,6 +788,7 @@ console.log(change.toString()) // "$0.00123" (sub-unit precision)
 - `toJSON()` - Serialize to JSON with BigInt string conversion
 - `fromJSON(json)` - Deserialize from JSON
 - `average(rates[])` - Static method to average multiple rates
+- `fromPrice(price, options)` - Static method to create ExchangeRate from Price with configurable precision
 
 ### `PriceRange`
 

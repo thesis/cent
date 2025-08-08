@@ -8,6 +8,7 @@ import {
 import { nowUNIXTime } from "../src/time"
 import { ExchangeRate, ExchangeRateData } from "../src/exchange-rates"
 import { Money } from "../src/money"
+import { Price } from "../src/prices"
 
 describe("ExchangeRate", () => {
   // Test currencies
@@ -874,6 +875,48 @@ describe("ExchangeRate", () => {
         expect(result.mid.rate.toString()).toBe("50000.00000000")
         expect(result.bid.rate.toString()).toBe("49975.00000000") // 50000 - (50000 * 0.0005)
         expect(result.ask.rate.toString()).toBe("50025.00000000") // 50000 + (50000 * 0.0005)
+      })
+    })
+
+    describe("ExchangeRate.fromPrice()", () => {
+      it("should create exchange rate from price with best currency selection", () => {
+        // $50,000 per 1 BTC - BTC should become base
+        const price = new Price(
+          { asset: USD, amount: { amount: 5000000n, decimals: 2n } }, // $50,000
+          { asset: BTC, amount: { amount: 100000000n, decimals: 8n } }  // 1 BTC
+        )
+
+        const rate = ExchangeRate.fromPrice(price, { decimals: 2 })
+
+        expect(rate.baseCurrency).toBe(BTC)  // BTC is base
+        expect(rate.quoteCurrency).toBe(USD) // USD is quote
+        expect(rate.rate.toString()).toBe("50000.00") // 1 BTC = $50,000.00
+      })
+
+      it("should create exchange rate with custom options", () => {
+        const price = new Price(
+          { asset: USD, amount: { amount: 5000000n, decimals: 2n } },
+          { asset: BTC, amount: { amount: 100000000n, decimals: 8n } }
+        )
+
+        const customSource = {
+          name: "Custom Static Source",
+          priority: 1,
+          reliability: 0.99
+        }
+
+        const rate = ExchangeRate.fromPrice(price, {
+          decimals: 8,
+          baseCurrency: USD, // Force USD as base
+          source: customSource,
+          timestamp: "1640995200000"
+        })
+
+        expect(rate.baseCurrency).toBe(USD)
+        expect(rate.quoteCurrency).toBe(BTC)
+        expect(rate.rate.toString()).toBe("0.00002000") // 1 USD = 0.00002 BTC (1/50000)
+        expect(rate.source).toBe(customSource)
+        expect(rate.timestamp).toBe("1640995200000")
       })
     })
   })

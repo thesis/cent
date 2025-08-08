@@ -599,6 +599,27 @@ export class ExchangeRate implements ExchangeRateData {
   }
 
   /**
+   * Create an ExchangeRate from a Price with configurable precision
+   * 
+   * @param price The Price instance to convert
+   * @param options Configuration options for the conversion
+   * @returns A new ExchangeRate instance
+   */
+  static fromPrice(
+    price: import('./prices').Price,
+    options: {
+      decimals: number | bigint,
+      baseCurrency?: Currency,
+      roundingMode?: import('./types').RoundingMode,
+      source?: ExchangeRateSource,
+      timestamp?: UNIXTime | string
+    }
+  ): ExchangeRate {
+    // Delegate to the Price instance method
+    return price.toExchangeRate(options)
+  }
+
+  /**
    * Deserialize an ExchangeRateData from JSON
    */
   static fromJSONData(json: unknown): ExchangeRateData {
