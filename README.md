@@ -245,7 +245,7 @@ console.log(fixedPoint.toString()) // "0.375"
 `ExchangeRate` has base/quote currency semantics, time-based operations, and everything you'd expect in a fintech app.
 
 ```typescript
-import { ExchangeRate, USD, EUR, BTC, JPY } from '@thesis/cent'
+import { ExchangeRate, Money, USD, EUR, BTC, JPY } from '@thesis/cent'
 
 // 1. Individual arguments with auto-timestamping
 const usdEur = new ExchangeRate(USD, EUR, "1.08") // 1.08 EUR per USD
@@ -283,13 +283,28 @@ console.log(eurJpyCalculated.quoteCurrency.code) // "JPY"
 console.log(eurJpyCalculated.rate.toString()) // "162.4673" (1.0842 × 149.85)
 
 // Currency conversion with exchange rates
-const amount = new FixedPointNumber(10000n, 2n) // $100.00
-const converted = usdEur.convert(amount, USD, EUR)
-console.log(converted.toString()) // "108.00" (€108.00)
+const dollars = Money("$100.00")
+const euros = usdEur.convert(dollars)
+console.log(euros.toString()) // "€108.00"
 
-// Reverse conversion
-const backConverted = usdEur.convert(converted, EUR, USD)
-console.log(backConverted.toString()) // "100.00" ($100.00)
+// Reverse conversion (automatic direction detection)
+const backConverted = usdEur.convert(euros)
+console.log(backConverted.toString()) // "$100.00"
+
+// Automatic direction detection - same rate works both ways
+const rate = new ExchangeRate(USD, EUR, "1.08") // 1 USD = 1.08 EUR
+
+const usd100 = Money("$100")
+const eur108 = rate.convert(usd100)        // USD → EUR: $100 → €108
+console.log(eur108.toString())             // "€108.00"
+
+const convertBack = rate.convert(eur108)   // EUR → USD: €108 → $100  
+console.log(convertBack.toString())        // "$100.00"
+
+// Works with any amount and either currency in the rate
+const moreEuros = Money("€540")           // €540 
+const convertedDollars = rate.convert(moreEuros)   // €540 ÷ 1.08 = $500
+console.log(convertedDollars.toString())           // "$500.00"
 
 // Exchange rate averaging for multiple sources
 const rate1 = new ExchangeRate(USD, EUR, "1.07")
@@ -766,7 +781,7 @@ console.log(change.toString()) // "$0.00123" (sub-unit precision)
 - `multiply(scalar | ExchangeRate)` - Scalar multiplication or cross-currency rate calculation
 - `divide(scalar | ExchangeRate)` - Scalar division or rate division
 - `invert()` - Swap base and quote currencies (1/rate)
-- `convert(amount, fromCurrency, toCurrency)` - Convert amounts between currencies
+- `convert(money)` - Convert Money between currencies (automatic direction detection)
 - `isStale(thresholdMs)` - Check if rate is older than threshold
 - `toString(options?)` - Format as "rate quote/base" with symbol, code, or ratio formats
 - `toJSON()` - Serialize to JSON with BigInt string conversion

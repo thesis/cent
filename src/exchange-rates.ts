@@ -7,6 +7,7 @@ import { nowUNIXTime, UNIXTimeSchema, toUNIXTime } from "./time"
 import { NonNegativeBigIntStringSchema } from "./validation-schemas"
 import { AnyAssetJSONSchema } from "./money"
 import { assetsEqual } from "./assets"
+import { isFixedPointNumber, toFixedPointNumber } from "./money/utils"
 
 /**
  * ExchangeRate data structure with clear base/quote semantics
@@ -154,14 +155,12 @@ export class ExchangeRate implements ExchangeRateData {
   }
 
   /**
-   * Instance method to convert amounts using this exchange rate
+   * Instance method to convert money using this exchange rate
    */
   convert(
-    amount: FixedPointNumber,
-    fromCurrency: Currency,
-    toCurrency: Currency,
-  ): FixedPointNumber {
-    return ExchangeRate.convert(amount, fromCurrency, toCurrency, this.toData())
+    money: import("./money").Money,
+  ): import("./money").Money {
+    return ExchangeRate.convert(money, this.toData())
   }
 
   /**
@@ -359,27 +358,28 @@ export class ExchangeRate implements ExchangeRateData {
   }
 
   /**
-   * Convert an amount from one currency to another using an exchange rate
+   * Convert money from one currency to another using an exchange rate
    */
   static convert(
-    amount: FixedPointNumber,
-    fromCurrency: Currency,
-    toCurrency: Currency,
+    money: import("./money").Money,
     rate: ExchangeRateData,
-  ): FixedPointNumber {
+  ): import("./money").Money {
+    const MoneyClass = require("./money").Money
+    const fromCurrency = money.currency
+    
+    // Get the money amount as FixedPointNumber (convert from RationalNumber if needed)
+    const amount = isFixedPointNumber(money.amount) 
+      ? money.amount 
+      : toFixedPointNumber(money.amount)
+
     // Check if we can convert directly (from = base, to = quote)
-    if (
-      assetsEqual(fromCurrency, rate.baseCurrency) &&
-      assetsEqual(toCurrency, rate.quoteCurrency)
-    ) {
-      return amount.multiply(rate.rate)
+    if (assetsEqual(fromCurrency, rate.baseCurrency)) {
+      const convertedAmount = amount.multiply(rate.rate)
+      return new MoneyClass(rate.quoteCurrency, convertedAmount)
     }
 
     // Check if we can convert in reverse (from = quote, to = base)
-    if (
-      assetsEqual(fromCurrency, rate.quoteCurrency) &&
-      assetsEqual(toCurrency, rate.baseCurrency)
-    ) {
+    if (assetsEqual(fromCurrency, rate.quoteCurrency)) {
       // Use RationalNumber for division, then convert back to FixedPointNumber
       const amountRational = new RationalNumber({
         p: amount.amount,
@@ -400,11 +400,12 @@ export class ExchangeRate implements ExchangeRateData {
         resultFixed.decimals,
       )
       const targetPrecision = new FixedPointNumber(0n, amount.decimals)
-      return result.normalize(targetPrecision)
+      const normalizedResult = result.normalize(targetPrecision)
+      return new MoneyClass(rate.baseCurrency, normalizedResult)
     }
 
     throw new Error(
-      `Currency mismatch: cannot convert ${fromCurrency.code} to ${toCurrency.code} using rate ${rate.baseCurrency.code}/${rate.quoteCurrency.code}`,
+      `Currency mismatch: cannot convert ${fromCurrency.code} using rate ${rate.baseCurrency.code}/${rate.quoteCurrency.code}`,
     )
   }
 

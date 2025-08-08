@@ -7,6 +7,7 @@ import {
 } from "../src/exchange-rate-sources"
 import { nowUNIXTime } from "../src/time"
 import { ExchangeRate, ExchangeRateData } from "../src/exchange-rates"
+import { Money } from "../src/money"
 
 describe("ExchangeRate", () => {
   // Test currencies
@@ -252,10 +253,11 @@ describe("ExchangeRate", () => {
         new FixedPointNumber(108n, 2n), // 1.08 EUR per USD
       )
 
-      const usdAmount = new FixedPointNumber(10000n, 2n) // $100.00
-      const eurAmount = rate.convert(usdAmount, USD, EUR)
+      const usdMoney = new Money(USD, new FixedPointNumber(10000n, 2n)) // $100.00
+      const eurMoney = rate.convert(usdMoney)
 
-      expect(eurAmount.toString()).toBe("108.00") // $100 * 1.08 = €108
+      expect(eurMoney.currency).toBe(EUR)
+      expect(eurMoney.amount.toString()).toBe("108.00") // $100 * 1.08 = €108
     })
 
     it("should convert in reverse direction", () => {
@@ -265,10 +267,42 @@ describe("ExchangeRate", () => {
         new FixedPointNumber(108n, 2n), // 1.08 EUR per USD
       )
 
-      const eurAmount = new FixedPointNumber(10800n, 2n) // €108.00
-      const usdAmount = rate.convert(eurAmount, EUR, USD)
+      const eurMoney = new Money(EUR, new FixedPointNumber(10800n, 2n)) // €108.00
+      const usdMoney = rate.convert(eurMoney)
 
-      expect(usdAmount.toString()).toBe("100.00") // €108 / 1.08 = $100
+      expect(usdMoney.currency).toBe(USD)
+      expect(usdMoney.amount.toString()).toBe("100.00") // €108 / 1.08 = $100
+    })
+
+    it("should automatically determine conversion direction from Money currency", () => {
+      const rate = new ExchangeRate(
+        USD,
+        EUR,
+        new FixedPointNumber(108n, 2n), // 1.08 EUR per USD
+      )
+
+      // Convert USD to EUR
+      const usdMoney = new Money(USD, new FixedPointNumber(10000n, 2n)) // $100.00
+      const eurResult = rate.convert(usdMoney)
+      expect(eurResult.currency).toBe(EUR)
+      expect(eurResult.amount.toString()).toBe("108.00")
+
+      // Convert EUR to USD (reverse direction)
+      const eurMoney = new Money(EUR, new FixedPointNumber(10800n, 2n)) // €108.00
+      const usdResult = rate.convert(eurMoney)
+      expect(usdResult.currency).toBe(USD)
+      expect(usdResult.amount.toString()).toBe("100.00")
+    })
+
+    it("should throw error for incompatible currency", () => {
+      const rate = new ExchangeRate(
+        USD,
+        EUR,
+        new FixedPointNumber(108n, 2n), // 1.08 EUR per USD
+      )
+
+      const jpyMoney = new Money(JPY, new FixedPointNumber(10000n, 0n)) // ¥10,000
+      expect(() => rate.convert(jpyMoney)).toThrow("Currency mismatch")
     })
   })
 
