@@ -10,7 +10,12 @@ export type {
   ExchangeRateSource,
   RateStalenessConfig,
 } from "./exchange-rate-sources"
-export { ExchangeRateSourceUtils } from "./exchange-rate-sources"
+export {
+  compareSources,
+  filterByReliability,
+  isRateStale,
+  sortSources,
+} from "./exchange-rate-sources"
 export type { ExchangeRateData } from "./exchange-rates"
 export { ExchangeRate } from "./exchange-rates"
 export {
