@@ -1,5 +1,5 @@
 import { Money, Price } from "../src"
-import { USD, BTC } from "../src/currencies"
+import { BTC, USD } from "../src/currencies"
 
 describe("Money.convert()", () => {
   it("should convert USD to BTC using a price (example from requirements)", () => {

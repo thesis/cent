@@ -1,10 +1,18 @@
-import { AssetAmount, FixedPoint, Ratio, UNIXTime, AnyAsset, Currency, RoundingMode } from "./types"
-import { Money as MoneyClass } from "./money"
 import { assetsEqual } from "./assets"
+import type { ExchangeRateSource } from "./exchange-rate-sources"
+import { FixedPointNumber } from "./fixed-point"
+import { Money as MoneyClass } from "./money"
 import { RationalNumber } from "./rationals"
 import { nowUNIXTime, toUNIXTime } from "./time"
-import { FixedPointNumber } from "./fixed-point"
-import type { ExchangeRateSource } from "./exchange-rate-sources"
+import type {
+  AnyAsset,
+  AssetAmount,
+  Currency,
+  FixedPoint,
+  Ratio,
+  RoundingMode,
+  UNIXTime,
+} from "./types"
 
 /**
  * Price class for representing price ratios between assets
@@ -220,31 +228,35 @@ export class Price {
 
   /**
    * Convert this Price to an ExchangeRate with configurable precision
-   * 
+   *
    * @param options Configuration options for the conversion
    * @returns A new ExchangeRate instance
    */
   toExchangeRate(options?: {
-    decimals?: number | bigint,
-    baseCurrency?: Currency,
-    roundingMode?: RoundingMode,
-    source?: ExchangeRateSource,
+    decimals?: number | bigint
+    baseCurrency?: Currency
+    roundingMode?: RoundingMode
+    source?: ExchangeRateSource
     timestamp?: UNIXTime | string
-  }): import('./exchange-rates').ExchangeRate {
-    const ExchangeRateClass = require('./exchange-rates').ExchangeRate
-    
+  }): import("./exchange-rates").ExchangeRate {
+    const ExchangeRateClass = require("./exchange-rates").ExchangeRate
+
     // Validate that both assets are currencies
     const currency1 = this.amounts[0].asset as Currency
     const currency2 = this.amounts[1].asset as Currency
-    
-    if (!('code' in currency1) || !('code' in currency2)) {
-      throw new Error('Cannot create ExchangeRate: both assets must be currencies with codes')
+
+    if (!("code" in currency1) || !("code" in currency2)) {
+      throw new Error(
+        "Cannot create ExchangeRate: both assets must be currencies with codes",
+      )
     }
-    
+
     // Check for identical currencies
     if (assetsEqual(currency1, currency2)) {
       const code = currency1.code || currency1.name
-      throw new Error(`Cannot create ExchangeRate: both currencies are the same (${code})`)
+      throw new Error(
+        `Cannot create ExchangeRate: both currencies are the same (${code})`,
+      )
     }
 
     // Determine base/quote currencies using "best" currency logic
@@ -258,23 +270,33 @@ export class Price {
         baseCurrency = currency1
         quoteCurrency = currency2
         // Rate = amount2 / amount1 (how much of currency2 per 1 unit of currency1)
-        rate = this.calculateExchangeRate(this.amounts[1], this.amounts[0], options.decimals)
+        rate = this.calculateExchangeRate(
+          this.amounts[1],
+          this.amounts[0],
+          options.decimals,
+        )
       } else if (assetsEqual(options.baseCurrency, currency2)) {
         baseCurrency = currency2
         quoteCurrency = currency1
         // Rate = amount1 / amount2 (how much of currency1 per 1 unit of currency2)
-        rate = this.calculateExchangeRate(this.amounts[0], this.amounts[1], options.decimals)
+        rate = this.calculateExchangeRate(
+          this.amounts[0],
+          this.amounts[1],
+          options.decimals,
+        )
       } else {
         const baseName = options.baseCurrency.code || options.baseCurrency.name
         const curr1Name = currency1.code || currency1.name
         const curr2Name = currency2.code || currency2.name
-        throw new Error(`Specified baseCurrency (${baseName}) does not match either price currency (${curr1Name}, ${curr2Name})`)
+        throw new Error(
+          `Specified baseCurrency (${baseName}) does not match either price currency (${curr1Name}, ${curr2Name})`,
+        )
       }
     } else {
       // Auto-select best currency as base (closest to 1)
-      const ratio1 = this.getAmountRatio(this.amounts[0])  // currency1 amount
-      const ratio2 = this.getAmountRatio(this.amounts[1])  // currency2 amount
-      
+      const ratio1 = this.getAmountRatio(this.amounts[0]) // currency1 amount
+      const ratio2 = this.getAmountRatio(this.amounts[1]) // currency2 amount
+
       const distance1 = this.distanceFromOne(ratio1)
       const distance2 = this.distanceFromOne(ratio2)
 
@@ -282,25 +304,37 @@ export class Price {
         // currency2 is closer to 1, make it base
         baseCurrency = currency2
         quoteCurrency = currency1
-        rate = this.calculateExchangeRate(this.amounts[0], this.amounts[1], options?.decimals)
+        rate = this.calculateExchangeRate(
+          this.amounts[0],
+          this.amounts[1],
+          options?.decimals,
+        )
       } else if (distance1 < distance2) {
         // currency1 is closer to 1, make it base
         baseCurrency = currency1
         quoteCurrency = currency2
-        rate = this.calculateExchangeRate(this.amounts[1], this.amounts[0], options?.decimals)
+        rate = this.calculateExchangeRate(
+          this.amounts[1],
+          this.amounts[0],
+          options?.decimals,
+        )
       } else {
         // Equal distances, use argument order (second becomes base)
         baseCurrency = currency2
         quoteCurrency = currency1
-        rate = this.calculateExchangeRate(this.amounts[0], this.amounts[1], options?.decimals)
+        rate = this.calculateExchangeRate(
+          this.amounts[0],
+          this.amounts[1],
+          options?.decimals,
+        )
       }
     }
 
     // Set up default source metadata
     const defaultSource: ExchangeRateSource = {
-      name: 'Converted from Price',
+      name: "Converted from Price",
       priority: 3,
-      reliability: 0.8
+      reliability: 0.8,
     }
 
     // Create the ExchangeRate
@@ -309,7 +343,7 @@ export class Price {
       quoteCurrency,
       rate,
       timestamp: options?.timestamp || this.time,
-      source: options?.source || defaultSource
+      source: options?.source || defaultSource,
     })
   }
 
@@ -319,7 +353,7 @@ export class Price {
   private calculateExchangeRate(
     numeratorAmount: AssetAmount,
     denominatorAmount: AssetAmount,
-    decimals?: number | bigint
+    decimals?: number | bigint,
   ): FixedPointNumber {
     // Use RationalNumber for precise calculation
     const numeratorRational = new RationalNumber({
@@ -337,25 +371,33 @@ export class Price {
     // Determine target decimals
     let targetDecimals: bigint
     if (decimals !== undefined) {
-      targetDecimals = typeof decimals === 'bigint' ? decimals : BigInt(decimals)
+      targetDecimals =
+        typeof decimals === "bigint" ? decimals : BigInt(decimals)
     } else {
       // Default to max decimals of the two currencies
-      const curr1Decimals = 'decimals' in numeratorAmount.asset ? numeratorAmount.asset.decimals : 8n
-      const curr2Decimals = 'decimals' in denominatorAmount.asset ? denominatorAmount.asset.decimals : 8n
-      targetDecimals = curr1Decimals > curr2Decimals ? curr1Decimals : curr2Decimals
+      const curr1Decimals =
+        "decimals" in numeratorAmount.asset
+          ? numeratorAmount.asset.decimals
+          : 8n
+      const curr2Decimals =
+        "decimals" in denominatorAmount.asset
+          ? denominatorAmount.asset.decimals
+          : 8n
+      targetDecimals =
+        curr1Decimals > curr2Decimals ? curr1Decimals : curr2Decimals
     }
 
     // Convert to FixedPointNumber with target precision
     const fixedPoint = rateRational.toFixedPoint({ maxBits: 256 })
-    
+
     // Normalize to target decimals
     const result = new FixedPointNumber(fixedPoint.amount, fixedPoint.decimals)
     const target = new FixedPointNumber(0n, targetDecimals)
     const normalizedResult = result.normalize(target)
-    
+
     // Check for significant precision loss and warn
     this.checkPrecisionLoss(rateRational, normalizedResult, targetDecimals)
-    
+
     return normalizedResult
   }
 
@@ -381,7 +423,7 @@ export class Price {
   private checkPrecisionLoss(
     originalRational: RationalNumber,
     convertedFixed: FixedPointNumber,
-    targetDecimals: bigint
+    targetDecimals: bigint,
   ): void {
     // Convert the fixed point result back to rational for comparison
     const convertedRational = new RationalNumber({
@@ -392,22 +434,26 @@ export class Price {
     // Calculate relative error
     const difference = originalRational.subtract(convertedRational)
     const relativeError = difference.divide(originalRational)
-    
+
     // Convert to decimal for comparison (using high precision)
-    const errorDecimal = Math.abs(parseFloat(relativeError.toDecimalString(20n)))
-    
+    const errorDecimal = Math.abs(
+      parseFloat(relativeError.toDecimalString(20n)),
+    )
+
     // Warn if precision loss is significant (> 0.01% or 0.0001)
     const significantThreshold = 0.0001
     if (errorDecimal > significantThreshold) {
       const currency1 = this.amounts[0].asset
       const currency2 = this.amounts[1].asset
-      const curr1Name = ('code' in currency1 ? currency1.code : currency1.name) || 'Unknown'
-      const curr2Name = ('code' in currency2 ? currency2.code : currency2.name) || 'Unknown'
-      
+      const curr1Name =
+        ("code" in currency1 ? currency1.code : currency1.name) || "Unknown"
+      const curr2Name =
+        ("code" in currency2 ? currency2.code : currency2.name) || "Unknown"
+
       console.warn(
         `Warning: Significant precision loss detected when converting Price (${curr1Name}/${curr2Name}) to ExchangeRate with ${targetDecimals} decimals. ` +
-        `Relative error: ${(errorDecimal * 100).toFixed(4)}%. ` +
-        `Consider using higher decimal precision for more accuracy.`
+          `Relative error: ${(errorDecimal * 100).toFixed(4)}%. ` +
+          `Consider using higher decimal precision for more accuracy.`,
       )
     }
   }

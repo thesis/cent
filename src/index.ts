@@ -1,87 +1,90 @@
 // Import type extensions first
 import "./types/intl-extensions"
 
-// Core classes
-export {
-  MoneyJSONSchema,
-  Money as MoneyClass,
-  AssetJSONSchema,
-  FungibleAssetJSONSchema,
-  CurrencyJSONSchema,
-  AnyAssetJSONSchema,
-} from "./money"
-export { FixedPointNumber, FixedPointJSONSchema } from "./fixed-point"
-export { RationalNumber, RationalNumberJSONSchema, Rational } from "./rationals"
-export { Price } from "./prices"
-export { ExchangeRate } from "./exchange-rates"
-export { PriceRange as PriceRangeClass, PriceRangeFactory } from "./price-range"
-export type { ExchangeRateData } from "./exchange-rates"
-export { ExchangeRateSourceUtils } from "./exchange-rate-sources"
-export type {
-  ExchangeRateSource,
-  ExchangeRateProvider,
-  RateStalenessConfig,
-} from "./exchange-rate-sources"
-
-// Factory functions
-export { MoneyFactory as Money } from "./money"
-export { FixedPoint } from "./fixed-point"
-export { PriceRangeFactory as PriceRange } from "./price-range"
-
 // All currency constants
 export * from "./currencies"
-
+// String utilities
+export { isDecimalString, toDecimalString } from "./decimal-strings"
+export type {
+  ExchangeRateProvider,
+  ExchangeRateSource,
+  RateStalenessConfig,
+} from "./exchange-rate-sources"
+export {
+  compareSources,
+  filterByReliability,
+  isRateStale,
+  sortSources,
+} from "./exchange-rate-sources"
+export type { ExchangeRateData } from "./exchange-rates"
+export { ExchangeRate } from "./exchange-rates"
+export {
+  FixedPoint,
+  FixedPointJSONSchema,
+  FixedPointNumber,
+} from "./fixed-point"
+// Core classes
+// Factory functions
+export {
+  AnyAssetJSONSchema,
+  AssetJSONSchema,
+  CurrencyJSONSchema,
+  FungibleAssetJSONSchema,
+  Money as MoneyClass,
+  MoneyFactory as Money,
+  MoneyJSONSchema,
+} from "./money"
+// Money types
+export type { MoneyAmount } from "./money/types"
+// Money utilities
+export {
+  getComparableValue,
+  isFixedPointNumber,
+  isNegative as isMoneyAmountNegative,
+  isPositive as isMoneyAmountPositive,
+  isRationalNumber,
+  isZero as isMoneyAmountZero,
+  toFixedPointNumber,
+} from "./money/utils"
+export {
+  PriceRange as PriceRangeClass,
+  PriceRangeFactory,
+  PriceRangeFactory as PriceRange,
+} from "./price-range"
+export { Price } from "./prices"
+export {
+  getRationalStringType,
+  isFractionString,
+  isRationalString,
+  parseFraction,
+  toRationalString,
+} from "./rational-strings"
+export { Rational, RationalNumber, RationalNumberJSONSchema } from "./rationals"
 // Core types
 export type {
-  FixedPoint as FixedPointType,
-  Ratio,
-  Asset,
-  FungibleAsset,
-  Currency,
   AnyAsset,
+  Asset,
   AssetAmount,
+  Currency,
   DecimalString,
+  FixedPoint as FixedPointType,
+  FungibleAsset,
+  PricePoint,
+  Ratio,
   RationalString,
   UNIXTime,
   UTCTime,
-  PricePoint,
 } from "./types"
-
-// Money types
-export type { MoneyAmount } from "./money/types"
-
-// Money utilities
-export {
-  isFixedPointNumber,
-  isRationalNumber,
-  toFixedPointNumber,
-  getComparableValue,
-  isZero as isMoneyAmountZero,
-  isPositive as isMoneyAmountPositive,
-  isNegative as isMoneyAmountNegative,
-} from "./money/utils"
-
 // Rounding modes
 export {
-  RoundingMode,
   CEIL,
-  FLOOR,
   EXPAND,
-  TRUNC,
+  FLOOR,
   HALF_CEIL,
-  HALF_FLOOR,
-  HALF_EXPAND,
-  HALF_TRUNC,
   HALF_EVEN,
+  HALF_EXPAND,
+  HALF_FLOOR,
+  HALF_TRUNC,
+  RoundingMode,
+  TRUNC,
 } from "./types"
-
-// String utilities
-export { isDecimalString, toDecimalString } from "./decimal-strings"
-
-export {
-  isFractionString,
-  isRationalString,
-  toRationalString,
-  parseFraction,
-  getRationalStringType,
-} from "./rational-strings"

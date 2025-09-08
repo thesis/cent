@@ -3,7 +3,7 @@ import {
   isDecimalString,
   toDecimalString,
 } from "../src/decimal-strings"
-import { DecimalString } from "../src/types"
+import type { DecimalString } from "../src/types"
 
 describe("DecimalString utilities", () => {
   describe("DecimalStringSchema", () => {

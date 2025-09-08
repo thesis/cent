@@ -1,5 +1,5 @@
-import { ExchangeRate } from "./exchange-rates"
-import { Currency, UNIXTime } from "./types"
+import type { ExchangeRate } from "./exchange-rates"
+import type { Currency, UNIXTime } from "./types"
 
 /**
  * Metadata about an exchange rate source
@@ -58,64 +58,64 @@ export interface RateStalenessConfig {
 }
 
 /**
- * Utility functions for working with exchange rate sources
+ * Check if a rate is stale based on its timestamp
+ * @param timestamp - Rate timestamp
+ * @param config - Staleness configuration
+ * @returns Whether the rate is stale
  */
-export class ExchangeRateSourceUtils {
-  /**
-   * Check if a rate is stale based on its timestamp
-   * @param timestamp - Rate timestamp
-   * @param config - Staleness configuration
-   * @returns Whether the rate is stale
-   */
-  static isRateStale(
-    timestamp: string | UNIXTime,
-    config: RateStalenessConfig,
-  ): boolean {
-    const now = Date.now()
-    const rateTime =
-      typeof timestamp === "string"
-        ? parseInt(timestamp, 10)
-        : parseInt(timestamp, 10)
-    const age = now - rateTime
+export function isRateStale(
+  timestamp: string | UNIXTime,
+  config: RateStalenessConfig,
+): boolean {
+  const now = Date.now()
+  const rateTime =
+    typeof timestamp === "string"
+      ? parseInt(timestamp, 10)
+      : parseInt(timestamp, 10)
+  const age = now - rateTime
 
-    return age > config.maxAge
+  return age > config.maxAge
+}
+
+/**
+ * Compare two exchange rate sources by priority and reliability
+ * @param a - First source
+ * @param b - Second source
+ * @returns Comparison result (negative if a is better, positive if b is better)
+ */
+export function compareSources(
+  a: ExchangeRateSource,
+  b: ExchangeRateSource,
+): number {
+  // First compare by priority (lower is better)
+  if (a.priority !== b.priority) {
+    return a.priority - b.priority
   }
 
-  /**
-   * Compare two exchange rate sources by priority and reliability
-   * @param a - First source
-   * @param b - Second source
-   * @returns Comparison result (negative if a is better, positive if b is better)
-   */
-  static compareSources(a: ExchangeRateSource, b: ExchangeRateSource): number {
-    // First compare by priority (lower is better)
-    if (a.priority !== b.priority) {
-      return a.priority - b.priority
-    }
+  // If priorities are equal, compare by reliability (higher is better)
+  return b.reliability - a.reliability
+}
 
-    // If priorities are equal, compare by reliability (higher is better)
-    return b.reliability - a.reliability
-  }
+/**
+ * Filter sources by minimum reliability threshold
+ * @param sources - Array of sources to filter
+ * @param minReliability - Minimum reliability threshold
+ * @returns Filtered sources
+ */
+export function filterByReliability(
+  sources: ExchangeRateSource[],
+  minReliability: number,
+): ExchangeRateSource[] {
+  return sources.filter((source) => source.reliability >= minReliability)
+}
 
-  /**
-   * Filter sources by minimum reliability threshold
-   * @param sources - Array of sources to filter
-   * @param minReliability - Minimum reliability threshold
-   * @returns Filtered sources
-   */
-  static filterByReliability(
-    sources: ExchangeRateSource[],
-    minReliability: number,
-  ): ExchangeRateSource[] {
-    return sources.filter((source) => source.reliability >= minReliability)
-  }
-
-  /**
-   * Sort sources by priority and reliability
-   * @param sources - Array of sources to sort
-   * @returns Sorted sources (best first)
-   */
-  static sortSources(sources: ExchangeRateSource[]): ExchangeRateSource[] {
-    return [...sources].sort(this.compareSources)
-  }
+/**
+ * Sort sources by priority and reliability
+ * @param sources - Array of sources to sort
+ * @returns Sorted sources (best first)
+ */
+export function sortSources(
+  sources: ExchangeRateSource[],
+): ExchangeRateSource[] {
+  return [...sources].sort(compareSources)
 }

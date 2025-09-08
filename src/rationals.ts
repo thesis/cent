@@ -1,16 +1,16 @@
 import { z } from "zod"
+import { FixedPointNumber } from "./fixed-point"
+import { gcd, getBitSize } from "./math-utils"
+import { getRationalStringType, parseFraction } from "./rational-strings"
 import {
-  Ratio,
-  FixedPoint,
-  DecimalString,
-  RationalString,
-  LossyConversionOptions,
+  type DecimalString,
+  type FixedPoint,
+  type LossyConversionOptions,
+  type Ratio,
+  type RationalString,
   RoundingMode,
 } from "./types"
-import { gcd, getBitSize } from "./math-utils"
 import { BigIntStringSchema } from "./validation-schemas"
-import { FixedPointNumber } from "./fixed-point"
-import { parseFraction, getRationalStringType } from "./rational-strings"
 
 export const RationalNumberJSONSchema = z.object({
   p: BigIntStringSchema,
@@ -100,8 +100,6 @@ function applyRounding(
         return quotient + (isNegative ? -1n : 1n)
       }
       return quotient
-
-    case RoundingMode.HALF_EVEN:
     default:
       // Round to nearest, ties toward even
       if (doubleRemainder > absDenominator) {

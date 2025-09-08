@@ -1,9 +1,9 @@
 import {
-  FixedPointNumber,
-  FixedPointJSONSchema,
   FixedPoint,
+  FixedPointJSONSchema,
+  FixedPointNumber,
 } from "../src/fixed-point"
-import { RoundingMode } from "../src/types"
+import { type DecimalString, RoundingMode } from "../src/types"
 
 describe("FixedPointNumber", () => {
   describe("constructor", () => {
@@ -37,10 +37,10 @@ describe("FixedPointNumber", () => {
     it("should maintain immutability when copying from FixedPoint objects", () => {
       const fixedPoint = { amount: 789n, decimals: 4n }
       const fp = new FixedPointNumber(fixedPoint)
-      
+
       // Modify the original object
       fixedPoint.amount = 999n
-      
+
       // FixedPointNumber should be unaffected
       expect(fp.amount).toBe(789n)
       expect(fp.decimals).toBe(4n)
@@ -592,43 +592,59 @@ describe("FixedPointNumber", () => {
     describe("combined formatting options", () => {
       it("should work with both asPercentage and trailingZeroes: false", () => {
         const fp = new FixedPointNumber(2500n, 4n) // 0.2500
-        expect(fp.toString({ asPercentage: true, trailingZeroes: false })).toBe("25%")
+        expect(fp.toString({ asPercentage: true, trailingZeroes: false })).toBe(
+          "25%",
+        )
       })
 
       it("should handle percentage with some trailing zeros removed", () => {
         const fp = new FixedPointNumber(2540n, 4n) // 0.2540
-        expect(fp.toString({ asPercentage: true, trailingZeroes: false })).toBe("25.4%")
+        expect(fp.toString({ asPercentage: true, trailingZeroes: false })).toBe(
+          "25.4%",
+        )
       })
 
       it("should handle percentage with no trailing zeros to remove", () => {
         const fp = new FixedPointNumber(2545n, 4n) // 0.2545
-        expect(fp.toString({ asPercentage: true, trailingZeroes: false })).toBe("25.45%")
+        expect(fp.toString({ asPercentage: true, trailingZeroes: false })).toBe(
+          "25.45%",
+        )
       })
 
       it("should handle negative percentages with trailing zeros", () => {
         const fp = new FixedPointNumber(-2500n, 4n) // -0.2500
-        expect(fp.toString({ asPercentage: true, trailingZeroes: false })).toBe("-25%")
+        expect(fp.toString({ asPercentage: true, trailingZeroes: false })).toBe(
+          "-25%",
+        )
       })
 
       it("should handle zero percentage with trailing zeros", () => {
         const fp = new FixedPointNumber(0n, 4n) // 0.0000
-        expect(fp.toString({ asPercentage: true, trailingZeroes: false })).toBe("0%")
+        expect(fp.toString({ asPercentage: true, trailingZeroes: false })).toBe(
+          "0%",
+        )
       })
 
       it("should handle whole number percentages", () => {
         const fp = new FixedPointNumber(100n, 2n) // 1.00
-        expect(fp.toString({ asPercentage: true, trailingZeroes: false })).toBe("100%")
+        expect(fp.toString({ asPercentage: true, trailingZeroes: false })).toBe(
+          "100%",
+        )
       })
 
       it("should handle high precision percentages with trailing zeros", () => {
         const fp = new FixedPointNumber(123450n, 8n) // 0.00123450
-        expect(fp.toString({ asPercentage: true, trailingZeroes: false })).toBe("0.12345%")
+        expect(fp.toString({ asPercentage: true, trailingZeroes: false })).toBe(
+          "0.12345%",
+        )
       })
 
       it("should preserve trailing zeros in percentage by default", () => {
         const fp = new FixedPointNumber(2500n, 4n) // 0.2500
         expect(fp.toString({ asPercentage: true })).toBe("25.0000%")
-        expect(fp.toString({ asPercentage: true, trailingZeroes: true })).toBe("25.0000%")
+        expect(fp.toString({ asPercentage: true, trailingZeroes: true })).toBe(
+          "25.0000%",
+        )
       })
     })
   })
@@ -1388,7 +1404,7 @@ describe("FixedPoint factory function", () => {
     })
 
     it("should work with DecimalString type", () => {
-      const decimalStr = "1.5" as any // Simulating DecimalString
+      const decimalStr = "1.5" as DecimalString
       const fp = FixedPoint(decimalStr)
       expect(fp.amount).toBe(15n)
       expect(fp.decimals).toBe(1n)
@@ -1491,7 +1507,7 @@ describe("FixedPoint factory function", () => {
       const original = FixedPoint("25.5%")
       const asPercentage = original.toString({ asPercentage: true })
       expect(asPercentage).toBe("25.500%")
-      
+
       const roundTrip = FixedPoint(asPercentage)
       expect(roundTrip.equals(original)).toBe(true)
     })
@@ -1528,7 +1544,7 @@ describe("FixedPoint factory function", () => {
     })
 
     it("should throw when decimals parameter is missing", () => {
-      expect(() => FixedPoint(123n as any)).toThrow(
+      expect(() => FixedPoint(123n as unknown as string)).toThrow(
         "decimals parameter is required",
       )
     })
@@ -1577,8 +1593,8 @@ describe("FixedPoint factory function", () => {
   describe("equivalence with constructor", () => {
     it("should produce same results as constructor for bigint mode", () => {
       const factory = FixedPoint(12345n, 3n)
-      const constructor = new FixedPointNumber(12345n, 3n)
-      expect(factory.equals(constructor)).toBe(true)
+      const fromConstructor = new FixedPointNumber(12345n, 3n)
+      expect(factory.equals(fromConstructor)).toBe(true)
     })
 
     it("should produce same results as fromDecimalString for string mode", () => {
@@ -1901,8 +1917,9 @@ describe("FixedPoint factory function", () => {
       const largeAmount = BigInt("12345678901234567890")
       const largeDecimals = BigInt("18")
       const fp = new FixedPointNumber(largeAmount, largeDecimals)
-      
-      const expectedBits = largeAmount.toString(2).length + largeDecimals.toString(2).length
+
+      const expectedBits =
+        largeAmount.toString(2).length + largeDecimals.toString(2).length
       expect(fp.getBitSize()).toBe(expectedBits)
     })
 
@@ -1917,10 +1934,13 @@ describe("FixedPoint factory function", () => {
 
       testCases.forEach(({ amount, decimals }) => {
         const fp = new FixedPointNumber(amount, decimals)
-        const amountBits = amount === 0n ? 0 : (amount < 0n ? -amount : amount).toString(2).length
+        const amountBits =
+          amount === 0n
+            ? 0
+            : (amount < 0n ? -amount : amount).toString(2).length
         const decimalsBits = decimals === 0n ? 0 : decimals.toString(2).length
         const expectedBits = amountBits + decimalsBits
-        
+
         expect(fp.getBitSize()).toBe(expectedBits)
       })
     })
@@ -1930,19 +1950,20 @@ describe("FixedPoint factory function", () => {
       const amount = BigInt(Number.MAX_SAFE_INTEGER) * 2n
       const decimals = 15n
       const fp = new FixedPointNumber(amount, decimals)
-      
-      const expectedBits = amount.toString(2).length + decimals.toString(2).length
+
+      const expectedBits =
+        amount.toString(2).length + decimals.toString(2).length
       expect(fp.getBitSize()).toBe(expectedBits)
     })
 
     it("should reflect changes after normalization", () => {
       const fp1 = new FixedPointNumber(1230n, 3n) // 1.230
-      const fp2 = new FixedPointNumber(123n, 2n)  // 1.23
-      
+      const fp2 = new FixedPointNumber(123n, 2n) // 1.23
+
       const originalBitSize = fp2.getBitSize()
       const normalized = fp2.normalize(fp1) // normalize fp2 to 3 decimals -> 1230, 3
       const normalizedBitSize = normalized.getBitSize()
-      
+
       // Normalized version should have potentially different bit size
       expect(normalizedBitSize).toBeGreaterThanOrEqual(originalBitSize)
       expect(normalized.amount).toBe(1230n)
@@ -1957,7 +1978,7 @@ describe("FixedPoint factory function", () => {
         // toPrecision(5) should give 1.2345 = 12345n with 5 decimals
         const fp = new FixedPointNumber(1234567890n, 10n)
         const result = fp.toPrecision(5n)
-        
+
         expect(result.amount).toBe(12345n)
         expect(result.decimals).toBe(5n)
       })
@@ -1967,7 +1988,7 @@ describe("FixedPoint factory function", () => {
         // should equal { amount: 12345n, decimals: 5n }
         const fp = new FixedPointNumber(1234567890n, 10n)
         const result = fp.toPrecision(5n, { roundingMode: RoundingMode.TRUNC })
-        
+
         expect(result.amount).toBe(12345n)
         expect(result.decimals).toBe(5n)
         expect(result.equals({ amount: 12345n, decimals: 5n })).toBe(true)
@@ -1977,7 +1998,7 @@ describe("FixedPoint factory function", () => {
         // 0.000123 with precision 2 should give 0.00012
         const fp = new FixedPointNumber(123n, 6n) // 0.000123
         const result = fp.toPrecision(2n)
-        
+
         expect(result.amount).toBe(12n)
         expect(result.decimals).toBe(5n) // 0.00012 = 12n with 5 decimals
       })
@@ -1986,7 +2007,7 @@ describe("FixedPoint factory function", () => {
         // 12345.67 with precision 3 should give 123 (with appropriate decimals)
         const fp = new FixedPointNumber(1234567n, 2n) // 12345.67
         const result = fp.toPrecision(3n)
-        
+
         expect(result.amount).toBe(123n)
         expect(result.decimals).toBe(-2n) // 123 * 10^2 = 12300
       })
@@ -1995,7 +2016,7 @@ describe("FixedPoint factory function", () => {
         // 1.23 with precision 3 should remain 1.23
         const fp = new FixedPointNumber(123n, 2n) // 1.23
         const result = fp.toPrecision(3n)
-        
+
         expect(result.amount).toBe(123n)
         expect(result.decimals).toBe(2n)
       })
@@ -2004,7 +2025,7 @@ describe("FixedPoint factory function", () => {
         // 1.5 with precision 5 should give 1.5000
         const fp = new FixedPointNumber(15n, 1n) // 1.5
         const result = fp.toPrecision(5n)
-        
+
         expect(result.amount).toBe(15000n)
         expect(result.decimals).toBe(4n)
       })
@@ -2015,7 +2036,7 @@ describe("FixedPoint factory function", () => {
         // 1.999 with precision 2 should give 1.9 with TRUNC
         const fp = new FixedPointNumber(1999n, 3n) // 1.999
         const result = fp.toPrecision(2n)
-        
+
         expect(result.amount).toBe(19n)
         expect(result.decimals).toBe(1n) // 1.9
       })
@@ -2024,7 +2045,7 @@ describe("FixedPoint factory function", () => {
         // 1.231 with precision 2 should give 1.3 with CEIL
         const fp = new FixedPointNumber(1231n, 3n) // 1.231
         const result = fp.toPrecision(2n, { roundingMode: RoundingMode.CEIL })
-        
+
         expect(result.amount).toBe(13n)
         expect(result.decimals).toBe(1n) // 1.3
       })
@@ -2033,7 +2054,7 @@ describe("FixedPoint factory function", () => {
         // 1.999 with precision 2 should give 1.9 with FLOOR
         const fp = new FixedPointNumber(1999n, 3n) // 1.999
         const result = fp.toPrecision(2n, { roundingMode: RoundingMode.FLOOR })
-        
+
         expect(result.amount).toBe(19n)
         expect(result.decimals).toBe(1n) // 1.9
       })
@@ -2041,8 +2062,10 @@ describe("FixedPoint factory function", () => {
       it("should support HALF_EVEN rounding mode", () => {
         // 1.225 with precision 3 should give 1.22 with HALF_EVEN (banker's rounding)
         const fp = new FixedPointNumber(1225n, 3n) // 1.225
-        const result = fp.toPrecision(3n, { roundingMode: RoundingMode.HALF_EVEN })
-        
+        const result = fp.toPrecision(3n, {
+          roundingMode: RoundingMode.HALF_EVEN,
+        })
+
         expect(result.amount).toBe(122n)
         expect(result.decimals).toBe(2n) // 1.22
       })
@@ -2051,7 +2074,7 @@ describe("FixedPoint factory function", () => {
         // 1.231 with precision 2 should give 1.3 with EXPAND (away from zero)
         const fp = new FixedPointNumber(1231n, 3n) // 1.231
         const result = fp.toPrecision(2n, { roundingMode: RoundingMode.EXPAND })
-        
+
         expect(result.amount).toBe(13n)
         expect(result.decimals).toBe(1n) // 1.3
       })
@@ -2062,7 +2085,7 @@ describe("FixedPoint factory function", () => {
         // -1.999 with precision 2 should give -1.9 with TRUNC
         const fp = new FixedPointNumber(-1999n, 3n) // -1.999
         const result = fp.toPrecision(2n, { roundingMode: RoundingMode.TRUNC })
-        
+
         expect(result.amount).toBe(-19n)
         expect(result.decimals).toBe(1n) // -1.9
       })
@@ -2071,7 +2094,7 @@ describe("FixedPoint factory function", () => {
         // -1.231 with precision 2 should give -1.2 with CEIL (toward positive infinity)
         const fp = new FixedPointNumber(-1231n, 3n) // -1.231
         const result = fp.toPrecision(2n, { roundingMode: RoundingMode.CEIL })
-        
+
         expect(result.amount).toBe(-12n)
         expect(result.decimals).toBe(1n) // -1.2
       })
@@ -2080,7 +2103,7 @@ describe("FixedPoint factory function", () => {
         // -1.231 with precision 2 should give -1.3 with FLOOR (toward negative infinity)
         const fp = new FixedPointNumber(-1231n, 3n) // -1.231
         const result = fp.toPrecision(2n, { roundingMode: RoundingMode.FLOOR })
-        
+
         expect(result.amount).toBe(-13n)
         expect(result.decimals).toBe(1n) // -1.3
       })
@@ -2090,7 +2113,7 @@ describe("FixedPoint factory function", () => {
       it("should handle zero", () => {
         const fp = new FixedPointNumber(0n, 5n) // 0.00000
         const result = fp.toPrecision(3n)
-        
+
         expect(result.amount).toBe(0n)
         expect(result.decimals).toBe(0n) // Just 0
       })
@@ -2099,7 +2122,7 @@ describe("FixedPoint factory function", () => {
         // 0.0000001 with precision 1 should give 0.0000001 (1 significant digit)
         const fp = new FixedPointNumber(1n, 7n) // 0.0000001
         const result = fp.toPrecision(1n)
-        
+
         expect(result.amount).toBe(1n)
         expect(result.decimals).toBe(7n) // 0.0000001
       })
@@ -2108,7 +2131,7 @@ describe("FixedPoint factory function", () => {
         // 12000 with precision 2 should give 12000 (represented as 12 * 10^3)
         const fp = new FixedPointNumber(12000n, 0n) // 12000
         const result = fp.toPrecision(2n)
-        
+
         expect(result.amount).toBe(12n)
         expect(result.decimals).toBe(-3n) // 12 * 10^3 = 12000
       })
@@ -2117,7 +2140,7 @@ describe("FixedPoint factory function", () => {
         // 12.345 with precision 1 should give 1 * 10^1 = 10
         const fp = new FixedPointNumber(12345n, 3n) // 12.345
         const result = fp.toPrecision(1n)
-        
+
         expect(result.amount).toBe(1n)
         expect(result.decimals).toBe(-1n) // 1 * 10^1 = 10
       })
@@ -2126,7 +2149,7 @@ describe("FixedPoint factory function", () => {
         // Test with precision larger than current digits
         const fp = new FixedPointNumber(123n, 2n) // 1.23
         const result = fp.toPrecision(10n)
-        
+
         expect(result.amount).toBe(1230000000n)
         expect(result.decimals).toBe(9n) // 1.230000000
       })
@@ -2135,20 +2158,22 @@ describe("FixedPoint factory function", () => {
     describe("error handling", () => {
       it("should throw error for zero precision", () => {
         const fp = new FixedPointNumber(123n, 2n)
-        
+
         expect(() => fp.toPrecision(0n)).toThrow("precision must be positive")
       })
 
       it("should throw error for negative precision", () => {
         const fp = new FixedPointNumber(123n, 2n)
-        
+
         expect(() => fp.toPrecision(-1n)).toThrow("precision must be positive")
       })
 
       it("should throw error for precision exceeding maximum", () => {
         const fp = new FixedPointNumber(123n, 2n)
-        
-        expect(() => fp.toPrecision(51n)).toThrow("precision must be between 1 and 50")
+
+        expect(() => fp.toPrecision(51n)).toThrow(
+          "precision must be between 1 and 50",
+        )
       })
     })
 
@@ -2157,7 +2182,7 @@ describe("FixedPoint factory function", () => {
         const fp = new FixedPointNumber(314159n, 5n) // 3.14159
         const result2 = fp.toPrecision(2n) // Should be 3.1
         const result3 = fp.toPrecision(3n) // Should be 3.14
-        
+
         expect(result2.amount).toBe(31n)
         expect(result2.decimals).toBe(1n)
         expect(result3.amount).toBe(314n)
@@ -2167,9 +2192,13 @@ describe("FixedPoint factory function", () => {
       it("should handle rounding boundaries correctly", () => {
         // Test values exactly at rounding boundaries
         const fp = new FixedPointNumber(125n, 2n) // 1.25
-        const resultTrunc = fp.toPrecision(2n, { roundingMode: RoundingMode.TRUNC })
-        const resultHalfEven = fp.toPrecision(2n, { roundingMode: RoundingMode.HALF_EVEN })
-        
+        const resultTrunc = fp.toPrecision(2n, {
+          roundingMode: RoundingMode.TRUNC,
+        })
+        const resultHalfEven = fp.toPrecision(2n, {
+          roundingMode: RoundingMode.HALF_EVEN,
+        })
+
         expect(resultTrunc.amount).toBe(12n)
         expect(resultTrunc.decimals).toBe(1n) // 1.2
         expect(resultHalfEven.amount).toBe(12n) // Should round to even (1.2)
@@ -2180,7 +2209,7 @@ describe("FixedPoint factory function", () => {
         const fp = new FixedPointNumber(123n, 2n) // 1.23
         const result = fp.toPrecision(3n) // 3 significant digits, should add a zero
         const secondResult = result.toPrecision(3n) // Should be unchanged
-        
+
         expect(result.equals(secondResult)).toBe(true)
       })
     })

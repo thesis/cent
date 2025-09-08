@@ -1,4 +1,4 @@
-import { AnyAsset, Asset, AssetAmount } from "./types"
+import type { AnyAsset, Asset, AssetAmount } from "./types"
 
 /**
  * Check if two assets are equal

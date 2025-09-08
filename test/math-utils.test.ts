@@ -1,4 +1,4 @@
-import { gcd, isOnlyFactorsOf2And5, getBitSize } from "../src/math-utils"
+import { gcd, getBitSize, isOnlyFactorsOf2And5 } from "../src/math-utils"
 
 describe("Math Utils", () => {
   describe("gcd", () => {

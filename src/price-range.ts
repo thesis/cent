@@ -1,12 +1,12 @@
-import {
-  Money as MoneyClass,
-  MoneyFactory as Money,
-  MoneyToStringOptions,
-} from "./money"
-import { Currency } from "./types"
 import { assetsEqual } from "./assets"
-import { ExchangeRate } from "./exchange-rates"
+import type { ExchangeRate } from "./exchange-rates"
 import { FixedPoint } from "./fixed-point"
+import {
+  MoneyFactory as Money,
+  Money as MoneyClass,
+  type MoneyToStringOptions,
+} from "./money"
+import type { Currency } from "./types"
 
 /**
  * Options for formatting PriceRange instances to strings
@@ -308,8 +308,6 @@ export class PriceRange {
 
       case "between":
         return `Between ${minStr} and ${maxStr}`
-
-      case "default":
       default:
         return `${minStr} - ${maxStr}`
     }
@@ -455,20 +453,20 @@ function parsePriceRangeString(rangeStr: string): {
 
   try {
     min = Money(minStr.trim())
-  } catch (error) {
+  } catch (_error) {
     throw new Error(`Invalid minimum price: "${minStr.trim()}"`)
   }
 
   // For compact format like "$50-100", the max part might not have currency symbol
   try {
     max = Money(maxStr.trim())
-  } catch (error) {
+  } catch (_error) {
     // Try adding the same currency as min
     const minCurrency = min.currency
     if ("symbol" in minCurrency && minCurrency.symbol) {
       try {
         max = Money(`${minCurrency.symbol}${maxStr.trim()}`)
-      } catch (symbolError) {
+      } catch (_symbolError) {
         if ("code" in minCurrency && minCurrency.code) {
           max = Money(`${minCurrency.code} ${maxStr.trim()}`)
         } else {

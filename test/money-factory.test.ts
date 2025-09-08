@@ -1,6 +1,6 @@
+import { BTC, ETH, EUR, GBP, JPY, USD, USDC, USDT } from "../src/currencies"
 import { Money } from "../src/index"
 import { Money as MoneyClass } from "../src/money"
-import { USD, EUR, GBP, JPY, BTC, ETH, CNY as __CNY, USDT, USDC } from "../src/currencies"
 
 describe("Money Factory Function", () => {
   describe("US Number Format (1,234.56)", () => {
@@ -1020,7 +1020,7 @@ describe("Money Factory Function", () => {
 
     it("should work with different currencies", () => {
       const currencies = [USD, EUR, BTC, ETH]
-      
+
       for (const currency of currencies) {
         const originalMoney = new MoneyClass({
           asset: currency,
@@ -1052,14 +1052,14 @@ describe("Money Factory Function", () => {
       // Create a Money instance and get its JSON representation
       const originalMoney = new MoneyClass({
         asset: USD,
-        amount: { amount: 12345n, decimals: 2n }
+        amount: { amount: 12345n, decimals: 2n },
       })
       const jsonObject = originalMoney.toJSON()
 
       // AssetAmount object (has 'asset' field)
       const assetAmountObject = {
         asset: USD,
-        amount: { amount: 12345n, decimals: 2n }
+        amount: { amount: 12345n, decimals: 2n },
       }
 
       const fromJson = Money(jsonObject)
