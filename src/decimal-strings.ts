@@ -1,5 +1,5 @@
 import { z } from "zod"
-import { DecimalString } from "./types"
+import type { DecimalString } from "./types"
 
 /**
  * Zod schema for validating decimal strings

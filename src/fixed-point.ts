@@ -1,12 +1,12 @@
 import { z } from "zod"
+import { getBitSize, isOnlyFactorsOf2And5 } from "./math-utils"
 import type {
-  FixedPoint as FixedPointType,
-  Ratio,
   DecimalString,
+  FixedPoint as FixedPointType,
   FormatOptions,
+  Ratio,
 } from "./types"
 import { RoundingMode } from "./types"
-import { isOnlyFactorsOf2And5, getBitSize } from "./math-utils"
 
 export const FixedPointJSONSchema = z
   .string()
@@ -711,8 +711,6 @@ export class FixedPointNumber implements FixedPointType, Ratio {
           return quotient + (isNegative ? -1n : 1n)
         }
         return quotient
-
-      case "halfEven":
       default:
         // Round to nearest, ties toward even
         if (doubleRemainder > absDenominator) {

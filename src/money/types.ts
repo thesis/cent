@@ -1,5 +1,5 @@
-import { FixedPointNumber } from "../fixed-point"
-import { RationalNumber } from "../rationals"
+import type { FixedPointNumber } from "../fixed-point"
+import type { RationalNumber } from "../rationals"
 
 /**
  * Union type for Money amounts that can be either precise fixed-point or exact rational numbers

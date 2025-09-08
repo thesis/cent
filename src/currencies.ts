@@ -1,4 +1,4 @@
-import { Currency } from "./types"
+import type { Currency } from "./types"
 
 // major world currencies with fractional units
 export const AFN: Currency = {

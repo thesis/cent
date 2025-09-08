@@ -1,5 +1,5 @@
 import { z } from "zod"
-import { UNIXTime, UTCTime } from "./types"
+import type { UNIXTime, UTCTime } from "./types"
 
 /**
  * Zod schema for validating UNIX timestamps

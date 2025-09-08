@@ -1,13 +1,13 @@
 import { z } from "zod"
-import { Currency, UNIXTime } from "./types"
-import { FixedPointNumber, FixedPoint } from "./fixed-point"
-import { RationalNumber } from "./rationals"
-import { ExchangeRateSource } from "./exchange-rate-sources"
-import { nowUNIXTime, UNIXTimeSchema, toUNIXTime } from "./time"
-import { NonNegativeBigIntStringSchema } from "./validation-schemas"
-import { AnyAssetJSONSchema } from "./money"
 import { assetsEqual } from "./assets"
+import type { ExchangeRateSource } from "./exchange-rate-sources"
+import { FixedPoint, FixedPointNumber } from "./fixed-point"
+import { AnyAssetJSONSchema } from "./money"
 import { isFixedPointNumber, toFixedPointNumber } from "./money/utils"
+import { RationalNumber } from "./rationals"
+import { nowUNIXTime, toUNIXTime, UNIXTimeSchema } from "./time"
+import type { Currency, UNIXTime } from "./types"
+import { NonNegativeBigIntStringSchema } from "./validation-schemas"
 
 /**
  * ExchangeRate data structure with clear base/quote semantics
@@ -141,128 +141,7 @@ export class ExchangeRate implements ExchangeRateData {
   }
 
   /**
-   * Instance method to multiply this exchange rate
-   */
-  multiply(
-    multiplier: FixedPointNumber | string | bigint | ExchangeRate,
-  ): ExchangeRate {
-    if (multiplier instanceof ExchangeRate) {
-      return new ExchangeRate(
-        ExchangeRate.multiply(this.toData(), multiplier.toData()),
-      )
-    }
-    return new ExchangeRate(ExchangeRate.multiply(this.toData(), multiplier))
-  }
-
-  /**
-   * Instance method to convert money using this exchange rate
-   */
-  convert(
-    money: import("./money").Money,
-  ): import("./money").Money {
-    return ExchangeRate.convert(money, this.toData())
-  }
-
-  /**
-   * Instance method to check if this rate is stale
-   */
-  isStale(maxAge: number): boolean {
-    return ExchangeRate.isStale(this.toData(), maxAge)
-  }
-
-  /**
-   * Instance method to get the age of this rate
-   */
-  getAge(): number {
-    return ExchangeRate.getAge(this.toData())
-  }
-
-  /**
-   * Instance method to serialize this rate to JSON
-   */
-  toJSON(): ExchangeRateJSON {
-    return ExchangeRate.toJSON(this.toData())
-  }
-
-  /**
-   * Instance method to format this rate as a string
-   */
-  toString(options?: {
-    format?: "symbol" | "code" | "ratio"
-    precision?: number
-    locale?: string
-  }): string {
-    return ExchangeRate.toString(this.toData(), options)
-  }
-
-  /**
-   * Apply a spread to create bid/ask rates around this rate
-   * @param spread - The spread as a FixedPointNumber, decimal string, or percent string
-   * @returns An object containing bid, ask, and mid rates
-   */
-  spread(spread: FixedPointNumber | string): {
-    bid: ExchangeRate
-    ask: ExchangeRate
-    mid: ExchangeRate
-  } {
-    // Parse the spread parameter into a FixedPointNumber
-    let spreadFixed: FixedPointNumber
-    if (typeof spread === "string") {
-      spreadFixed = FixedPoint(spread)
-    } else {
-      spreadFixed = spread
-    }
-
-    // Calculate half the spread for symmetric application
-    const halfSpread = spreadFixed.divide(new FixedPointNumber(2n, 0n))
-
-    // Create bid rate: rate - (rate * halfSpread)
-    const bidRate = this.rate.subtract(this.rate.multiply(halfSpread))
-
-    // Create ask rate: rate + (rate * halfSpread)
-    const askRate = this.rate.add(this.rate.multiply(halfSpread))
-
-    // Create the bid, ask, and mid exchange rates
-    const bidExchangeRate = new ExchangeRate({
-      baseCurrency: this.baseCurrency,
-      quoteCurrency: this.quoteCurrency,
-      rate: bidRate,
-      timestamp: this.timestamp,
-      source: this.source,
-    })
-
-    const askExchangeRate = new ExchangeRate({
-      baseCurrency: this.baseCurrency,
-      quoteCurrency: this.quoteCurrency,
-      rate: askRate,
-      timestamp: this.timestamp,
-      source: this.source,
-    })
-
-    const midExchangeRate = new ExchangeRate({
-      baseCurrency: this.baseCurrency,
-      quoteCurrency: this.quoteCurrency,
-      rate: this.rate,
-      timestamp: this.timestamp,
-      source: this.source,
-    })
-
-    return {
-      bid: bidExchangeRate,
-      ask: askExchangeRate,
-      mid: midExchangeRate,
-    }
-  }
-
-  /**
-   * Static method to create from JSON
-   */
-  static fromJSON(json: unknown): ExchangeRate {
-    return new ExchangeRate(ExchangeRate.fromJSONData(json))
-  }
-
-  /**
-   * Invert an ExchangeRate by swapping base and quote currencies
+   * Static method to invert an ExchangeRate by swapping base and quote currencies
    */
   static invert(rate: ExchangeRateData): ExchangeRateData {
     if (rate.rate.amount === 0n) {
@@ -291,7 +170,21 @@ export class ExchangeRate implements ExchangeRateData {
   }
 
   /**
-   * Multiply an ExchangeRate by a scalar or another ExchangeRate
+   * Instance method to multiply this exchange rate
+   */
+  multiply(
+    multiplier: FixedPointNumber | string | bigint | ExchangeRate,
+  ): ExchangeRate {
+    if (multiplier instanceof ExchangeRate) {
+      return new ExchangeRate(
+        ExchangeRate.multiply(this.toData(), multiplier.toData()),
+      )
+    }
+    return new ExchangeRate(ExchangeRate.multiply(this.toData(), multiplier))
+  }
+
+  /**
+   * Static method to multiply an ExchangeRate by a scalar or another ExchangeRate
    */
   static multiply(
     rate: ExchangeRateData,
@@ -358,7 +251,14 @@ export class ExchangeRate implements ExchangeRateData {
   }
 
   /**
-   * Convert money from one currency to another using an exchange rate
+   * Instance method to convert money using this exchange rate
+   */
+  convert(money: import("./money").Money): import("./money").Money {
+    return ExchangeRate.convert(money, this.toData())
+  }
+
+  /**
+   * Static method to convert money from one currency to another using an exchange rate
    */
   static convert(
     money: import("./money").Money,
@@ -366,10 +266,10 @@ export class ExchangeRate implements ExchangeRateData {
   ): import("./money").Money {
     const MoneyClass = require("./money").Money
     const fromCurrency = money.currency
-    
+
     // Get the money amount as FixedPointNumber (convert from RationalNumber if needed)
-    const amount = isFixedPointNumber(money.amount) 
-      ? money.amount 
+    const amount = isFixedPointNumber(money.amount)
+      ? money.amount
       : toFixedPointNumber(money.amount)
 
     // Check if we can convert directly (from = base, to = quote)
@@ -407,6 +307,186 @@ export class ExchangeRate implements ExchangeRateData {
     throw new Error(
       `Currency mismatch: cannot convert ${fromCurrency.code} using rate ${rate.baseCurrency.code}/${rate.quoteCurrency.code}`,
     )
+  }
+
+  /**
+   * Instance method to check if this rate is stale
+   */
+  isStale(maxAge: number): boolean {
+    return ExchangeRate.isStale(this.toData(), maxAge)
+  }
+
+  /**
+   * Static method to check if a rate is stale based on its timestamp
+   */
+  static isStale(rate: ExchangeRateData, maxAge: number): boolean {
+    if (!rate.timestamp) return false
+
+    const now = Date.now()
+    const rateTime = parseInt(rate.timestamp, 10)
+    const age = now - rateTime
+
+    return age > maxAge
+  }
+
+  /**
+   * Instance method to get the age of this rate
+   */
+  getAge(): number {
+    return ExchangeRate.getAge(this.toData())
+  }
+
+  /**
+   * Static method to get the age of a rate in milliseconds
+   */
+  static getAge(rate: ExchangeRateData): number {
+    if (!rate.timestamp) return 0
+
+    const now = Date.now()
+    const rateTime = parseInt(rate.timestamp, 10)
+    return now - rateTime
+  }
+
+  /**
+   * Instance method to serialize this rate to JSON
+   */
+  toJSON(): ExchangeRateJSON {
+    return ExchangeRate.toJSON(this.toData())
+  }
+
+  /**
+   * Static method to serialize an ExchangeRate to JSON
+   */
+  static toJSON(rate: ExchangeRateData): ExchangeRateJSON {
+    return {
+      baseCurrency: {
+        ...rate.baseCurrency,
+        decimals: rate.baseCurrency.decimals.toString(),
+      },
+      quoteCurrency: {
+        ...rate.quoteCurrency,
+        decimals: rate.quoteCurrency.decimals.toString(),
+      },
+      rate: {
+        amount: rate.rate.amount.toString(),
+        decimals: rate.rate.decimals.toString(),
+      },
+      timestamp: rate.timestamp,
+      source: rate.source,
+    }
+  }
+
+  /**
+   * Instance method to format this rate as a string
+   */
+  toString(options?: {
+    format?: "symbol" | "code" | "ratio"
+    precision?: number
+    locale?: string
+  }): string {
+    return ExchangeRate.toString(this.toData(), options)
+  }
+
+  /**
+   * Static method to format an ExchangeRate as a human-readable string
+   */
+  static toString(
+    rate: ExchangeRateData,
+    options?: {
+      format?: "symbol" | "code" | "ratio"
+      precision?: number
+      locale?: string
+    },
+  ): string {
+    const { format = "symbol", precision = 2, locale = "en-US" } = options || {}
+
+    const rateString = rate.rate.toString()
+    const numberFormatter = new Intl.NumberFormat(locale, {
+      minimumFractionDigits: precision,
+      maximumFractionDigits: precision,
+    })
+
+    const formattedRate = numberFormatter.format(rateString)
+
+    const baseSymbol = rate.baseCurrency.symbol || rate.baseCurrency.code
+    const quoteSymbol = rate.quoteCurrency.symbol || rate.quoteCurrency.code
+
+    if (format === "ratio") {
+      return `1 ${rate.baseCurrency.code} = ${formattedRate} ${rate.quoteCurrency.code}`
+    }
+
+    if (format === "code") {
+      return `${formattedRate} ${rate.quoteCurrency.code}/${rate.baseCurrency.code}`
+    }
+
+    // Default symbol format
+    return `${formattedRate} ${quoteSymbol}/${baseSymbol}`
+  }
+
+  /**
+   * Apply a spread to create bid/ask rates around this rate
+   * @param spread - The spread as a FixedPointNumber, decimal string, or percent string
+   * @returns An object containing bid, ask, and mid rates
+   */
+  spread(spread: FixedPointNumber | string): {
+    bid: ExchangeRate
+    ask: ExchangeRate
+    mid: ExchangeRate
+  } {
+    // Parse the spread parameter into a FixedPointNumber
+    let spreadFixed: FixedPointNumber
+    if (typeof spread === "string") {
+      spreadFixed = FixedPoint(spread)
+    } else {
+      spreadFixed = spread
+    }
+
+    // Calculate half the spread for symmetric application
+    const halfSpread = spreadFixed.divide(new FixedPointNumber(2n, 0n))
+
+    // Create bid rate: rate - (rate * halfSpread)
+    const bidRate = this.rate.subtract(this.rate.multiply(halfSpread))
+
+    // Create ask rate: rate + (rate * halfSpread)
+    const askRate = this.rate.add(this.rate.multiply(halfSpread))
+
+    // Create the bid, ask, and mid exchange rates
+    const bidExchangeRate = new ExchangeRate({
+      baseCurrency: this.baseCurrency,
+      quoteCurrency: this.quoteCurrency,
+      rate: bidRate,
+      timestamp: this.timestamp,
+      source: this.source,
+    })
+
+    const askExchangeRate = new ExchangeRate({
+      baseCurrency: this.baseCurrency,
+      quoteCurrency: this.quoteCurrency,
+      rate: askRate,
+      timestamp: this.timestamp,
+      source: this.source,
+    })
+
+    const midExchangeRate = new ExchangeRate({
+      baseCurrency: this.baseCurrency,
+      quoteCurrency: this.quoteCurrency,
+      rate: this.rate,
+      timestamp: this.timestamp,
+      source: this.source,
+    })
+
+    return {
+      bid: bidExchangeRate,
+      ask: askExchangeRate,
+      mid: midExchangeRate,
+    }
+  }
+
+  /**
+   * Static method to create from JSON
+   */
+  static fromJSON(json: unknown): ExchangeRate {
+    return new ExchangeRate(ExchangeRate.fromJSONData(json))
   }
 
   /**
@@ -517,103 +597,21 @@ export class ExchangeRate implements ExchangeRateData {
   }
 
   /**
-   * Format an ExchangeRate as a human-readable string
-   */
-  static toString(
-    rate: ExchangeRateData,
-    options?: {
-      format?: "symbol" | "code" | "ratio"
-      precision?: number
-      locale?: string
-    },
-  ): string {
-    const { format = "symbol", precision = 2, locale = "en-US" } = options || {}
-
-    const rateString = rate.rate.toString()
-    const numberFormatter = new Intl.NumberFormat(locale, {
-      minimumFractionDigits: precision,
-      maximumFractionDigits: precision,
-    })
-
-    const formattedRate = numberFormatter.format(rateString)
-
-    const baseSymbol = rate.baseCurrency.symbol || rate.baseCurrency.code
-    const quoteSymbol = rate.quoteCurrency.symbol || rate.quoteCurrency.code
-
-    if (format === "ratio") {
-      return `1 ${rate.baseCurrency.code} = ${formattedRate} ${rate.quoteCurrency.code}`
-    }
-
-    if (format === "code") {
-      return `${formattedRate} ${rate.quoteCurrency.code}/${rate.baseCurrency.code}`
-    }
-
-    // Default symbol format
-    return `${formattedRate} ${quoteSymbol}/${baseSymbol}`
-  }
-
-  /**
-   * Check if a rate is stale based on its timestamp
-   */
-  static isStale(rate: ExchangeRateData, maxAge: number): boolean {
-    if (!rate.timestamp) return false
-
-    const now = Date.now()
-    const rateTime = parseInt(rate.timestamp, 10)
-    const age = now - rateTime
-
-    return age > maxAge
-  }
-
-  /**
-   * Get the age of a rate in milliseconds
-   */
-  static getAge(rate: ExchangeRateData): number {
-    if (!rate.timestamp) return 0
-
-    const now = Date.now()
-    const rateTime = parseInt(rate.timestamp, 10)
-    return now - rateTime
-  }
-
-  /**
-   * Serialize an ExchangeRate to JSON
-   */
-  static toJSON(rate: ExchangeRateData): ExchangeRateJSON {
-    return {
-      baseCurrency: {
-        ...rate.baseCurrency,
-        decimals: rate.baseCurrency.decimals.toString(),
-      },
-      quoteCurrency: {
-        ...rate.quoteCurrency,
-        decimals: rate.quoteCurrency.decimals.toString(),
-      },
-      rate: {
-        amount: rate.rate.amount.toString(),
-        decimals: rate.rate.decimals.toString(),
-      },
-      timestamp: rate.timestamp,
-      source: rate.source,
-    }
-  }
-
-  /**
    * Create an ExchangeRate from a Price with configurable precision
-   * 
+   *
    * @param price The Price instance to convert
    * @param options Configuration options for the conversion
    * @returns A new ExchangeRate instance
    */
   static fromPrice(
-    price: import('./prices').Price,
+    price: import("./prices").Price,
     options: {
-      decimals: number | bigint,
-      baseCurrency?: Currency,
-      roundingMode?: import('./types').RoundingMode,
-      source?: ExchangeRateSource,
+      decimals: number | bigint
+      baseCurrency?: Currency
+      roundingMode?: import("./types").RoundingMode
+      source?: ExchangeRateSource
       timestamp?: UNIXTime | string
-    }
+    },
   ): ExchangeRate {
     // Delegate to the Price instance method
     return price.toExchangeRate(options)

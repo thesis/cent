@@ -1,12 +1,12 @@
-import { Currency } from "../types"
 import {
   currencies,
-  PRIMARY_SYMBOL_MAP,
-  getPrimaryCurrency,
   FRACTIONAL_UNIT_SYMBOLS,
   getFractionalUnitInfo,
+  getPrimaryCurrency,
+  PRIMARY_SYMBOL_MAP,
 } from "../currencies"
 import { FixedPointNumber } from "../fixed-point"
+import type { Currency } from "../types"
 
 /**
  * Result of parsing a money string
@@ -384,7 +384,10 @@ function tryParseFractionalUnitSymbol(input: string): MoneyParseResult | null {
     if (cleanInput.startsWith(symbol)) {
       const amountStr = cleanInput.slice(symbol.length).trim()
       if (amountStr) {
-        const fractionalInfo = getFractionalUnitInfo(symbol)!
+        const fractionalInfo = getFractionalUnitInfo(symbol)
+        if (!fractionalInfo) {
+          continue
+        }
         const { currency, decimals } = fractionalInfo
 
         // Parse the number (fractional units are typically integers)
@@ -433,7 +436,10 @@ function tryParseSymbol(input: string): MoneyParseResult | null {
     if (cleanInput.startsWith(symbol)) {
       const amountStr = cleanInput.slice(symbol.length).trim()
       if (amountStr) {
-        const currency = getPrimaryCurrency(symbol)!
+        const currency = getPrimaryCurrency(symbol)
+        if (!currency) {
+          continue
+        }
         const format = detectNumberFormat(amountStr, currency)
         let parsed = parseNumber(amountStr, format)
 
@@ -453,7 +459,10 @@ function tryParseSymbol(input: string): MoneyParseResult | null {
     if (cleanInput.endsWith(symbol)) {
       const amountStr = cleanInput.slice(0, -symbol.length).trim()
       if (amountStr) {
-        const currency = getPrimaryCurrency(symbol)!
+        const currency = getPrimaryCurrency(symbol)
+        if (!currency) {
+          continue
+        }
         const format = detectNumberFormat(amountStr, currency)
         let parsed = parseNumber(amountStr, format)
 

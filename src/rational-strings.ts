@@ -1,5 +1,5 @@
 import { z } from "zod"
-import { RationalString, Ratio } from "./types"
+import type { Ratio, RationalString } from "./types"
 
 /**
  * Zod schema for validating fraction strings
