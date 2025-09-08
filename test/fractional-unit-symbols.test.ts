@@ -1,5 +1,5 @@
-import { MoneyFactory, Money } from "../src/money"
-import { BTC, USD, GBP } from "../src/currencies"
+import { BTC, GBP, USD } from "../src/currencies"
+import { Money, MoneyFactory } from "../src/money"
 
 describe("Fractional Unit Symbols", () => {
   describe("Parsing", () => {
@@ -42,75 +42,92 @@ describe("Fractional Unit Symbols", () => {
     it("should format BTC with sats symbol", () => {
       const money = new Money({
         asset: BTC,
-        amount: { amount: 10000n, decimals: 8n }
+        amount: { amount: 10000n, decimals: 8n },
       })
-      
+
       expect(money.toString({ preferredUnit: "sat" })).toBe("10,000 sats")
-      expect(money.toString({ preferredUnit: "sat", preferFractionalSymbol: true })).toBe("§10,000")
+      expect(
+        money.toString({ preferredUnit: "sat", preferFractionalSymbol: true }),
+      ).toBe("§10,000")
     })
 
     it("should format BTC with satoshi symbol", () => {
       const money = new Money({
         asset: BTC,
-        amount: { amount: 10000n, decimals: 8n }
+        amount: { amount: 10000n, decimals: 8n },
       })
-      
-      expect(money.toString({ preferredUnit: "satoshi" })).toBe("10,000 satoshis")
-      expect(money.toString({ preferredUnit: "satoshi", preferFractionalSymbol: true })).toBe("§10,000")
+
+      expect(money.toString({ preferredUnit: "satoshi" })).toBe(
+        "10,000 satoshis",
+      )
+      expect(
+        money.toString({
+          preferredUnit: "satoshi",
+          preferFractionalSymbol: true,
+        }),
+      ).toBe("§10,000")
     })
 
     it("should format BTC with compact notation and symbol", () => {
       const money = new Money({
         asset: BTC,
-        amount: { amount: 100000000n, decimals: 8n } // 1 BTC
+        amount: { amount: 100000000n, decimals: 8n }, // 1 BTC
       })
-      
-      expect(money.toString({ preferredUnit: "sat", compact: true })).toBe("100M sats")
-      expect(money.toString({ 
-        preferredUnit: "sat", 
-        preferFractionalSymbol: true, 
-        compact: true 
-      })).toBe("§100M")
+
+      expect(money.toString({ preferredUnit: "sat", compact: true })).toBe(
+        "100M sats",
+      )
+      expect(
+        money.toString({
+          preferredUnit: "sat",
+          preferFractionalSymbol: true,
+          compact: true,
+        }),
+      ).toBe("§100M")
     })
 
     it("should handle negative amounts in formatting", () => {
       const money = new Money({
         asset: BTC,
-        amount: { amount: -10000n, decimals: 8n }
+        amount: { amount: -10000n, decimals: 8n },
       })
-      
-      expect(money.toString({ 
-        preferredUnit: "sat", 
-        preferFractionalSymbol: true 
-      })).toBe("§-10,000")
+
+      expect(
+        money.toString({
+          preferredUnit: "sat",
+          preferFractionalSymbol: true,
+        }),
+      ).toBe("§-10,000")
     })
 
     it("should fallback to word format when symbol not available", () => {
       const money = new Money({
         asset: BTC,
-        amount: { amount: 10000n, decimals: 8n }
+        amount: { amount: 10000n, decimals: 8n },
       })
-      
+
       // When preferFractionalSymbol is true but no matching symbol exists
-      expect(money.toString({ 
-        preferredUnit: "bit", 
-        preferFractionalSymbol: true 
-      })).toBe("1,000 bits")
+      expect(
+        money.toString({
+          preferredUnit: "bit",
+          preferFractionalSymbol: true,
+        }),
+      ).toBe("1,000 bits")
     })
   })
 
   describe("Error Handling", () => {
     it("should throw error when both currency and fractional symbols are present", () => {
       expect(() => MoneyFactory("$¢50")).toThrow(
-        "Cannot parse money string with both currency and fractional unit symbols"
+        "Cannot parse money string with both currency and fractional unit symbols",
       )
-      
+
       expect(() => MoneyFactory("§₿100")).toThrow(
-        "Cannot parse money string with both currency and fractional unit symbols"
+        "Cannot parse money string with both currency and fractional unit symbols",
       )
-      
+
       expect(() => MoneyFactory("¢$25")).toThrow(
-        "Cannot parse money string with both currency and fractional unit symbols"
+        "Cannot parse money string with both currency and fractional unit symbols",
       )
     })
   })
@@ -119,12 +136,12 @@ describe("Fractional Unit Symbols", () => {
     it("should maintain consistency for BTC sats", () => {
       const original = "§10000"
       const money = MoneyFactory(original)
-      const formatted = money.toString({ 
-        preferredUnit: "sat", 
-        preferFractionalSymbol: true 
+      const formatted = money.toString({
+        preferredUnit: "sat",
+        preferFractionalSymbol: true,
       })
       expect(formatted).toBe("§10,000")
-      
+
       // Parse the formatted string back
       const reparsed = MoneyFactory("§10,000")
       expect(reparsed.equals(money)).toBe(true)
@@ -132,10 +149,10 @@ describe("Fractional Unit Symbols", () => {
 
     it("should work with compact notation", () => {
       const money = MoneyFactory("§100000")
-      const compact = money.toString({ 
-        preferredUnit: "sat", 
-        preferFractionalSymbol: true, 
-        compact: true 
+      const compact = money.toString({
+        preferredUnit: "sat",
+        preferFractionalSymbol: true,
+        compact: true,
       })
       expect(compact).toBe("§100K")
     })
@@ -145,23 +162,27 @@ describe("Fractional Unit Symbols", () => {
     it("should work with Money operations", () => {
       const money1 = MoneyFactory("§10000")
       const money2 = MoneyFactory("§5000")
-      
+
       const sum = money1.add(money2)
-      expect(sum.toString({ 
-        preferredUnit: "sat", 
-        preferFractionalSymbol: true 
-      })).toBe("§15,000")
+      expect(
+        sum.toString({
+          preferredUnit: "sat",
+          preferFractionalSymbol: true,
+        }),
+      ).toBe("§15,000")
     })
 
     it("should work with different unit preferences", () => {
       const money = MoneyFactory("§100000000") // 1 BTC worth of sats
-      
+
       expect(money.toString()).toBe("1 BTC")
       expect(money.toString({ preferredUnit: "sat" })).toBe("100,000,000 sats")
-      expect(money.toString({ 
-        preferredUnit: "sat", 
-        preferFractionalSymbol: true 
-      })).toBe("§100,000,000")
+      expect(
+        money.toString({
+          preferredUnit: "sat",
+          preferFractionalSymbol: true,
+        }),
+      ).toBe("§100,000,000")
     })
   })
 })

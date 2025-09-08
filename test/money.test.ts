@@ -1,24 +1,20 @@
 import {
-  Money,
-  MoneyJSONSchema,
-  formatMoney,
-  shouldUseIsoFormatting,
-  formatWithIntlCurrency,
-  formatWithCustomFormatting,
-  convertToPreferredUnit,
   findFractionalUnitInfo,
   getCurrencyDisplayPart,
+  Money,
+  MoneyJSONSchema,
   normalizeLocale,
   pluralizeFractionalUnit,
+  shouldUseIsoFormatting,
 } from "../src/money"
 import {
-  Currency,
-  AssetAmount,
-  RoundingMode,
-  HALF_EXPAND,
-  HALF_EVEN,
+  type AssetAmount,
   CEIL,
+  type Currency,
   FLOOR,
+  HALF_EVEN,
+  HALF_EXPAND,
+  RoundingMode,
 } from "../src/types"
 
 describe("Money", () => {
@@ -1839,21 +1835,30 @@ describe("Money", () => {
       const eurMoney = new Money(eurAmount)
 
       expect(() => usdMoney.compare(eurMoney)).toThrow(
-        "Cannot compare Money with different asset types"
+        "Cannot compare Money with different asset types",
       )
     })
 
     it("should work for sorting arrays", () => {
       const amounts = [
-        new Money({ asset: usdCurrency, amount: { amount: 10000n, decimals: 2n } }), // $100.00
-        new Money({ asset: usdCurrency, amount: { amount: 5000n, decimals: 2n } }),  // $50.00
-        new Money({ asset: usdCurrency, amount: { amount: 7500n, decimals: 2n } }),  // $75.00
+        new Money({
+          asset: usdCurrency,
+          amount: { amount: 10000n, decimals: 2n },
+        }), // $100.00
+        new Money({
+          asset: usdCurrency,
+          amount: { amount: 5000n, decimals: 2n },
+        }), // $50.00
+        new Money({
+          asset: usdCurrency,
+          amount: { amount: 7500n, decimals: 2n },
+        }), // $75.00
       ]
 
       const sorted = amounts.sort((a, b) => a.compare(b))
 
-      expect(sorted[0].balance.amount.amount).toBe(5000n)  // $50.00
-      expect(sorted[1].balance.amount.amount).toBe(7500n)  // $75.00
+      expect(sorted[0].balance.amount.amount).toBe(5000n) // $50.00
+      expect(sorted[1].balance.amount.amount).toBe(7500n) // $75.00
       expect(sorted[2].balance.amount.amount).toBe(10000n) // $100.00
     })
   })
@@ -1948,7 +1953,7 @@ describe("Money", () => {
         asset: usdCurrency,
         amount: { amount: 10050n, decimals: 2n }, // $100.50
       })
-      
+
       // Convert to RationalNumber by dividing by 3
       const rationalMoney = money.add(money).add(money).distribute(3)[0]
       const json = rationalMoney.toJSON({ compact: true })
@@ -1998,7 +2003,9 @@ describe("Money", () => {
         amount: "100.50",
       }
 
-      expect(() => Money.fromJSON(json)).toThrow("Unsupported currency code: UNKNOWN")
+      expect(() => Money.fromJSON(json)).toThrow(
+        "Unsupported currency code: UNKNOWN",
+      )
     })
 
     it("should handle RationalNumber amounts in compact format", () => {
@@ -2513,9 +2520,15 @@ describe("Money", () => {
         })
 
         // minDecimals forces trailing zeros, maxDecimals limits precision
-        expect(money.toString({ minDecimals: 2, maxDecimals: 4 })).toBe("1.2346 BTC")
-        expect(money.toString({ minDecimals: 6, maxDecimals: 4 })).toBe("1.2346 BTC") // maxDecimals takes precedence
-        expect(money.toString({ minDecimals: 2, maxDecimals: 8 })).toBe("1.23456789 BTC")
+        expect(money.toString({ minDecimals: 2, maxDecimals: 4 })).toBe(
+          "1.2346 BTC",
+        )
+        expect(money.toString({ minDecimals: 6, maxDecimals: 4 })).toBe(
+          "1.2346 BTC",
+        ) // maxDecimals takes precedence
+        expect(money.toString({ minDecimals: 2, maxDecimals: 8 })).toBe(
+          "1.23456789 BTC",
+        )
       })
 
       it("should handle zero amounts with minDecimals", () => {
@@ -2548,8 +2561,12 @@ describe("Money", () => {
           amount: { amount: 100000000n, decimals: 8n }, // 1.00000000 BTC
         })
 
-        expect(money.toString({ minDecimals: 0, preferredUnit: "satoshi" })).toBe("100,000,000 satoshis")
-        expect(money.toString({ minDecimals: 2, preferredUnit: "satoshi" })).toBe("100,000,000.00 satoshis")
+        expect(
+          money.toString({ minDecimals: 0, preferredUnit: "satoshi" }),
+        ).toBe("100,000,000 satoshis")
+        expect(
+          money.toString({ minDecimals: 2, preferredUnit: "satoshi" }),
+        ).toBe("100,000,000.00 satoshis")
       })
     })
     describe("excludeCurrency option", () => {
@@ -2576,8 +2593,12 @@ describe("Money", () => {
           asset: btc,
           amount: { amount: 200000000n, decimals: 8n }, // 2.0 BTC
         })
-        expect(money.toString({ preferSymbol: true, excludeCurrency: true })).toBe("2")
-        expect(money.toString({ preferSymbol: true, excludeCurrency: false })).toBe("₿2")
+        expect(
+          money.toString({ preferSymbol: true, excludeCurrency: true }),
+        ).toBe("2")
+        expect(
+          money.toString({ preferSymbol: true, excludeCurrency: false }),
+        ).toBe("₿2")
         expect(money.toString({ preferSymbol: true })).toBe("₿2") // default behavior
       })
       it("should exclude fractional unit when using preferredUnit and excludeCurrency is true", () => {
@@ -2585,18 +2606,30 @@ describe("Money", () => {
           asset: btc,
           amount: { amount: 100000000n, decimals: 8n }, // 1.0 BTC
         })
-        expect(money.toString({ preferredUnit: "sat", excludeCurrency: true })).toBe("100,000,000")
-        expect(money.toString({ preferredUnit: "sat", excludeCurrency: false })).toBe("100,000,000 sats")
-        expect(money.toString({ preferredUnit: "sat" })).toBe("100,000,000 sats") // default behavior
+        expect(
+          money.toString({ preferredUnit: "sat", excludeCurrency: true }),
+        ).toBe("100,000,000")
+        expect(
+          money.toString({ preferredUnit: "sat", excludeCurrency: false }),
+        ).toBe("100,000,000 sats")
+        expect(money.toString({ preferredUnit: "sat" })).toBe(
+          "100,000,000 sats",
+        ) // default behavior
       })
       it("should work with other formatting options", () => {
         const money = new Money({
           asset: usd,
           amount: { amount: 123456n, decimals: 2n }, // $1234.56
         })
-        expect(money.toString({ excludeCurrency: true, locale: "de-DE" })).toBe("1.234,56")
-        expect(money.toString({ excludeCurrency: true, maxDecimals: 1 })).toBe("1,234.6")
-        expect(money.toString({ excludeCurrency: true, minDecimals: 3 })).toBe("1,234.560")
+        expect(money.toString({ excludeCurrency: true, locale: "de-DE" })).toBe(
+          "1.234,56",
+        )
+        expect(money.toString({ excludeCurrency: true, maxDecimals: 1 })).toBe(
+          "1,234.6",
+        )
+        expect(money.toString({ excludeCurrency: true, minDecimals: 3 })).toBe(
+          "1,234.560",
+        )
       })
     })
   })

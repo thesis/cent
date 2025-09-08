@@ -1,18 +1,18 @@
 import {
-  UNIXTimeSchema,
-  isUNIXTime,
-  toUNIXTime,
-  nowUNIXTime,
   dateToUNIXTime,
-  unixTimeToDate,
-  UTCTimeSchema,
-  isUTCTime,
-  toUTCTime,
-  nowUTCTime,
   dateToUTCTime,
+  isUNIXTime,
+  isUTCTime,
+  nowUNIXTime,
+  nowUTCTime,
+  toUNIXTime,
+  toUTCTime,
+  UNIXTimeSchema,
+  UTCTimeSchema,
+  unixTimeToDate,
   utcTimeToDate,
 } from "../src/time"
-import { UNIXTime, UTCTime } from "../src/types"
+import type { UNIXTime, UTCTime } from "../src/types"
 
 describe("UNIXTime utilities", () => {
   describe("UNIXTimeSchema", () => {

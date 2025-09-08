@@ -1,11 +1,11 @@
 import {
   FractionStringSchema,
-  RationalStringSchema,
+  getRationalStringType,
   isFractionString,
   isRationalString,
-  toRationalString,
   parseFraction,
-  getRationalStringType,
+  RationalStringSchema,
+  toRationalString,
 } from "../src/rational-strings"
 
 describe("FractionStringSchema", () => {

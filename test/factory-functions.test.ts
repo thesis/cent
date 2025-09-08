@@ -1,7 +1,7 @@
 import {
   FixedPoint,
-  Rational,
   FixedPointNumber,
+  Rational,
   RationalNumber,
 } from "../src/index"
 

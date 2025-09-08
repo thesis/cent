@@ -1,4 +1,4 @@
-import { Money, FixedPointNumber } from "../src"
+import { FixedPointNumber, Money } from "../src"
 import { BTC, ETH, USD } from "../src/currencies"
 
 describe("Precision Safety", () => {

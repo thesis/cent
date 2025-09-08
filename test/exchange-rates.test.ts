@@ -1,14 +1,15 @@
 /* eslint-disable max-classes-per-file */
-import { Currency } from "../src/types"
-import { FixedPointNumber } from "../src/fixed-point"
-import {
-  ExchangeRateSource,
+
+import type {
   ExchangeRateProvider,
+  ExchangeRateSource,
 } from "../src/exchange-rate-sources"
-import { nowUNIXTime } from "../src/time"
-import { ExchangeRate, ExchangeRateData } from "../src/exchange-rates"
+import { ExchangeRate, type ExchangeRateData } from "../src/exchange-rates"
+import { FixedPointNumber } from "../src/fixed-point"
 import { Money } from "../src/money"
 import { Price } from "../src/prices"
+import { nowUNIXTime } from "../src/time"
+import type { Currency } from "../src/types"
 
 describe("ExchangeRate", () => {
   // Test currencies
@@ -152,7 +153,7 @@ describe("ExchangeRate", () => {
       // Test individual arguments constructor with string timestamp
       const stringTimestamp = "1609459200000" // 2021-01-01 in milliseconds
       const rate1 = new ExchangeRate(USD, EUR, "1.08", stringTimestamp)
-      
+
       expect(rate1.timestamp).toBe(stringTimestamp)
       expect(typeof rate1.timestamp).toBe("string")
 
@@ -164,7 +165,7 @@ describe("ExchangeRate", () => {
         timestamp: stringTimestamp,
       }
       const rate2 = new ExchangeRate(data)
-      
+
       expect(rate2.timestamp).toBe(stringTimestamp)
       expect(typeof rate2.timestamp).toBe("string")
     })
@@ -172,7 +173,7 @@ describe("ExchangeRate", () => {
     it("should throw error for invalid string timestamp", () => {
       // Test invalid string timestamp
       const invalidTimestamp = "invalid-timestamp"
-      
+
       expect(() => {
         new ExchangeRate(USD, EUR, "1.08", invalidTimestamp)
       }).toThrow("Invalid UNIX timestamp")
@@ -327,7 +328,9 @@ describe("ExchangeRate", () => {
 
       expect(averaged.baseCurrency).toBe(USD)
       expect(averaged.quoteCurrency).toBe(EUR)
-      expect(averaged.rate.toString()).toBe("1.1000000000000000000000000000000000000000000000000") // (1.00 + 1.20) / 2
+      expect(averaged.rate.toString()).toBe(
+        "1.1000000000000000000000000000000000000000000000000",
+      ) // (1.00 + 1.20) / 2
     })
 
     it("should average three compatible rates", () => {
@@ -355,7 +358,9 @@ describe("ExchangeRate", () => {
 
       expect(averaged.baseCurrency).toBe(USD)
       expect(averaged.quoteCurrency).toBe(EUR)
-      expect(averaged.rate.toString()).toBe("1.2333333333333333333333333333333333333333333333333") // (1.00 + 1.20 + 1.50) / 3
+      expect(averaged.rate.toString()).toBe(
+        "1.2333333333333333333333333333333333333333333333333",
+      ) // (1.00 + 1.20 + 1.50) / 3
     })
 
     it("should average seven compatible rates", () => {
@@ -370,19 +375,21 @@ describe("ExchangeRate", () => {
       ]
 
       const averaged = new ExchangeRate(
-        ExchangeRate.average(rates.map(r => r.toData())),
+        ExchangeRate.average(rates.map((r) => r.toData())),
       )
 
       expect(averaged.baseCurrency).toBe(USD)
       expect(averaged.quoteCurrency).toBe(EUR)
-      expect(averaged.rate.toString()).toBe("1.3000000000000000000000000000000000000000000000000") // (1.00 + 1.10 + 1.20 + 1.30 + 1.40 + 1.50 + 1.60) / 7
+      expect(averaged.rate.toString()).toBe(
+        "1.3000000000000000000000000000000000000000000000000",
+      ) // (1.00 + 1.10 + 1.20 + 1.30 + 1.40 + 1.50 + 1.60) / 7
     })
 
     it("should not error when averaging rates where length is not divisible by 2 or 5", () => {
       // This test specifically addresses the bug where averaging 3 or 7 rates would error
       // because the old implementation used FixedPointNumber.divide(BigInt) which only supports
       // divisors that are factors of 2 and 5. The fix uses RationalNumber for division.
-      
+
       const rates = [
         new ExchangeRate(USD, EUR, new FixedPointNumber(100n, 2n)),
         new ExchangeRate(USD, EUR, new FixedPointNumber(110n, 2n)),
@@ -399,12 +406,12 @@ describe("ExchangeRate", () => {
 
       // Test various problematic lengths (not divisible by 2 or 5)
       const problematicLengths = [3, 7, 9, 11]
-      
-      problematicLengths.forEach(length => {
+
+      problematicLengths.forEach((length) => {
         const subset = rates.slice(0, length)
         expect(() => {
           const averaged = new ExchangeRate(
-            ExchangeRate.average(subset.map(r => r.toData())),
+            ExchangeRate.average(subset.map((r) => r.toData())),
           )
           expect(averaged.baseCurrency).toBe(USD)
           expect(averaged.quoteCurrency).toBe(EUR)
@@ -883,12 +890,12 @@ describe("ExchangeRate", () => {
         // $50,000 per 1 BTC - BTC should become base
         const price = new Price(
           { asset: USD, amount: { amount: 5000000n, decimals: 2n } }, // $50,000
-          { asset: BTC, amount: { amount: 100000000n, decimals: 8n } }  // 1 BTC
+          { asset: BTC, amount: { amount: 100000000n, decimals: 8n } }, // 1 BTC
         )
 
         const rate = ExchangeRate.fromPrice(price, { decimals: 2 })
 
-        expect(rate.baseCurrency).toBe(BTC)  // BTC is base
+        expect(rate.baseCurrency).toBe(BTC) // BTC is base
         expect(rate.quoteCurrency).toBe(USD) // USD is quote
         expect(rate.rate.toString()).toBe("50000.00") // 1 BTC = $50,000.00
       })
@@ -896,20 +903,20 @@ describe("ExchangeRate", () => {
       it("should create exchange rate with custom options", () => {
         const price = new Price(
           { asset: USD, amount: { amount: 5000000n, decimals: 2n } },
-          { asset: BTC, amount: { amount: 100000000n, decimals: 8n } }
+          { asset: BTC, amount: { amount: 100000000n, decimals: 8n } },
         )
 
         const customSource = {
           name: "Custom Static Source",
           priority: 1,
-          reliability: 0.99
+          reliability: 0.99,
         }
 
         const rate = ExchangeRate.fromPrice(price, {
           decimals: 8,
           baseCurrency: USD, // Force USD as base
           source: customSource,
-          timestamp: "1640995200000"
+          timestamp: "1640995200000",
         })
 
         expect(rate.baseCurrency).toBe(USD)

@@ -1,8 +1,8 @@
 import { describe, expect, it } from "@jest/globals"
+import { BTC, EUR, USD } from "../src/currencies"
+import { ExchangeRate } from "../src/exchange-rates"
 import { Money } from "../src/index"
 import { PriceRange, PriceRangeFactory } from "../src/price-range"
-import { USD, EUR, BTC } from "../src/currencies"
-import { ExchangeRate } from "../src/exchange-rates"
 
 describe("PriceRange", () => {
   describe("Factory Function", () => {
@@ -49,7 +49,9 @@ describe("PriceRange", () => {
     it("throws error for invalid range (max < min)", () => {
       expect(() => {
         PriceRangeFactory(Money("$100"), Money("$50"))
-      }).toThrow("Invalid range: maximum must be greater than or equal to minimum")
+      }).toThrow(
+        "Invalid range: maximum must be greater than or equal to minimum",
+      )
     })
 
     it("allows equal min and max values", () => {
@@ -167,8 +169,8 @@ describe("PriceRange", () => {
     it("calculates intersection of overlapping ranges", () => {
       const intersection = range1.intersect(range2)
       expect(intersection).not.toBeNull()
-      expect(intersection!.min.equals(Money("$80"))).toBe(true)
-      expect(intersection!.max.equals(Money("$100"))).toBe(true)
+      expect(intersection?.min.equals(Money("$80"))).toBe(true)
+      expect(intersection?.max.equals(Money("$100"))).toBe(true)
     })
 
     it("returns null for non-overlapping intersections", () => {
@@ -281,7 +283,9 @@ describe("PriceRange", () => {
     })
 
     it("formats with between style", () => {
-      expect(range.toString({ format: "between" })).toBe("Between $50.00 and $100.00")
+      expect(range.toString({ format: "between" })).toBe(
+        "Between $50.00 and $100.00",
+      )
     })
 
     it("formats large ranges with compact notation", () => {
@@ -402,18 +406,18 @@ describe("PriceRange", () => {
       { name: "Item B", price: Money("$75") },
       { name: "Item C", price: Money("$110") },
       { name: "Item D", price: Money("$50") },
-      { name: "Item E", price: Money("$100") }
+      { name: "Item E", price: Money("$100") },
     ]
 
     it("filters products within range", () => {
-      const inRange = products.filter(p => range.contains(p.price))
+      const inRange = products.filter((p) => range.contains(p.price))
       expect(inRange.length).toBe(3)
-      expect(inRange.map(p => p.name)).toEqual(["Item B", "Item D", "Item E"])
+      expect(inRange.map((p) => p.name)).toEqual(["Item B", "Item D", "Item E"])
     })
 
     it("works with Money array methods", () => {
-      const prices = products.map(p => p.price)
-      const inRangePrices = prices.filter(price => range.contains(price))
+      const prices = products.map((p) => p.price)
+      const inRangePrices = prices.filter((price) => range.contains(price))
       expect(inRangePrices.length).toBe(3)
     })
   })

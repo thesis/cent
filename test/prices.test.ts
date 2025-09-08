@@ -1,8 +1,7 @@
-import { Price } from "../src/prices"
-import { ExchangeRate } from "../src/exchange-rates"
-import { Currency, AssetAmount } from "../src/types"
-import { RationalNumber } from "../src/rationals"
 import { FixedPointNumber } from "../src/fixed-point"
+import { Price } from "../src/prices"
+import { RationalNumber } from "../src/rationals"
+import type { AssetAmount, Currency } from "../src/types"
 
 describe("Price", () => {
   const usdCurrency: Currency = {
@@ -330,12 +329,12 @@ describe("Price", () => {
       // $50,000 per 1 BTC - BTC should become base since amount is 1
       const price = new Price(
         { asset: usdCurrency, amount: { amount: 5000000n, decimals: 2n } }, // $50,000
-        { asset: btcCurrency, amount: { amount: 100000000n, decimals: 8n } }  // 1 BTC
+        { asset: btcCurrency, amount: { amount: 100000000n, decimals: 8n } }, // 1 BTC
       )
 
       const rate = price.toExchangeRate({ decimals: 2 })
 
-      expect(rate.baseCurrency).toBe(btcCurrency)  // BTC is base
+      expect(rate.baseCurrency).toBe(btcCurrency) // BTC is base
       expect(rate.quoteCurrency).toBe(usdCurrency) // USD is quote
       expect(rate.rate.toString()).toBe("50000.00") // 1 BTC = $50,000.00
     })
@@ -343,14 +342,14 @@ describe("Price", () => {
     it("should convert price with fractional base currency", () => {
       // $100 per 0.002 BTC - BTC should become base since 0.002 is closer to 1 than 100
       const price = new Price(
-        { asset: usdCurrency, amount: { amount: 10000n, decimals: 2n } },    // $100
-        { asset: btcCurrency, amount: { amount: 200000n, decimals: 8n } }     // 0.002 BTC
+        { asset: usdCurrency, amount: { amount: 10000n, decimals: 2n } }, // $100
+        { asset: btcCurrency, amount: { amount: 200000n, decimals: 8n } }, // 0.002 BTC
       )
 
       const rate = price.toExchangeRate({ decimals: 2 })
 
-      expect(rate.baseCurrency).toBe(btcCurrency)   // BTC is base (closer to 1)
-      expect(rate.quoteCurrency).toBe(usdCurrency)  // USD is quote
+      expect(rate.baseCurrency).toBe(btcCurrency) // BTC is base (closer to 1)
+      expect(rate.quoteCurrency).toBe(usdCurrency) // USD is quote
       expect(rate.rate.toString()).toBe("50000.00") // 1 BTC = 50,000 USD (100/0.002 = 50,000)
     })
 
@@ -358,23 +357,23 @@ describe("Price", () => {
       // $50,000 per 1 BTC, but force USD as base
       const price = new Price(
         { asset: usdCurrency, amount: { amount: 5000000n, decimals: 2n } }, // $50,000
-        { asset: btcCurrency, amount: { amount: 100000000n, decimals: 8n } }  // 1 BTC
+        { asset: btcCurrency, amount: { amount: 100000000n, decimals: 8n } }, // 1 BTC
       )
 
-      const rate = price.toExchangeRate({ 
+      const rate = price.toExchangeRate({
         decimals: 8,
-        baseCurrency: usdCurrency 
+        baseCurrency: usdCurrency,
       })
 
-      expect(rate.baseCurrency).toBe(usdCurrency)   // USD forced as base
-      expect(rate.quoteCurrency).toBe(btcCurrency)  // BTC is quote
+      expect(rate.baseCurrency).toBe(usdCurrency) // USD forced as base
+      expect(rate.quoteCurrency).toBe(btcCurrency) // BTC is quote
       expect(rate.rate.toString()).toBe("0.00002000") // 1 USD = 0.00002 BTC
     })
 
     it("should include default source metadata", () => {
       const price = new Price(
         { asset: usdCurrency, amount: { amount: 5000000n, decimals: 2n } },
-        { asset: btcCurrency, amount: { amount: 100000000n, decimals: 8n } }
+        { asset: btcCurrency, amount: { amount: 100000000n, decimals: 8n } },
       )
 
       const rate = price.toExchangeRate({ decimals: 2 })
@@ -388,18 +387,18 @@ describe("Price", () => {
     it("should allow custom source metadata override", () => {
       const price = new Price(
         { asset: usdCurrency, amount: { amount: 5000000n, decimals: 2n } },
-        { asset: btcCurrency, amount: { amount: 100000000n, decimals: 8n } }
+        { asset: btcCurrency, amount: { amount: 100000000n, decimals: 8n } },
       )
 
       const customSource = {
         name: "Custom Market Data",
         priority: 1,
-        reliability: 0.95
+        reliability: 0.95,
       }
 
-      const rate = price.toExchangeRate({ 
+      const rate = price.toExchangeRate({
         decimals: 2,
-        source: customSource 
+        source: customSource,
       })
 
       expect(rate.source).toBe(customSource)
@@ -408,13 +407,13 @@ describe("Price", () => {
     it("should include timestamp", () => {
       const price = new Price(
         { asset: usdCurrency, amount: { amount: 5000000n, decimals: 2n } },
-        { asset: btcCurrency, amount: { amount: 100000000n, decimals: 8n } }
+        { asset: btcCurrency, amount: { amount: 100000000n, decimals: 8n } },
       )
 
       const customTimestamp = "1640995200000"
-      const rate = price.toExchangeRate({ 
+      const rate = price.toExchangeRate({
         decimals: 2,
-        timestamp: customTimestamp
+        timestamp: customTimestamp,
       })
 
       expect(rate.timestamp).toBe(customTimestamp)
@@ -423,7 +422,7 @@ describe("Price", () => {
     it("should auto-generate timestamp if not provided", () => {
       const price = new Price(
         { asset: usdCurrency, amount: { amount: 5000000n, decimals: 2n } },
-        { asset: btcCurrency, amount: { amount: 100000000n, decimals: 8n } }
+        { asset: btcCurrency, amount: { amount: 100000000n, decimals: 8n } },
       )
 
       const rate = price.toExchangeRate({ decimals: 2 })
@@ -435,26 +434,26 @@ describe("Price", () => {
     it("should handle equal ratios by using argument order", () => {
       // $100 per 100 EUR - both amounts are equal, should use argument order
       const price = new Price(
-        { asset: usdCurrency, amount: { amount: 10000n, decimals: 2n } },  // $100
-        { asset: eurCurrency, amount: { amount: 10000n, decimals: 2n } }   // €100
+        { asset: usdCurrency, amount: { amount: 10000n, decimals: 2n } }, // $100
+        { asset: eurCurrency, amount: { amount: 10000n, decimals: 2n } }, // €100
       )
 
       const rate = price.toExchangeRate({ decimals: 4 })
 
       // First argument (USD) becomes quote, second (EUR) becomes base
-      expect(rate.baseCurrency).toBe(eurCurrency)  // EUR is base (second arg)
+      expect(rate.baseCurrency).toBe(eurCurrency) // EUR is base (second arg)
       expect(rate.quoteCurrency).toBe(usdCurrency) // USD is quote (first arg)
-      expect(rate.rate.toString()).toBe("1.0000")  // 1 EUR = $1.00
+      expect(rate.rate.toString()).toBe("1.0000") // 1 EUR = $1.00
     })
 
     it("should throw error for identical currencies", () => {
       const price = new Price(
-        { asset: usdCurrency, amount: { amount: 10000n, decimals: 2n } },  // $100
-        { asset: usdCurrency, amount: { amount: 5000n, decimals: 2n } }    // $50
+        { asset: usdCurrency, amount: { amount: 10000n, decimals: 2n } }, // $100
+        { asset: usdCurrency, amount: { amount: 5000n, decimals: 2n } }, // $50
       )
 
       expect(() => price.toExchangeRate({ decimals: 2 })).toThrow(
-        "Cannot create ExchangeRate: both currencies are the same (USD)"
+        "Cannot create ExchangeRate: both currencies are the same (USD)",
       )
     })
 
@@ -462,20 +461,23 @@ describe("Price", () => {
       // 1 ETH per 0.05 BTC
       const ethCurrency: Currency = {
         name: "Ethereum",
-        code: "ETH", 
+        code: "ETH",
         decimals: 18n,
-        symbol: "Ξ"
+        symbol: "Ξ",
       }
 
       const price = new Price(
-        { asset: ethCurrency, amount: { amount: 1000000000000000000n, decimals: 18n } }, // 1 ETH
-        { asset: btcCurrency, amount: { amount: 5000000n, decimals: 8n } }                // 0.05 BTC
+        {
+          asset: ethCurrency,
+          amount: { amount: 1000000000000000000n, decimals: 18n },
+        }, // 1 ETH
+        { asset: btcCurrency, amount: { amount: 5000000n, decimals: 8n } }, // 0.05 BTC
       )
 
       const rate = price.toExchangeRate({ decimals: 8 })
 
-      expect(rate.baseCurrency).toBe(ethCurrency)   // ETH is base (closer to 1)
-      expect(rate.quoteCurrency).toBe(btcCurrency)  // BTC is quote
+      expect(rate.baseCurrency).toBe(ethCurrency) // ETH is base (closer to 1)
+      expect(rate.quoteCurrency).toBe(btcCurrency) // BTC is quote
       expect(rate.rate.toString()).toBe("0.05000000") // 1 ETH = 0.05 BTC
     })
 
@@ -483,7 +485,7 @@ describe("Price", () => {
       // Test default decimals behavior
       const price = new Price(
         { asset: usdCurrency, amount: { amount: 5000000n, decimals: 2n } },
-        { asset: btcCurrency, amount: { amount: 100000000n, decimals: 8n } }
+        { asset: btcCurrency, amount: { amount: 100000000n, decimals: 8n } },
       )
 
       const rate = price.toExchangeRate()
