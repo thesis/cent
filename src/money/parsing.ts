@@ -78,6 +78,55 @@ function parseNumber(
     cleaned = cleaned.slice(1).trim()
   }
 
+  // Handle scientific notation (e.g., "1.06521485582e-7", "5e8", "1.23E+5")
+  if (/[eE]/.test(cleaned)) {
+    // Validate scientific notation format more strictly
+    if (!/^-?\d*\.?\d+[eE][+-]?\d+$/.test(cleaned)) {
+      throw new Error(`Invalid number format: "${amountStr}"`)
+    }
+
+    // Parse the scientific notation manually to avoid floating-point precision loss
+    const [mantissaPart, exponentPart] = cleaned.split(/[eE]/)
+    const exponent = parseInt(exponentPart, 10)
+
+    if (isNaN(exponent)) {
+      throw new Error(`Invalid number format: "${amountStr}"`)
+    }
+
+    // Parse the mantissa (e.g., "1.23" from "1.23e-5")
+    let mantissa = mantissaPart
+    let mantissaDecimals = 0
+
+    if (mantissa.includes('.')) {
+      const [intPart, decPart] = mantissa.split('.')
+      mantissa = intPart + decPart
+      mantissaDecimals = decPart.length
+    }
+
+    // Remove leading zeros but preserve the value
+    mantissa = mantissa.replace(/^0+/, '') || '0'
+
+    if (!/^\d+$/.test(mantissa)) {
+      throw new Error(`Invalid number format: "${amountStr}"`)
+    }
+
+    let mantissaBigInt = BigInt(mantissa)
+
+    // Apply the exponent: adjust decimal places
+    const finalDecimals = mantissaDecimals - exponent
+
+    if (finalDecimals < 0) {
+      // Positive exponent: multiply by 10^abs(finalDecimals)
+      mantissaBigInt *= 10n ** BigInt(-finalDecimals)
+      const amount = isNegative ? -mantissaBigInt : mantissaBigInt
+      return { amount, decimals: 0 }
+    } else {
+      // Negative or zero exponent: keep as decimal
+      const amount = isNegative ? -mantissaBigInt : mantissaBigInt
+      return { amount, decimals: finalDecimals }
+    }
+  }
+
   if (format === "US") {
     // US format: 1,234.56 (comma thousands, dot decimal)
     const parts = cleaned.split(".")
