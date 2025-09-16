@@ -97,14 +97,14 @@ function parseNumber(
     let mantissa = mantissaPart
     let mantissaDecimals = 0
 
-    if (mantissa.includes('.')) {
-      const [intPart, decPart] = mantissa.split('.')
+    if (mantissa.includes(".")) {
+      const [intPart, decPart] = mantissa.split(".")
       mantissa = intPart + decPart
       mantissaDecimals = decPart.length
     }
 
     // Remove leading zeros but preserve the value
-    mantissa = mantissa.replace(/^0+/, '') || '0'
+    mantissa = mantissa.replace(/^0+/, "") || "0"
 
     if (!/^\d+$/.test(mantissa)) {
       throw new Error(`Invalid number format: "${amountStr}"`)
@@ -120,11 +120,10 @@ function parseNumber(
       mantissaBigInt *= 10n ** BigInt(-finalDecimals)
       const amount = isNegative ? -mantissaBigInt : mantissaBigInt
       return { amount, decimals: 0 }
-    } else {
-      // Negative or zero exponent: keep as decimal
-      const amount = isNegative ? -mantissaBigInt : mantissaBigInt
-      return { amount, decimals: finalDecimals }
     }
+    // Negative or zero exponent: keep as decimal
+    const amount = isNegative ? -mantissaBigInt : mantissaBigInt
+    return { amount, decimals: finalDecimals }
   }
 
   if (format === "US") {

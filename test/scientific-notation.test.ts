@@ -40,7 +40,9 @@ describe("Scientific Notation Parsing", () => {
       // Currency code with scientific notation is not yet supported
       // These should fail until we extend currency code parsing
       expect(() => Money("USD 1.23E+5")).toThrow("Invalid money string format")
-      expect(() => Money("1.06521485582e-7 BTC")).toThrow("Invalid money string format")
+      expect(() => Money("1.06521485582e-7 BTC")).toThrow(
+        "Invalid money string format",
+      )
     })
   })
 
@@ -67,7 +69,9 @@ describe("Scientific Notation Parsing", () => {
       expect(tinyAmount.amount.amount).not.toBe(0n)
 
       // Test a number with many explicit decimal places
-      const preciseAmount = Money("$0.0000000000000000000000000000000000000000000000000000000000000000000001")
+      const preciseAmount = Money(
+        "$0.0000000000000000000000000000000000000000000000000000000000000000000001",
+      )
       expect(preciseAmount.currency.code).toBe("USD")
       expect(preciseAmount.isZero()).toBe(false)
       expect(preciseAmount.amount.amount).toBe(1n)
