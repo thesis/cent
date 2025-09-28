@@ -89,7 +89,7 @@ function parseNumber(
     const [mantissaPart, exponentPart] = cleaned.split(/[eE]/)
     const exponent = parseInt(exponentPart, 10)
 
-    if (isNaN(exponent)) {
+    if (Number.isNaN(exponent)) {
       throw new Error(`Invalid number format: "${amountStr}"`)
     }
 
