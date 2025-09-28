@@ -2,10 +2,10 @@ import { BTC, USD } from "../src/currencies"
 import { Money } from "../src/index"
 import { Money as MoneyClass } from "../src/money"
 
-describe("Scientific Notation Parsing", () => {
-  describe("Currency Symbol with Scientific Notation", () => {
+describe("Scientific notation parsing", () => {
+  describe("Currency symbol with scientific notation", () => {
     it("should parse dollar amounts in scientific notation", () => {
-      // Test $1.23E+5 = $123,000
+      // $1.23E+5 = $123,000
       const largeAmount = Money("$1.23E+5")
       expect(
         largeAmount.equals(
@@ -34,11 +34,9 @@ describe("Scientific Notation Parsing", () => {
     })
   })
 
-  describe("Currency Code with Scientific Notation", () => {
-    it("should parse currency code amounts in scientific notation", () => {
-      // This test will initially fail until we fix currency code parsing with scientific notation
-      // Currency code with scientific notation is not yet supported
-      // These should fail until we extend currency code parsing
+  describe("Currency codes with scientific notation", () => {
+    it("should not parse currency code amounts in scientific notation", () => {
+      // currency code with scientific notation is not supported
       expect(() => Money("USD 1.23E+5")).toThrow("Invalid money string format")
       expect(() => Money("1.06521485582e-7 BTC")).toThrow(
         "Invalid money string format",
