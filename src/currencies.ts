@@ -1436,8 +1436,8 @@ export const USDT: Currency = {
 }
 
 export const MATS: Currency = {
-  name: "MATS",
-  code: "MATS",
+  name: "Mezo magic sats",
+  code: "mats",
   decimals: 0n,
   symbol: "mats",
   iso4217Support: false,
