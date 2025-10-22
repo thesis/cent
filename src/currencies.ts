@@ -1612,6 +1612,8 @@ export const currencies: Record<string, Currency> = {
   SOL,
   USDC,
   USDT,
+  MATS,
+  MUSD,
 }
 
 /**
