@@ -1435,6 +1435,22 @@ export const USDT: Currency = {
   iso4217Support: false,
 }
 
+export const MATS: Currency = {
+  name: "Mezo magic sats",
+  code: "mats",
+  decimals: 0n,
+  symbol: "mats",
+  iso4217Support: false,
+}
+
+export const MUSD: Currency = {
+  name: "Mezo USD",
+  code: "MUSD",
+  decimals: 18n,
+  symbol: "MUSD",
+  iso4217Support: false,
+}
+
 // record of all currencies by code
 export const currencies: Record<string, Currency> = {
   AFN,
@@ -1596,6 +1612,8 @@ export const currencies: Record<string, Currency> = {
   SOL,
   USDC,
   USDT,
+  MATS,
+  MUSD,
 }
 
 /**
