@@ -1,4 +1,5 @@
 import { assetsEqual, isAssetAmount } from "../assets"
+import { getConfig } from "../config"
 import { getCurrencyFromCode } from "../currencies"
 import {
   CurrencyMismatchError,
@@ -6,6 +7,7 @@ import {
   ErrorCode,
   InvalidInputError,
   ParseError,
+  PrecisionLossError,
   ValidationError,
 } from "../errors"
 import { FixedPointNumber } from "../fixed-point"
@@ -49,6 +51,47 @@ export {
   MoneyJSONSchema,
   safeValidateMoneyJSON,
 } from "./schemas"
+
+// Import crypto currencies for sub-unit registry
+import { BTC, ETH, SOL } from "../currencies/crypto"
+import { USD, EUR, GBP, JPY } from "../currencies/fiat"
+
+/**
+ * Registry of known sub-units and their corresponding currencies/decimals.
+ * The decimals value represents the number of decimal places for the sub-unit.
+ */
+const SUB_UNIT_REGISTRY: Record<string, { currency: Currency; decimals: number }> = {
+  // Bitcoin sub-units
+  satoshi: { currency: BTC, decimals: 8 },
+  sat: { currency: BTC, decimals: 8 },
+  sats: { currency: BTC, decimals: 8 },
+  millisatoshi: { currency: BTC, decimals: 11 },
+  msat: { currency: BTC, decimals: 11 },
+  msats: { currency: BTC, decimals: 11 },
+
+  // Ethereum sub-units
+  wei: { currency: ETH, decimals: 18 },
+  kwei: { currency: ETH, decimals: 15 },
+  babbage: { currency: ETH, decimals: 15 },
+  mwei: { currency: ETH, decimals: 12 },
+  lovelace: { currency: ETH, decimals: 12 },
+  gwei: { currency: ETH, decimals: 9 },
+  shannon: { currency: ETH, decimals: 9 },
+  szabo: { currency: ETH, decimals: 6 },
+  finney: { currency: ETH, decimals: 3 },
+
+  // Solana sub-units
+  lamport: { currency: SOL, decimals: 9 },
+  lamports: { currency: SOL, decimals: 9 },
+
+  // Fiat sub-units (for convenience)
+  cent: { currency: USD, decimals: 2 },
+  cents: { currency: USD, decimals: 2 },
+  penny: { currency: GBP, decimals: 2 },
+  pence: { currency: GBP, decimals: 2 },
+  eurocent: { currency: EUR, decimals: 2 },
+  yen: { currency: JPY, decimals: 0 },
+}
 
 // Import formatting functions for internal use
 import {
@@ -1518,6 +1561,49 @@ export class Money {
   }
 
   /**
+   * Create a Money instance from a sub-unit amount.
+   *
+   * This method allows creating Money from sub-units like satoshis, gwei, wei,
+   * lamports, etc. The sub-unit name determines both the currency and the
+   * decimal offset.
+   *
+   * @param amount - The amount in sub-units (as bigint)
+   * @param unit - The sub-unit name (e.g., "sat", "msat", "gwei", "wei", "lamport")
+   * @returns A new Money instance
+   * @throws InvalidInputError if the unit is not recognized
+   *
+   * @example
+   * Money.fromSubUnits(100000000n, "sat")     // 1 BTC
+   * Money.fromSubUnits(1000n, "msat")         // 0.000000001 BTC (1000 millisatoshis)
+   * Money.fromSubUnits(1000000000n, "gwei")   // 1 ETH
+   * Money.fromSubUnits(1000000000n, "wei")    // 0.000000001 ETH
+   * Money.fromSubUnits(1000000000n, "lamport") // 1 SOL
+   */
+  static fromSubUnits(amount: bigint, unit: string): Money {
+    const unitInfo = SUB_UNIT_REGISTRY[unit.toLowerCase()]
+
+    if (!unitInfo) {
+      const knownUnits = Object.keys(SUB_UNIT_REGISTRY).join(", ")
+      throw new InvalidInputError(
+        `Unknown sub-unit: "${unit}"`,
+        {
+          suggestion: `Use one of the known sub-units: ${knownUnits}`,
+        },
+      )
+    }
+
+    const { currency, decimals } = unitInfo
+
+    return new Money({
+      asset: currency,
+      amount: {
+        amount,
+        decimals: BigInt(decimals),
+      },
+    })
+  }
+
+  /**
    * Convert this Money instance to a localized string representation
    *
    * @param options - Formatting options for the string representation
@@ -1669,39 +1755,163 @@ export class Money {
 }
 
 /**
- * Factory function for creating Money instances from string representations
- * Also supports original constructor pattern with AssetAmount
+ * Validate a JavaScript number input based on configuration.
+ * @internal
+ */
+function validateNumberInput(value: number, currencyCode: string): void {
+  const config = getConfig()
+
+  // Check for NaN/Infinity first (always an error)
+  if (!Number.isFinite(value)) {
+    throw new InvalidInputError(
+      `Invalid number input: ${value}`,
+      {
+        code: ErrorCode.INVALID_INPUT,
+        suggestion: "Use a finite number value.",
+      },
+    )
+  }
+
+  // If 'never' mode, reject all number inputs
+  if (config.numberInputMode === "never") {
+    throw new InvalidInputError(
+      `Number inputs are not allowed (numberInputMode: 'never')`,
+      {
+        code: ErrorCode.INVALID_INPUT,
+        suggestion: `Use a string instead: Money("${value} ${currencyCode}")`,
+        example: `Money("${value} ${currencyCode}")`,
+      },
+    )
+  }
+
+  // If 'silent' mode, allow everything
+  if (config.numberInputMode === "silent") {
+    return
+  }
+
+  // Check for potential precision loss
+  const hasPrecisionIssue =
+    !Number.isSafeInteger(value) ||
+    (value.toString().includes(".") &&
+      value.toString().split(".")[1].length > config.precisionWarningThreshold)
+
+  if (hasPrecisionIssue) {
+    const message =
+      `Number ${value} may lose precision. ` +
+      `Use a string for exact values: Money("${value} ${currencyCode}")`
+
+    if (config.numberInputMode === "error") {
+      throw new PrecisionLossError(message, {
+        suggestion: `Use a string instead: Money("${value} ${currencyCode}")`,
+        example: `Money("${value} ${currencyCode}")`,
+      })
+    }
+
+    // 'warn' mode
+    console.warn(`[cent] ${message}`)
+  }
+}
+
+/**
+ * Factory function for creating Money instances from various inputs.
  *
  * Supports multiple formats:
- * - Currency symbols: "$100", "€1,234.56", "£50.25"
- * - Currency codes: "USD 100", "100 EUR", "JPY 1,000"
- * - Crypto main units: "₿1.5", "BTC 0.001", "ETH 2.5"
- * - Crypto sub-units: "1000 sat", "100000 wei", "50 gwei"
- * - Number formats: US (1,234.56) and EU (1.234,56)
+ * - Strings: "$100", "€1,234.56", "BTC 0.001", "1000 sat"
+ * - Numbers: Money(100.50, "USD") - requires currency code
+ * - Bigints: Money(10050n, "USD") - interpreted as minor units (cents)
+ * - AssetAmount objects
+ * - JSON objects
  *
- * Symbol disambiguation uses trading volume priority:
- * $ → USD, £ → GBP, ¥ → JPY, € → EUR, etc.
- * Use currency codes for non-primary currencies.
- *
- * @param input - String representation of money amount or AssetAmount
- * @returns Money instance
- * @throws Error for invalid format or unknown currency
+ * Number inputs are validated based on the `numberInputMode` configuration:
+ * - `'warn'`: Log warning for imprecise numbers (default)
+ * - `'error'`: Throw error for imprecise numbers
+ * - `'silent'`: Allow all numbers
+ * - `'never'`: Throw error for ANY number input
  *
  * @example
- * Money("$100.50")        // USD $100.50
- * Money("€1.234,56")      // EUR €1,234.56 (EU format)
- * Money("JPY 1,000")      // JPY ¥1,000 (no decimals)
- * Money("1000 sat")       // BTC 0.00001000 (satoshis)
- * Money("100 gwei")       // ETH 0.0000001 (gwei)
+ * // String parsing
+ * Money("$100.50")           // USD $100.50
+ * Money("€1.234,56")         // EUR €1,234.56 (EU format)
+ * Money("1000 sat")          // BTC 0.00001000 (satoshis)
+ *
+ * @example
+ * // Number input (requires currency)
+ * Money(100.50, "USD")       // USD $100.50
+ * Money(99.99, "EUR")        // EUR €99.99
+ *
+ * @example
+ * // Bigint input as minor units (requires currency)
+ * Money(10050n, "USD")       // USD $100.50 (10050 cents)
+ * Money(100000000n, "BTC")   // BTC 1.00000000 (100M satoshis)
  */
 export function MoneyFactory(input: string): Money
+export function MoneyFactory(amount: number, currency: string | Currency): Money
+export function MoneyFactory(minorUnits: bigint, currency: string | Currency): Money
 export function MoneyFactory(balance: AssetAmount): Money
 export function MoneyFactory(json: unknown): Money
 export function MoneyFactory(
-  inputOrBalanceOrJson: string | AssetAmount | unknown,
+  inputOrBalanceOrJson: string | number | bigint | AssetAmount | unknown,
+  currency?: string | Currency,
 ): Money {
+  // Number input mode
+  if (typeof inputOrBalanceOrJson === "number") {
+    if (currency === undefined) {
+      throw new InvalidInputError(
+        "Currency is required when using number input",
+        {
+          suggestion: 'Provide a currency code: Money(100.50, "USD")',
+          example: 'Money(100.50, "USD")',
+        },
+      )
+    }
+
+    const currencyObj = typeof currency === "string"
+      ? getCurrencyFromCode(currency)
+      : currency
+
+    validateNumberInput(inputOrBalanceOrJson, currencyObj.code || currencyObj.name)
+
+    // Convert number to fixed-point representation
+    const str = inputOrBalanceOrJson.toString()
+    const fp = FixedPointNumber.fromDecimalString(str)
+
+    return new Money({
+      asset: currencyObj,
+      amount: {
+        amount: fp.amount,
+        decimals: fp.decimals,
+      },
+    })
+  }
+
+  // Bigint input mode (minor units)
+  if (typeof inputOrBalanceOrJson === "bigint") {
+    if (currency === undefined) {
+      throw new InvalidInputError(
+        "Currency is required when using bigint input",
+        {
+          suggestion: 'Provide a currency code: Money(10050n, "USD")',
+          example: 'Money(10050n, "USD") // 10050 cents = $100.50',
+        },
+      )
+    }
+
+    const currencyObj = typeof currency === "string"
+      ? getCurrencyFromCode(currency)
+      : currency
+
+    // Bigint is interpreted as minor units (e.g., cents for USD, satoshis for BTC)
+    return new Money({
+      asset: currencyObj,
+      amount: {
+        amount: inputOrBalanceOrJson,
+        decimals: currencyObj.decimals,
+      },
+    })
+  }
+
+  // String parsing mode
   if (typeof inputOrBalanceOrJson === "string") {
-    // String parsing mode
     const parseResult = parseMoneyString(inputOrBalanceOrJson)
 
     return new Money({

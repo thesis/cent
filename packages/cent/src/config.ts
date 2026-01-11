@@ -19,12 +19,13 @@ import type { RoundingMode } from "./types"
  */
 export interface CentConfig {
   /**
-   * How to handle JavaScript number inputs that may lose precision.
-   * - `'warn'`: Log a console warning (default)
-   * - `'error'`: Throw an error
-   * - `'silent'`: Allow without warning
+   * How to handle JavaScript number inputs.
+   * - `'warn'`: Log a console warning for potentially imprecise numbers (default)
+   * - `'error'`: Throw an error for potentially imprecise numbers
+   * - `'silent'`: Allow all numbers without warning
+   * - `'never'`: Throw an error for ANY number input (use strings or bigints instead)
    */
-  numberInputMode: "warn" | "error" | "silent"
+  numberInputMode: "warn" | "error" | "silent" | "never"
 
   /**
    * Number of decimal places beyond which to warn about precision loss.
