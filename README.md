@@ -115,6 +115,40 @@ const total = result.match({
 const amount = Money.parse(untrustedInput).unwrapOr(Money.zero("USD"))
 ```
 
+## Type Guards
+
+When working with values from external sources or loosely-typed APIs, use `Money.isMoney()` for runtime type checking with full TypeScript type narrowing:
+
+```typescript
+import { Money } from '@thesis/cent'
+
+function processPayment(amount: unknown) {
+  if (Money.isMoney(amount)) {
+    // TypeScript knows amount is Money here
+    return amount.multiply(2n).toString()
+  }
+  return "Invalid amount"
+}
+
+// Filter for specific currencies
+const amounts = [Money("$100"), Money("€50"), Money("$25")]
+const usdOnly = amounts.filter(m => Money.isMoney(m, "USD"))
+// usdOnly: [Money("$100"), Money("$25")]
+
+// Use assertions for validation with helpful errors
+Money.assertMoney(value)           // Throws if not Money
+Money.assertPositive(money)        // Throws if not > 0
+Money.assertNonNegative(money)     // Throws if < 0
+Money.assertNonZero(money)         // Throws if === 0
+
+// Or use validate() for Result-based validation
+const result = Money("$50").validate({ min: "$10", max: "$100", positive: true })
+result.match({
+  ok: (money) => processPayment(money),
+  err: (error) => console.log(error.suggestion),
+})
+```
+
 ## Core utils
 
 ### `Money()` and the `Money` class

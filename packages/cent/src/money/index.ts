@@ -2090,6 +2090,281 @@ export class Money {
   }
 
   /**
+   * Type guard to check if a value is a Money instance.
+   *
+   * Optionally checks if the Money is in a specific currency.
+   *
+   * @param value - The value to check
+   * @param currency - Optional currency code to match
+   * @returns True if value is Money (optionally matching currency)
+   *
+   * @example
+   * import { Money } from '@thesis-co/cent';
+   *
+   * function processPayment(amount: unknown) {
+   *   if (Money.isMoney(amount)) {
+   *     // TypeScript knows amount is Money here
+   *     console.log(amount.toString());
+   *   }
+   * }
+   *
+   * // With currency check
+   * if (Money.isMoney(value, "USD")) {
+   *   // value is Money in USD
+   * }
+   */
+  static isMoney(value: unknown, currency?: string): value is Money {
+    if (!(value instanceof Money)) {
+      return false
+    }
+    if (currency !== undefined) {
+      return value.currency.code === currency
+    }
+    return true
+  }
+
+  /**
+   * Assert that a value is a Money instance, throwing if not.
+   *
+   * @param value - The value to check
+   * @param message - Optional custom error message
+   * @throws ValidationError if value is not Money
+   *
+   * @example
+   * import { Money } from '@thesis-co/cent';
+   *
+   * function processPayment(amount: unknown) {
+   *   Money.assertMoney(amount);
+   *   // TypeScript knows amount is Money after this point
+   *   return amount.multiply(2n);
+   * }
+   */
+  static assertMoney(
+    value: unknown,
+    message?: string
+  ): asserts value is Money {
+    if (!(value instanceof Money)) {
+      throw new ValidationError(
+        message ?? `Expected Money instance, got ${typeof value}`,
+        {
+          suggestion: 'Use Money("$100") or Money.parse() to create Money instances.',
+        }
+      )
+    }
+  }
+
+  /**
+   * Assert that a Money instance has a positive value (greater than zero).
+   *
+   * @param money - The Money instance to check
+   * @param message - Optional custom error message
+   * @throws ValidationError if money is not positive
+   *
+   * @example
+   * import { Money } from '@thesis-co/cent';
+   *
+   * Money.assertPositive(Money("$100"));  // OK
+   * Money.assertPositive(Money("$0"));    // throws
+   * Money.assertPositive(Money("-$50")); // throws
+   */
+  static assertPositive(money: Money, message?: string): void {
+    if (!money.isPositive()) {
+      throw new ValidationError(
+        message ?? `Expected positive amount, got ${money.toString()}`,
+        {
+          code: ErrorCode.INVALID_RANGE,
+          suggestion: "Provide an amount greater than zero.",
+        }
+      )
+    }
+  }
+
+  /**
+   * Assert that a Money instance has a non-negative value (zero or greater).
+   *
+   * @param money - The Money instance to check
+   * @param message - Optional custom error message
+   * @throws ValidationError if money is negative
+   *
+   * @example
+   * import { Money } from '@thesis-co/cent';
+   *
+   * Money.assertNonNegative(Money("$100")); // OK
+   * Money.assertNonNegative(Money("$0"));   // OK
+   * Money.assertNonNegative(Money("-$50")); // throws
+   */
+  static assertNonNegative(money: Money, message?: string): void {
+    if (money.isNegative()) {
+      throw new ValidationError(
+        message ?? `Expected non-negative amount, got ${money.toString()}`,
+        {
+          code: ErrorCode.INVALID_RANGE,
+          suggestion: "Provide an amount greater than or equal to zero.",
+        }
+      )
+    }
+  }
+
+  /**
+   * Assert that a Money instance has a non-zero value.
+   *
+   * @param money - The Money instance to check
+   * @param message - Optional custom error message
+   * @throws ValidationError if money is zero
+   *
+   * @example
+   * import { Money } from '@thesis-co/cent';
+   *
+   * Money.assertNonZero(Money("$100"));  // OK
+   * Money.assertNonZero(Money("-$50")); // OK
+   * Money.assertNonZero(Money("$0"));    // throws
+   */
+  static assertNonZero(money: Money, message?: string): void {
+    if (money.isZero()) {
+      throw new ValidationError(
+        message ?? `Expected non-zero amount, got ${money.toString()}`,
+        {
+          code: ErrorCode.INVALID_RANGE,
+          suggestion: "Provide a non-zero amount.",
+        }
+      )
+    }
+  }
+
+  /**
+   * Validate this Money instance against constraints, returning a Result.
+   *
+   * This is useful for validating user input or business rules without
+   * throwing exceptions.
+   *
+   * @param options - Validation constraints
+   * @returns Result containing this Money if valid, or ValidationError if not
+   *
+   * @example
+   * import { Money } from '@thesis-co/cent';
+   *
+   * const amount = Money("$50");
+   *
+   * // Single constraint
+   * amount.validate({ positive: true });
+   *
+   * // Multiple constraints
+   * amount.validate({
+   *   min: Money("$10"),
+   *   max: Money("$1000"),
+   *   positive: true,
+   * });
+   *
+   * // Use with Result methods
+   * Money("$50").validate({ min: "$100" }).match({
+   *   ok: (money) => processPayment(money),
+   *   err: (error) => showError(error.message),
+   * });
+   */
+  validate(options: {
+    min?: Money | string | number
+    max?: Money | string | number
+    positive?: boolean
+    nonNegative?: boolean
+    nonZero?: boolean
+  }): Result<Money, ValidationError> {
+    const { min, max, positive, nonNegative, nonZero } = options
+
+    // Check positive constraint
+    if (positive && !this.isPositive()) {
+      return err(
+        new ValidationError(
+          `Amount must be positive, got ${this.toString()}`,
+          {
+            code: ErrorCode.INVALID_RANGE,
+            suggestion: "Provide an amount greater than zero.",
+          }
+        )
+      )
+    }
+
+    // Check nonNegative constraint
+    if (nonNegative && this.isNegative()) {
+      return err(
+        new ValidationError(
+          `Amount must be non-negative, got ${this.toString()}`,
+          {
+            code: ErrorCode.INVALID_RANGE,
+            suggestion: "Provide an amount greater than or equal to zero.",
+          }
+        )
+      )
+    }
+
+    // Check nonZero constraint
+    if (nonZero && this.isZero()) {
+      return err(
+        new ValidationError(
+          `Amount must be non-zero, got ${this.toString()}`,
+          {
+            code: ErrorCode.INVALID_RANGE,
+            suggestion: "Provide a non-zero amount.",
+          }
+        )
+      )
+    }
+
+    // Check min constraint
+    if (min !== undefined) {
+      const minMoney = min instanceof Money ? min : this.parseComparable(min)
+      if (this.lessThan(minMoney)) {
+        return err(
+          new ValidationError(
+            `Amount ${this.toString()} is less than minimum ${minMoney.toString()}`,
+            {
+              code: ErrorCode.INVALID_RANGE,
+              suggestion: `Provide an amount of at least ${minMoney.toString()}.`,
+            }
+          )
+        )
+      }
+    }
+
+    // Check max constraint
+    if (max !== undefined) {
+      const maxMoney = max instanceof Money ? max : this.parseComparable(max)
+      if (this.greaterThan(maxMoney)) {
+        return err(
+          new ValidationError(
+            `Amount ${this.toString()} is greater than maximum ${maxMoney.toString()}`,
+            {
+              code: ErrorCode.INVALID_RANGE,
+              suggestion: `Provide an amount of at most ${maxMoney.toString()}.`,
+            }
+          )
+        )
+      }
+    }
+
+    return ok(this)
+  }
+
+  /**
+   * Parse a comparable value (string or number) to Money in this currency.
+   * @internal
+   */
+  private parseComparable(value: string | number): Money {
+    if (typeof value === "number") {
+      return MoneyFactory(value, this.currency)
+    }
+    // Try parsing as Money string, fall back to assuming same currency
+    try {
+      return MoneyFactory(value)
+    } catch {
+      // If parsing fails, try as raw number string with same currency
+      return MoneyFactory(
+        parseFloat(value),
+        this.currency
+      )
+    }
+  }
+
+  /**
    * Convert this Money instance to a localized string representation
    *
    * @param options - Formatting options for the string representation
