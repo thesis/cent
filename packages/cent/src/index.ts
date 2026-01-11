@@ -103,3 +103,12 @@ export {
   ValidationError,
 } from "./errors"
 export type { CentErrorOptions, ErrorCode as ErrorCodeType } from "./errors"
+// Configuration
+export {
+  configure,
+  getConfig,
+  getDefaultConfig,
+  resetConfig,
+  withConfig,
+} from "./config"
+export type { CentConfig } from "./config"

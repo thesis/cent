@@ -57,6 +57,42 @@ usd.toString({ locale: "en-US", compact: true })  // "$100.50"
 btc.toString({ preferredUnit: "satoshi" })        // "50,000,000 sat"
 ```
 
+## Configuration
+
+Configure library-wide defaults at application startup:
+
+```typescript
+import { configure, Round } from '@thesis/cent'
+
+// Environment-based configuration
+configure({
+  numberInputMode: process.env.NODE_ENV === 'production' ? 'error' : 'warn',
+  strictPrecision: process.env.NODE_ENV === 'production',
+  defaultRoundingMode: Round.HALF_UP,
+  defaultCurrency: 'USD',
+})
+```
+
+**Configuration options:**
+- `numberInputMode` - How to handle JS number inputs: `'warn'`, `'error'`, or `'silent'`
+- `strictPrecision` - When `true`, throw on any operation that would lose precision
+- `defaultRoundingMode` - Default rounding mode, or `'none'` to require explicit rounding
+- `defaultCurrency` - Default currency code (default: `'USD'`)
+- `defaultLocale` - Default locale for formatting (default: `'en-US'`)
+
+**Scoped configuration for testing:**
+
+```typescript
+import { withConfig } from '@thesis/cent'
+
+// Temporarily override configuration
+withConfig({ strictPrecision: true }, () => {
+  // This block uses strict precision mode
+  const result = Money("$100").divide(2)
+})
+// Configuration is restored after the block
+```
+
 ## Core utils
 
 ### `Money()` and the `Money` class
