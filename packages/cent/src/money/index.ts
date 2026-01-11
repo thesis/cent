@@ -1,8 +1,9 @@
 import { assetsEqual, isAssetAmount } from "../assets"
 import { getCurrencyFromCode } from "../currencies"
 import { FixedPointNumber } from "../fixed-point"
+import { isOnlyFactorsOf2And5 } from "../math-utils"
 import { RationalNumber } from "../rationals"
-import type { AssetAmount, Currency, FixedPoint } from "../types"
+import type { AssetAmount, Currency, FixedPoint, RoundingMode } from "../types"
 import { parseMoneyString } from "./parsing"
 import type { MoneyAmount } from "./types"
 import {
@@ -296,25 +297,425 @@ export class Money {
   }
 
   /**
-   * Multiply this Money instance by a scalar or fixed-point number
+   * Multiply this Money instance by a scalar or fixed-point number.
    *
-   * @param other - The value to multiply by (bigint or FixedPoint)
+   * @param factor - The value to multiply by (bigint, FixedPoint, or decimal string)
+   * @param round - Optional rounding mode to round result to currency precision
    * @returns A new Money instance with the product
+   *
+   * @example
+   * const price = Money("$100.00");
+   * price.multiply(3n);              // $300.00
+   * price.multiply("1.5");           // $150.00
+   * price.multiply("0.333", Round.HALF_UP);  // $33.30
    */
-  multiply(other: bigint | FixedPoint): Money {
+  multiply(
+    factor: bigint | FixedPoint | string,
+    round?: RoundingMode,
+  ): Money {
     const thisFixedPoint = new FixedPointNumber(
       this.balance.amount.amount,
       this.balance.amount.decimals,
     )
-    const result = thisFixedPoint.multiply(other)
 
-    return new Money({
+    // Parse string to FixedPoint if needed
+    const factorValue =
+      typeof factor === "string"
+        ? FixedPointNumber.fromDecimalString(factor)
+        : factor
+
+    const result = thisFixedPoint.multiply(factorValue)
+
+    const money = new Money({
       asset: this.balance.asset,
       amount: {
         amount: result.amount,
         decimals: result.decimals,
       },
     })
+
+    // If rounding is requested, round to currency precision
+    if (round !== undefined) {
+      return money.roundTo(Number(this.currency.decimals), round)
+    }
+
+    return money
+  }
+
+  /**
+   * Divide this Money instance by a divisor.
+   *
+   * For divisors that are only composed of factors of 2 and 5 (like 2, 4, 5, 10, 20, 25, etc.),
+   * the division is exact and no rounding mode is required.
+   *
+   * For other divisors (like 3, 7, 11, etc.), a rounding mode must be provided
+   * to determine how to handle the non-terminating decimal result.
+   *
+   * @param divisor - The value to divide by (number, bigint, string, or FixedPoint)
+   * @param round - Rounding mode (required for divisors with factors other than 2 and 5)
+   * @returns A new Money instance with the quotient
+   * @throws Error if dividing by zero
+   * @throws Error if divisor requires rounding but no rounding mode provided
+   *
+   * @example
+   * const price = Money("$100.00");
+   *
+   * // Exact division (no rounding needed)
+   * price.divide(2);           // $50.00
+   * price.divide(5);           // $20.00
+   * price.divide(10);          // $10.00
+   *
+   * // Division requiring rounding
+   * price.divide(3, Round.HALF_UP);    // $33.33
+   * price.divide(7, Round.HALF_EVEN);  // $14.29
+   *
+   * // Error: rounding required
+   * price.divide(3);  // Throws: "Division by 3 requires a rounding mode"
+   *
+   * @see {@link Round} for available rounding modes
+   */
+  divide(
+    divisor: number | bigint | string | FixedPoint,
+    round?: RoundingMode,
+  ): Money {
+    // Convert divisor to bigint for factor checking
+    let divisorBigInt: bigint
+    let divisorDecimals = 0n
+
+    if (typeof divisor === "number") {
+      if (!Number.isFinite(divisor)) {
+        throw new Error("Cannot divide by Infinity or NaN")
+      }
+      if (divisor === 0) {
+        throw new Error("Cannot divide by zero")
+      }
+      // Convert number to string and parse as fixed-point
+      const str = divisor.toString()
+      const fp = FixedPointNumber.fromDecimalString(str)
+      divisorBigInt = fp.amount < 0n ? -fp.amount : fp.amount
+      divisorDecimals = fp.decimals
+    } else if (typeof divisor === "bigint") {
+      if (divisor === 0n) {
+        throw new Error("Cannot divide by zero")
+      }
+      divisorBigInt = divisor < 0n ? -divisor : divisor
+    } else if (typeof divisor === "string") {
+      const fp = FixedPointNumber.fromDecimalString(divisor)
+      if (fp.amount === 0n) {
+        throw new Error("Cannot divide by zero")
+      }
+      divisorBigInt = fp.amount < 0n ? -fp.amount : fp.amount
+      divisorDecimals = fp.decimals
+    } else {
+      // FixedPoint object
+      if (divisor.amount === 0n) {
+        throw new Error("Cannot divide by zero")
+      }
+      divisorBigInt = divisor.amount < 0n ? -divisor.amount : divisor.amount
+      divisorDecimals = divisor.decimals
+    }
+
+    // Check if divisor is composed only of factors of 2 and 5
+    const needsRounding = !isOnlyFactorsOf2And5(divisorBigInt)
+
+    if (needsRounding && round === undefined) {
+      throw new Error(
+        `Division by ${divisor} requires a rounding mode. ` +
+          `Use: amount.divide(${divisor}, Round.HALF_UP) or another rounding mode.\n\n` +
+          `Available rounding modes: Round.UP, Round.DOWN, Round.CEILING, Round.FLOOR, ` +
+          `Round.HALF_UP, Round.HALF_DOWN, Round.HALF_EVEN`,
+      )
+    }
+
+    // Get the amount as FixedPointNumber
+    const thisFixedPoint = isFixedPointNumber(this.amount)
+      ? this.amount
+      : toFixedPointNumber(this.amount)
+
+    // Perform division with rounding if needed
+    if (needsRounding && round !== undefined) {
+      // For non-exact division, use RationalNumber for precision then round
+      const thisRational = new RationalNumber({
+        p: thisFixedPoint.amount,
+        q: 10n ** thisFixedPoint.decimals,
+      })
+
+      // Determine sign of divisor
+      let divisorSign = 1n
+      if (typeof divisor === "number" && divisor < 0) divisorSign = -1n
+      else if (typeof divisor === "bigint" && divisor < 0n) divisorSign = -1n
+      else if (typeof divisor === "string" && divisor.startsWith("-")) divisorSign = -1n
+      else if (typeof divisor === "object" && divisor.amount < 0n) divisorSign = -1n
+
+      // Create divisor as rational
+      const divisorRational = new RationalNumber({
+        p: divisorBigInt * divisorSign,
+        q: 10n ** divisorDecimals,
+      })
+
+      // Divide: this / divisor = this * (1/divisor) = this * (q/p)
+      const resultRational = thisRational.multiply(
+        new RationalNumber({ p: divisorRational.q, q: divisorRational.p }),
+      )
+
+      // Convert to fixed-point at currency precision with rounding
+      // We need to compute: (p / q) at `currencyDecimals` decimal places
+      // That's: round(p * 10^currencyDecimals / q)
+      const currencyDecimals = this.currency.decimals
+      const scaledNumerator = resultRational.p * 10n ** currencyDecimals
+      const denominator = resultRational.q
+
+      // Apply rounding to the division
+      const quotient = scaledNumerator / denominator
+      const remainder = scaledNumerator % denominator
+
+      let roundedAmount: bigint
+      if (remainder === 0n) {
+        roundedAmount = quotient
+      } else {
+        const isNegative = scaledNumerator < 0n !== denominator < 0n
+        const absRemainder = remainder < 0n ? -remainder : remainder
+        const absDenominator = denominator < 0n ? -denominator : denominator
+        const doubleRemainder = absRemainder * 2n
+
+        switch (round) {
+          case "ceil":
+            roundedAmount = isNegative ? quotient : quotient + 1n
+            break
+          case "floor":
+            roundedAmount = isNegative ? quotient - 1n : quotient
+            break
+          case "expand":
+            roundedAmount = quotient + (isNegative ? -1n : 1n)
+            break
+          case "trunc":
+            roundedAmount = quotient
+            break
+          case "halfCeil":
+            if (doubleRemainder > absDenominator) {
+              roundedAmount = quotient + (isNegative ? -1n : 1n)
+            } else if (doubleRemainder === absDenominator) {
+              roundedAmount = isNegative ? quotient : quotient + 1n
+            } else {
+              roundedAmount = quotient
+            }
+            break
+          case "halfFloor":
+            if (doubleRemainder > absDenominator) {
+              roundedAmount = quotient + (isNegative ? -1n : 1n)
+            } else if (doubleRemainder === absDenominator) {
+              roundedAmount = isNegative ? quotient - 1n : quotient
+            } else {
+              roundedAmount = quotient
+            }
+            break
+          case "halfExpand":
+            if (doubleRemainder >= absDenominator) {
+              roundedAmount = quotient + (isNegative ? -1n : 1n)
+            } else {
+              roundedAmount = quotient
+            }
+            break
+          case "halfTrunc":
+            if (doubleRemainder > absDenominator) {
+              roundedAmount = quotient + (isNegative ? -1n : 1n)
+            } else {
+              roundedAmount = quotient
+            }
+            break
+          case "halfEven":
+          default:
+            if (doubleRemainder > absDenominator) {
+              roundedAmount = quotient + (isNegative ? -1n : 1n)
+            } else if (doubleRemainder === absDenominator) {
+              const adjustedQuotient = quotient + (isNegative ? -1n : 1n)
+              roundedAmount = adjustedQuotient % 2n === 0n ? adjustedQuotient : quotient
+            } else {
+              roundedAmount = quotient
+            }
+            break
+        }
+      }
+
+      return new Money(
+        this.currency,
+        new FixedPointNumber(roundedAmount, currencyDecimals),
+      )
+    }
+
+    // Exact division (divisor is only factors of 2 and 5)
+    // Build the FixedPoint divisor
+    let fpDivisor: FixedPoint
+    if (typeof divisor === "bigint") {
+      fpDivisor = { amount: divisor, decimals: 0n }
+    } else if (typeof divisor === "number" || typeof divisor === "string") {
+      const fp = FixedPointNumber.fromDecimalString(
+        typeof divisor === "number" ? divisor.toString() : divisor,
+      )
+      fpDivisor = { amount: fp.amount, decimals: fp.decimals }
+    } else {
+      fpDivisor = divisor
+    }
+
+    const result = thisFixedPoint.divide(fpDivisor)
+
+    return new Money({
+      asset: this.currency,
+      amount: {
+        amount: result.amount,
+        decimals: result.decimals,
+      },
+    })
+  }
+
+  /**
+   * Round this Money instance to its currency's standard precision.
+   *
+   * Most fiat currencies have 2 decimal places (e.g., USD, EUR),
+   * while cryptocurrencies vary (BTC has 8, ETH has 18).
+   *
+   * @param mode - The rounding mode to use (defaults to HALF_UP if not specified)
+   * @returns A new Money instance rounded to the currency's precision
+   *
+   * @example
+   * import { Money, Round } from '@thesis-co/cent';
+   *
+   * Money("$100.125").round();                    // $100.13 (default HALF_UP)
+   * Money("$100.125").round(Round.HALF_EVEN);    // $100.12 (banker's rounding)
+   * Money("$100.125").round(Round.FLOOR);        // $100.12
+   * Money("$100.125").round(Round.CEILING);      // $100.13
+   *
+   * @see {@link roundTo} for rounding to a specific number of decimal places
+   */
+  round(mode?: RoundingMode): Money {
+    return this.roundTo(Number(this.currency.decimals), mode)
+  }
+
+  /**
+   * Round this Money instance to a specific number of decimal places.
+   *
+   * @param decimals - The number of decimal places to round to
+   * @param mode - The rounding mode to use (defaults to HALF_UP if not specified)
+   * @returns A new Money instance rounded to the specified precision
+   * @throws Error if decimals is negative
+   *
+   * @example
+   * import { Money, Round } from '@thesis-co/cent';
+   *
+   * const precise = Money("$100.12345");
+   *
+   * precise.roundTo(2);                   // $100.12
+   * precise.roundTo(3);                   // $100.123
+   * precise.roundTo(4, Round.HALF_UP);    // $100.1235
+   * precise.roundTo(0);                   // $100.00
+   *
+   * @see {@link round} for rounding to the currency's standard precision
+   */
+  roundTo(decimals: number, mode?: RoundingMode): Money {
+    if (decimals < 0) {
+      throw new Error("Decimal places must be non-negative")
+    }
+
+    const targetDecimals = BigInt(decimals)
+
+    // Get the amount as FixedPointNumber
+    const thisFixedPoint = isFixedPointNumber(this.amount)
+      ? this.amount
+      : toFixedPointNumber(this.amount)
+
+    // If already at or below target precision, just normalize
+    if (thisFixedPoint.decimals <= targetDecimals) {
+      const normalized = thisFixedPoint.normalize({
+        amount: 0n,
+        decimals: targetDecimals,
+      })
+      return new Money(this.currency, normalized)
+    }
+
+    // Need to round down - use applyRounding logic
+    const scaleDiff = thisFixedPoint.decimals - targetDecimals
+    const divisor = 10n ** scaleDiff
+
+    // Default to HALF_EXPAND (HALF_UP) if no mode specified
+    const roundingMode = mode ?? ("halfExpand" as RoundingMode)
+
+    // Apply rounding
+    const quotient = thisFixedPoint.amount / divisor
+    const remainder = thisFixedPoint.amount % divisor
+
+    let roundedAmount: bigint
+
+    if (remainder === 0n) {
+      roundedAmount = quotient
+    } else {
+      const isNegative = thisFixedPoint.amount < 0n
+      const absRemainder = remainder < 0n ? -remainder : remainder
+      const doubleRemainder = absRemainder * 2n
+      const absDivisor = divisor
+
+      switch (roundingMode) {
+        case "ceil":
+          roundedAmount = isNegative ? quotient : quotient + 1n
+          break
+        case "floor":
+          roundedAmount = isNegative ? quotient - 1n : quotient
+          break
+        case "expand":
+          roundedAmount = quotient + (isNegative ? -1n : 1n)
+          break
+        case "trunc":
+          roundedAmount = quotient
+          break
+        case "halfCeil":
+          if (doubleRemainder > absDivisor) {
+            roundedAmount = quotient + (isNegative ? -1n : 1n)
+          } else if (doubleRemainder === absDivisor) {
+            roundedAmount = isNegative ? quotient : quotient + 1n
+          } else {
+            roundedAmount = quotient
+          }
+          break
+        case "halfFloor":
+          if (doubleRemainder > absDivisor) {
+            roundedAmount = quotient + (isNegative ? -1n : 1n)
+          } else if (doubleRemainder === absDivisor) {
+            roundedAmount = isNegative ? quotient - 1n : quotient
+          } else {
+            roundedAmount = quotient
+          }
+          break
+        case "halfExpand":
+          if (doubleRemainder >= absDivisor) {
+            roundedAmount = quotient + (isNegative ? -1n : 1n)
+          } else {
+            roundedAmount = quotient
+          }
+          break
+        case "halfTrunc":
+          if (doubleRemainder > absDivisor) {
+            roundedAmount = quotient + (isNegative ? -1n : 1n)
+          } else {
+            roundedAmount = quotient
+          }
+          break
+        case "halfEven":
+        default:
+          if (doubleRemainder > absDivisor) {
+            roundedAmount = quotient + (isNegative ? -1n : 1n)
+          } else if (doubleRemainder === absDivisor) {
+            const adjustedQuotient = quotient + (isNegative ? -1n : 1n)
+            roundedAmount = adjustedQuotient % 2n === 0n ? adjustedQuotient : quotient
+          } else {
+            roundedAmount = quotient
+          }
+          break
+      }
+    }
+
+    return new Money(
+      this.currency,
+      new FixedPointNumber(roundedAmount, targetDecimals),
+    )
   }
 
   /**

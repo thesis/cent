@@ -301,9 +301,11 @@ export class FixedPointNumber implements FixedPointType, Ratio {
     const finalDividend = scaledDividend * powerOf10Needed
     const result = finalDividend / divisor
 
+    // The result's decimals = this.decimals + neededFactors
+    // (otherFP.decimals cancels out in the multiplication by 10^n that we did earlier)
     return new FixedPointNumber(
       otherFP.amount < 0n ? -result : result,
-      this.decimals + otherFP.decimals + neededFactors,
+      this.decimals + neededFactors,
     )
   }
 

@@ -40,6 +40,10 @@ const btc = Money("0.5 BTC")
 // Arithmetic
 const total = usd.add(Money("$25.25"))  // $125.75
 
+// Division with rounding
+import { Round } from '@thesis/cent'
+const split = total.divide(3, Round.HALF_UP)  // $41.92
+
 // Conversion with precision preservation
 const price = new Price(Money("$50,000"), Money("1 BTC"))
 const converted = usd.convert(price)    // Exact BTC amount
@@ -100,7 +104,7 @@ const microYen = Money('¥1000.001')    // Sub-yen precision
 The `Money` class provides safe monetary operations with automatic precision handling:
 
 ```typescript
-import { Money, EUR, USD } from '@thesis/cent'
+import { Money, EUR, USD, Round } from '@thesis/cent'
 
 // Create money instances
 const euros = new Money({
@@ -119,7 +123,8 @@ console.log(sum.toString()) // "€750.75"
 
 // Multiplication and division
 const doubled = euros.multiply("2")
-const half = euros.divide("2") // Only works with factors of 2 and 5
+const half = euros.divide("2")       // Exact: factors of 2 and 5 only
+const third = euros.divide(3, Round.HALF_UP)  // Rounded: other factors need rounding mode
 
 // Comparisons
 console.log(euros.greaterThan(dollars)) // Error: Different currencies
@@ -568,24 +573,67 @@ const sum = fp1.add("5.00") // Normalized to 2 decimals
 console.log(sum.toString()) // "15.00"
 ```
 
+### Rounding modes
+
+`cent` provides rounding modes for operations that may produce values that cannot be represented exactly:
+
+```typescript
+import { Money, Round } from '@thesis/cent'
+
+const price = Money("$100.00")
+
+// Division with rounding
+price.divide(3, Round.HALF_UP)     // $33.33
+price.divide(3, Round.HALF_EVEN)   // $33.33 (banker's rounding)
+price.divide(3, Round.CEILING)     // $33.34
+price.divide(3, Round.FLOOR)       // $33.33
+
+// Available rounding modes:
+// - Round.UP        - Round away from zero
+// - Round.DOWN      - Round toward zero (truncate)
+// - Round.CEILING   - Round toward positive infinity
+// - Round.FLOOR     - Round toward negative infinity
+// - Round.HALF_UP   - Round to nearest, ties away from zero (common commercial rounding)
+// - Round.HALF_DOWN - Round to nearest, ties toward zero
+// - Round.HALF_EVEN - Round to nearest, ties to even (banker's rounding)
+
+// Round to currency precision
+const precise = Money({ asset: USD, amount: { amount: 100125n, decimals: 3n } })
+precise.round()                    // $100.13 (HALF_UP by default)
+precise.round(Round.HALF_EVEN)     // $100.12 (banker's rounding)
+
+// Round to specific decimal places
+precise.roundTo(2)                 // 2 decimal places
+precise.roundTo(0, Round.HALF_UP)  // Round to whole dollars
+
+// Multiply with rounding
+price.multiply("0.333", Round.HALF_UP)  // $33.30
+```
+
 ### Safe division
 
-Unlike floating-point arithmetic, `cent` ensures exact division results:
+Unlike floating-point arithmetic, `cent` ensures exact division results when possible:
 
 ```typescript
 const number = FixedPoint("100") // 100
 
+// Exact division (factors of 2 and 5 only)
 console.log(number.divide("2").toString()) // "50.0"
 console.log(number.divide("4").toString()) // "25.00"
 console.log(number.divide("5").toString()) // "20.0"
 console.log(number.divide("10").toString()) // "10.0"
 
-// throws an exception (3 cannot be represented exactly in decimal)
+// Division by other factors requires a rounding mode
 try {
-  number.divide("3")
+  number.divide("3")  // throws error
 } catch (error) {
-  console.log(error.message) // "divisor must be composed only of factors of 2 and 5"
+  console.log(error.message) // "Division by 3 requires a rounding mode..."
 }
+
+// Money.divide() with rounding mode for non-exact division
+const money = Money("$100.00")
+money.divide(3, Round.HALF_UP)  // $33.33
+money.divide(7, Round.CEILING)  // $14.29
 ```
 
 If you need division that would break out of what's possible to represent in
@@ -684,14 +732,31 @@ console.log(change.toString()) // "$0.00123" (sub-unit precision)
 - `PriceRange(str)` - Parse range strings (e.g., `PriceRange('$50 - $100')`, `PriceRange('$50-100')`)
 - `PriceRange(min, max)` - Create from Money instances or strings (e.g., `PriceRange(Money('$50'), '$100')`)
 
+### `Round`
+
+Constants for rounding mode selection in arithmetic operations:
+
+- `Round.UP` - Round away from zero
+- `Round.DOWN` - Round toward zero (truncate)
+- `Round.CEILING` - Round toward positive infinity
+- `Round.FLOOR` - Round toward negative infinity
+- `Round.HALF_UP` - Round to nearest, ties away from zero
+- `Round.HALF_DOWN` - Round to nearest, ties toward zero
+- `Round.HALF_EVEN` - Round to nearest, ties to even (banker's rounding)
+
 ### `Money`
 
 **Arithmetic Operations (add/subtract accept Money objects or currency strings):**
 - `add(other)` - Add money amounts (same currency)
 - `subtract(other)` - Subtract money amounts (same currency)
-- `multiply(scalar)` - Multiply by number, FixedPoint, or string
+- `multiply(scalar, round?)` - Multiply by number, FixedPoint, or string; optional rounding mode
+- `divide(divisor, round?)` - Divide by number, bigint, or string; rounding mode required for non-2/5 factors
 - `absolute()` - Get absolute value
 - `negate()` - Flip sign (multiply by -1)
+
+**Rounding Operations:**
+- `round(mode?)` - Round to currency precision (default: `Round.HALF_UP`)
+- `roundTo(decimals, mode?)` - Round to specific decimal places
 
 **Allocation & Distribution:**
 - `allocate(ratios, options?)` - Split proportionally by ratios with optional fractional unit separation

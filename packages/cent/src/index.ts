@@ -88,3 +88,5 @@ export {
   RoundingMode,
   TRUNC,
 } from "./types"
+export { Round } from "./rounding"
+export type { Round as RoundType } from "./rounding"
