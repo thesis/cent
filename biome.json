@@ -1,4 +1,4 @@
 {
   "extends": ["@thesis-co/biome-config/biome"],
-  "files": { "includes": ["test/**/*.ts"] }
+  "files": { "includes": ["packages/*/src/**/*.ts", "packages/*/test/**/*.ts"] }
 }
