@@ -3,7 +3,7 @@ title: Crypto Precision
 description: Working with Bitcoin, Ethereum, and other cryptocurrencies
 ---
 
-cent handles cryptocurrency with full precision — 8 decimal places for Bitcoin (satoshi precision) and 18 for Ethereum (wei precision).
+cent handles cryptocurrency with full precision — 8 decimal places for Bitcoin (satoshi precision by default, sub-satoshi precision supported), 18 for Ethereum (wei precision by default), and 9 for Solana (lamport precision by default).
 
 ## Bitcoin (BTC)
 
@@ -33,9 +33,6 @@ const total = btc.add(fee)
 ### Bitcoin Use Cases
 
 ```typescript
-// Lightning Network micro-payments
-const microPayment = Money("1 sats")
-
 // Mining rewards with precise split
 const blockReward = Money("6.25 BTC")
 const [pool, miner] = blockReward.allocate([2, 98])
@@ -46,11 +43,27 @@ const feeRate = Money("50 sats") // per vbyte
 const txFee = feeRate.multiply(txSize)
 ```
 
+### Lightning
+
+The Lightning Network supports millisatoshis (1/1000th of a satoshi) for streaming payments and sub-satoshi precision:
+
+```typescript
+// Millisatoshi precision
+const oneMilliSat = Money("1 msats")
+const streamPayment = Money("500 msats")
+
+// Streaming payment rate
+const ratePerSecond = Money("10 msats") // per second
+const duration = 3600 // 1 hour
+const totalStreamed = ratePerSecond.multiply(duration)
+console.log(totalStreamed.toString()) // "36000 msats"
+```
+
 ## Ethereum (ETH)
 
 ### Working with Ethereum
 
-Wei is the smallest natural unit of Ethereum — there are 10^18 wei in 1 ETH.
+Wei is the smallest natural unit of Ethereum — there are 10^18 wei in 1 ETH. Most ERC-20 tokens also use 18 decimals.
 
 ```typescript
 import { Money, ETH } from "@thesis-co/cent"
@@ -86,6 +99,27 @@ const total = price.multiply(quantity)
 const principal = Money("10 ETH")
 const apy = "5.25%"
 const yearlyYield = principal.multiply(apy)
+```
+
+## Solana (SOL)
+
+Lamports are the smallest unit of Solana — there are 10^9 lamports in 1 SOL (9 decimal places).
+
+```typescript
+import { Money, SOL } from "@thesis-co/cent"
+
+// From SOL amount
+const sol = Money("10.5 SOL")
+const precise = Money("1.123456789 SOL") // Full 9 decimals
+
+// Access the raw lamport amount
+const oneSol = Money("1 SOL")
+console.log(oneSol.amount) // 1000000000n (lamports)
+console.log(SOL.decimals) // 9n
+
+// Transaction fees
+const txFee = Money("0.000005 SOL") // 5000 lamports
+const totalCost = sol.add(txFee)
 ```
 
 ## Currency Conversion
