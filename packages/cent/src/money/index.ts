@@ -1,5 +1,13 @@
 import { assetsEqual, isAssetAmount } from "../assets"
 import { getCurrencyFromCode } from "../currencies"
+import {
+  CurrencyMismatchError,
+  DivisionError,
+  ErrorCode,
+  InvalidInputError,
+  ParseError,
+  ValidationError,
+} from "../errors"
 import { FixedPointNumber } from "../fixed-point"
 import { isOnlyFactorsOf2And5 } from "../math-utils"
 import { RationalNumber } from "../rationals"
@@ -116,8 +124,10 @@ export class Money {
 
     // Validate that currencies match
     if (!assetsEqual(parsed.currency, referenceCurrency)) {
-      throw new Error(
-        `Currency mismatch: expected ${referenceCurrency.code || referenceCurrency.name}, got ${parsed.currency.code || parsed.currency.name}`,
+      throw new CurrencyMismatchError(
+        referenceCurrency.code || referenceCurrency.name,
+        parsed.currency.code || parsed.currency.name,
+        "parse",
       )
     }
 
@@ -166,7 +176,11 @@ export class Money {
     }
 
     if (!assetsEqual(this.currency, otherMoney.currency)) {
-      throw new Error("Cannot add Money with different asset types")
+      throw new CurrencyMismatchError(
+        this.currency.code || this.currency.name,
+        otherMoney.currency.code || otherMoney.currency.name,
+        "add",
+      )
     }
 
     // If both are FixedPointNumber, use fast path
@@ -212,7 +226,11 @@ export class Money {
     }
 
     if (!assetsEqual(this.currency, otherMoney.currency)) {
-      throw new Error("Cannot subtract Money with different asset types")
+      throw new CurrencyMismatchError(
+        this.currency.code || this.currency.name,
+        otherMoney.currency.code || otherMoney.currency.name,
+        "subtract",
+      )
     }
 
     // If both are FixedPointNumber, use fast path
@@ -249,7 +267,12 @@ export class Money {
   concretize(): [Money, Money] {
     // Check if the asset has a decimals property (is a FungibleAsset)
     if (!("decimals" in this.balance.asset)) {
-      throw new Error("Cannot concretize Money with non-fungible asset")
+      throw new InvalidInputError(
+        "Cannot concretize Money with non-fungible asset",
+        {
+          suggestion: "Use a fungible asset (like a currency) that has decimal precision defined.",
+        },
+      )
     }
 
     const assetDecimals = this.balance.asset.decimals
@@ -384,10 +407,17 @@ export class Money {
 
     if (typeof divisor === "number") {
       if (!Number.isFinite(divisor)) {
-        throw new Error("Cannot divide by Infinity or NaN")
+        throw new DivisionError(
+          divisor,
+          "Cannot divide by Infinity or NaN",
+          {
+            code: ErrorCode.INVALID_DIVISOR,
+            suggestion: "Use a finite number as the divisor.",
+          },
+        )
       }
       if (divisor === 0) {
-        throw new Error("Cannot divide by zero")
+        throw new DivisionError(0, "Cannot divide by zero")
       }
       // Convert number to string and parse as fixed-point
       const str = divisor.toString()
@@ -396,20 +426,20 @@ export class Money {
       divisorDecimals = fp.decimals
     } else if (typeof divisor === "bigint") {
       if (divisor === 0n) {
-        throw new Error("Cannot divide by zero")
+        throw new DivisionError(0n, "Cannot divide by zero")
       }
       divisorBigInt = divisor < 0n ? -divisor : divisor
     } else if (typeof divisor === "string") {
       const fp = FixedPointNumber.fromDecimalString(divisor)
       if (fp.amount === 0n) {
-        throw new Error("Cannot divide by zero")
+        throw new DivisionError(divisor, "Cannot divide by zero")
       }
       divisorBigInt = fp.amount < 0n ? -fp.amount : fp.amount
       divisorDecimals = fp.decimals
     } else {
       // FixedPoint object
       if (divisor.amount === 0n) {
-        throw new Error("Cannot divide by zero")
+        throw new DivisionError(divisor.amount, "Cannot divide by zero")
       }
       divisorBigInt = divisor.amount < 0n ? -divisor.amount : divisor.amount
       divisorDecimals = divisor.decimals
@@ -419,11 +449,17 @@ export class Money {
     const needsRounding = !isOnlyFactorsOf2And5(divisorBigInt)
 
     if (needsRounding && round === undefined) {
-      throw new Error(
-        `Division by ${divisor} requires a rounding mode. ` +
-          `Use: amount.divide(${divisor}, Round.HALF_UP) or another rounding mode.\n\n` +
-          `Available rounding modes: Round.UP, Round.DOWN, Round.CEILING, Round.FLOOR, ` +
-          `Round.HALF_UP, Round.HALF_DOWN, Round.HALF_EVEN`,
+      const divisorStr = typeof divisor === "object"
+        ? new FixedPointNumber(divisor.amount, divisor.decimals).toString()
+        : String(divisor)
+      throw new DivisionError(
+        divisorStr,
+        `Division by ${divisorStr} requires a rounding mode because ${divisorStr} contains factors other than 2 and 5.`,
+        {
+          code: ErrorCode.DIVISION_REQUIRES_ROUNDING,
+          suggestion: `Use: amount.divide(${divisorStr}, Round.HALF_UP) or another rounding mode.`,
+          example: `import { Round } from '@thesis-co/cent';\namount.divide(${divisorStr}, Round.HALF_UP);`,
+        },
       )
     }
 
@@ -613,7 +649,13 @@ export class Money {
    */
   roundTo(decimals: number, mode?: RoundingMode): Money {
     if (decimals < 0) {
-      throw new Error("Decimal places must be non-negative")
+      throw new InvalidInputError(
+        `Decimal places must be non-negative, got ${decimals}`,
+        {
+          code: ErrorCode.INVALID_PRECISION,
+          suggestion: "Use a non-negative integer for decimal places.",
+        },
+      )
     }
 
     const targetDecimals = BigInt(decimals)
@@ -746,7 +788,11 @@ export class Money {
     const otherAmount = otherMoney.balance
 
     if (!assetsEqual(this.balance.asset, otherAmount.asset)) {
-      throw new Error("Cannot compare Money with different asset types")
+      throw new CurrencyMismatchError(
+        this.currency.code || this.currency.name,
+        otherMoney.currency.code || otherMoney.currency.name,
+        "compare",
+      )
     }
 
     const thisFixedPoint = new FixedPointNumber(
@@ -780,7 +826,11 @@ export class Money {
     const otherAmount = otherMoney.balance
 
     if (!assetsEqual(this.balance.asset, otherAmount.asset)) {
-      throw new Error("Cannot compare Money with different asset types")
+      throw new CurrencyMismatchError(
+        this.currency.code || this.currency.name,
+        otherMoney.currency.code || otherMoney.currency.name,
+        "compare",
+      )
     }
 
     const thisFixedPoint = new FixedPointNumber(
@@ -814,7 +864,11 @@ export class Money {
     const otherAmount = otherMoney.balance
 
     if (!assetsEqual(this.balance.asset, otherAmount.asset)) {
-      throw new Error("Cannot compare Money with different asset types")
+      throw new CurrencyMismatchError(
+        this.currency.code || this.currency.name,
+        otherMoney.currency.code || otherMoney.currency.name,
+        "compare",
+      )
     }
 
     const thisFixedPoint = new FixedPointNumber(
@@ -848,7 +902,11 @@ export class Money {
     const otherAmount = otherMoney.balance
 
     if (!assetsEqual(this.balance.asset, otherAmount.asset)) {
-      throw new Error("Cannot compare Money with different asset types")
+      throw new CurrencyMismatchError(
+        this.currency.code || this.currency.name,
+        otherMoney.currency.code || otherMoney.currency.name,
+        "compare",
+      )
     }
 
     const thisFixedPoint = new FixedPointNumber(
@@ -956,19 +1014,38 @@ export class Money {
     options: { distributeFractionalUnits?: boolean } = {},
   ): Money[] {
     if (ratios.length === 0) {
-      throw new Error("Cannot allocate with empty ratios array")
+      throw new InvalidInputError(
+        "Cannot allocate with empty ratios array",
+        {
+          code: ErrorCode.EMPTY_ARRAY,
+          suggestion: "Provide at least one ratio for allocation.",
+          example: "money.allocate([1, 2, 1])",
+        },
+      )
     }
 
     // Validate ratios are non-negative
     ratios.forEach((ratio) => {
       if (ratio < 0) {
-        throw new Error("Cannot allocate with negative ratios")
+        throw new InvalidInputError(
+          `Cannot allocate with negative ratios: got ${ratio}`,
+          {
+            code: ErrorCode.INVALID_RATIO,
+            suggestion: "All ratios must be non-negative integers.",
+          },
+        )
       }
     })
 
     const totalRatio = ratios.reduce((sum, ratio) => sum + ratio, 0)
     if (totalRatio === 0) {
-      throw new Error("Cannot allocate with all zero ratios")
+      throw new InvalidInputError(
+        "Cannot allocate with all zero ratios",
+        {
+          code: ErrorCode.INVALID_RATIO,
+          suggestion: "At least one ratio must be greater than zero.",
+        },
+      )
     }
 
     const { distributeFractionalUnits = true } = options
@@ -1083,7 +1160,13 @@ export class Money {
     options: { distributeFractionalUnits?: boolean } = {},
   ): Money[] {
     if (!Number.isInteger(parts) || parts <= 0) {
-      throw new Error("Parts must be a positive integer")
+      throw new InvalidInputError(
+        `Parts must be a positive integer, got ${parts}`,
+        {
+          suggestion: "Provide a positive integer for the number of parts.",
+          example: "money.distribute(3)",
+        },
+      )
     }
 
     // Use allocate with equal ratios
@@ -1109,7 +1192,11 @@ export class Money {
 
     return others.reduce((maxValue: Money, money) => {
       if (!assetsEqual(currentBalance.asset, money.balance.asset)) {
-        throw new Error("Cannot compare Money with different asset types")
+        throw new CurrencyMismatchError(
+          this.currency.code || this.currency.name,
+          money.currency.code || money.currency.name,
+          "compare",
+        )
       }
 
       return maxValue.lessThan(money) ? money : maxValue
@@ -1134,7 +1221,11 @@ export class Money {
 
     return others.reduce((minValue: Money, money) => {
       if (!assetsEqual(currentBalance.asset, money.balance.asset)) {
-        throw new Error("Cannot compare Money with different asset types")
+        throw new CurrencyMismatchError(
+          this.currency.code || this.currency.name,
+          money.currency.code || money.currency.name,
+          "compare",
+        )
       }
 
       return minValue.greaterThan(money) ? money : minValue
@@ -1270,7 +1361,11 @@ export class Money {
     }
 
     if (!assetsEqual(this.currency, otherMoney.currency)) {
-      throw new Error("Cannot compare Money with different asset types")
+      throw new CurrencyMismatchError(
+        this.currency.code || this.currency.name,
+        otherMoney.currency.code || otherMoney.currency.name,
+        "compare",
+      )
     }
 
     if (this.lessThan(otherMoney)) {
@@ -1335,7 +1430,13 @@ export class Money {
   static fromJSON(json: unknown): Money {
     // First validate that json is an object
     if (typeof json !== "object" || json === null) {
-      throw new Error("Invalid JSON input: expected object")
+      throw new ValidationError(
+        "Invalid JSON input: expected object",
+        {
+          code: ErrorCode.INVALID_JSON,
+          suggestion: "Provide a valid JSON object with 'currency' and 'amount' properties.",
+        },
+      )
     }
 
     // Check if this is the old format (has 'asset' instead of 'currency')
@@ -1404,7 +1505,13 @@ export class Money {
         amount = FixedPointNumber.fromJSON(jsonObj.amount) // legacy {amount, decimals} -> FixedPointNumber
       }
     } else {
-      throw new Error("Invalid amount format in JSON")
+      throw new ValidationError(
+        "Invalid amount format in JSON",
+        {
+          code: ErrorCode.INVALID_JSON,
+          suggestion: "Amount should be a decimal string or an object with {amount, decimals} or {p, q} properties.",
+        },
+      )
     }
 
     return new Money(currency, amount)
@@ -1513,8 +1620,13 @@ export class Money {
       fromMoney = money2
       toMoney = money1
     } else {
-      throw new Error(
-        `Cannot convert ${this.currency.code || this.currency.name} using price with currencies ${money1.currency.code || money1.currency.name} and ${money2.currency.code || money2.currency.name}`,
+      throw new CurrencyMismatchError(
+        this.currency.code || this.currency.name,
+        `${money1.currency.code || money1.currency.name}/${money2.currency.code || money2.currency.name}`,
+        "convert",
+        {
+          suggestion: `The price or exchange rate must include ${this.currency.code || this.currency.name} as one of its currencies.`,
+        },
       )
     }
 

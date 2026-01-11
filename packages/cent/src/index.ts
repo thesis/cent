@@ -90,3 +90,16 @@ export {
 } from "./types"
 export { Round } from "./rounding"
 export type { Round as RoundType } from "./rounding"
+// Error types
+export {
+  CentError,
+  CurrencyMismatchError,
+  DivisionError,
+  ErrorCode,
+  ExchangeRateError,
+  InvalidInputError,
+  ParseError,
+  PrecisionLossError,
+  ValidationError,
+} from "./errors"
+export type { CentErrorOptions, ErrorCode as ErrorCodeType } from "./errors"

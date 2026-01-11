@@ -58,6 +58,6 @@ describe("Money.convert()", () => {
     const money = Money("€100")
     const price = new Price(Money("$50,000"), Money("1 BTC"))
 
-    expect(() => money.convert(price)).toThrow("Cannot convert EUR")
+    expect(() => money.convert(price)).toThrow(/different currencies/)
   })
 })
