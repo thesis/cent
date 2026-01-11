@@ -1,0 +1,222 @@
+---
+title: FixedPoint & Rational
+description: Arbitrary-precision numeric types for financial calculations
+---
+
+cent provides two numeric types beyond `Money` for precise mathematical operations.
+
+## FixedPoint
+
+`FixedPointNumber` is appropriate for financial applications that require tracking decimal precision. By disallowing arbitrary division, fixed-point numbers prevent accidental precision loss.
+
+### Creating FixedPoint Numbers
+
+```typescript
+import { FixedPoint } from "@thesis-co/cent"
+
+// From decimal string (auto-detects precision)
+const price = FixedPoint("1255.50") // 2 decimals
+const rate = FixedPoint("0.875") // 3 decimals
+
+// From percentage string (converted to decimal)
+const percentage = FixedPoint("51.5%") // Becomes 0.515
+const tax = FixedPoint("8.25%") // Becomes 0.0825
+
+// From bigint values (explicit control)
+const explicit = FixedPoint(125550n, 2n) // Same as FixedPoint("1255.50")
+```
+
+### Arithmetic Operations
+
+```typescript
+const price = FixedPoint("1255.50")
+
+// Addition and subtraction
+const sum = price.add("100.25") // 1355.75
+const diff = price.subtract("55.50") // 1200.00
+
+// Multiplication (precision is preserved)
+const product = price.multiply("0.875")
+console.log(product.toString()) // "1098.5625"
+
+// Percentage calculations
+const withTax = price.multiply(FixedPoint("8.25%"))
+console.log(withTax.toString()) // "103.578..." (8.25% of 1255.50)
+```
+
+### Safe Division
+
+Division is only allowed for factors of 2 and 5 (which can be represented exactly in decimal):
+
+```typescript
+const number = FixedPoint("100")
+
+// Exact division (factors of 2 and 5)
+number.divide("2").toString() // "50.0"
+number.divide("4").toString() // "25.00"
+number.divide("5").toString() // "20.0"
+number.divide("10").toString() // "10.0"
+
+// Division by other factors throws an error
+number.divide("3") // Error: "Division by 3 requires a rounding mode..."
+```
+
+For non-exact division, use `Rational` numbers or specify a rounding mode on `Money`.
+
+### Comparison Methods
+
+```typescript
+const a = FixedPoint("100.50")
+const b = FixedPoint("99.99")
+
+a.equals(b) // false
+a.greaterThan(b) // true
+a.lessThan(b) // false
+a.max(b).toString() // "100.50"
+a.min(b).toString() // "99.99"
+```
+
+## Rational
+
+`RationalNumber` stores values as exact fractions (numerator/denominator), enabling arbitrary division without precision loss.
+
+### Creating Rational Numbers
+
+```typescript
+import { Rational } from "@thesis-co/cent"
+
+// From fraction string
+const oneThird = Rational("1/3")
+const twoFifths = Rational("2/5")
+
+// From decimal string (auto-converted to fraction)
+const quarter = Rational("0.25") // Becomes 1/4
+const decimal = Rational("0.125") // Becomes 1/8
+
+// From bigint numerator and denominator
+const pi = Rational(22n, 7n) // 22/7 approximation
+const third = Rational(1n, 3n) // 1/3
+
+// From Ratio object
+const ratio = Rational({ p: 1n, q: 10n }) // 1/10
+```
+
+### Exact Arithmetic
+
+```typescript
+const oneThird = Rational("1/3")
+
+// Addition
+const sum = oneThird.add("2/5") // (1/3) + (2/5) = 11/15
+console.log(sum.toString()) // "11/15"
+
+// Multiplication
+const product = oneThird.multiply("2/5") // (1/3) * (2/5) = 2/15
+console.log(product.toString()) // "2/15"
+
+// Division (exact, no precision loss)
+const divided = oneThird.divide("2/3") // (1/3) / (2/3) = 1/2
+console.log(divided.toString()) // "1/2"
+```
+
+### Automatic Simplification
+
+Fractions are automatically reduced to lowest terms:
+
+```typescript
+const simplified = Rational("6/9")
+console.log(simplified.toString()) // "2/3"
+
+const large = Rational("100/250")
+console.log(large.toString()) // "2/5"
+```
+
+### Converting to Decimal
+
+```typescript
+const rational = Rational("3/8")
+
+// To decimal string (specify precision for repeating decimals)
+rational.toDecimalString() // "0.375"
+
+// To FixedPoint
+const fixedPoint = FixedPoint(rational.toDecimalString())
+console.log(fixedPoint.toString()) // "0.375"
+
+// Some fractions can't be represented exactly
+const third = Rational("1/3")
+third.toDecimalString(10) // "0.3333333333" (10 digits)
+```
+
+## Mixing Types
+
+You can mix `FixedPoint` and `Rational` for complex calculations:
+
+```typescript
+// Use Rational for division, then convert back
+const result = Rational("1/3").multiply(FixedPoint("100"))
+console.log(result.toDecimalString()) // "33.333..."
+
+// For Money operations, convert at the end
+const money = Money("$100.00")
+const portion = Rational("1/3")
+const amount = money.multiply(portion.toDecimalString(10), Round.HALF_UP)
+```
+
+## API Reference
+
+### FixedPoint Factory
+
+```typescript
+FixedPoint(str: string): FixedPointNumber // Parse decimal or percentage
+FixedPoint(amount: bigint, decimals: bigint): FixedPointNumber // From bigints
+FixedPoint(existing: FixedPointNumber): FixedPointNumber // Clone
+```
+
+### FixedPointNumber Methods
+
+| Method | Description |
+|--------|-------------|
+| `add(other)` | Addition |
+| `subtract(other)` | Subtraction |
+| `multiply(other)` | Multiplication |
+| `divide(other)` | Safe division (factors of 2 and 5 only) |
+| `normalize(decimals)` | Change decimal precision |
+| `equals(other)` | Equality check |
+| `greaterThan(other)` | Greater than comparison |
+| `lessThan(other)` | Less than comparison |
+| `max(other)` | Return maximum |
+| `min(other)` | Return minimum |
+| `toString()` | Decimal string representation |
+
+### Rational Factory
+
+```typescript
+Rational(str: string): RationalNumber // Parse "p/q" or decimal
+Rational(p: bigint, q: bigint): RationalNumber // From bigints
+Rational(ratio: { p: bigint, q: bigint }): RationalNumber // From object
+```
+
+### RationalNumber Methods
+
+| Method | Description |
+|--------|-------------|
+| `add(other)` | Exact addition |
+| `subtract(other)` | Exact subtraction |
+| `multiply(other)` | Exact multiplication |
+| `divide(other)` | Exact division |
+| `simplify()` | Reduce to lowest terms |
+| `equals(other)` | Equality check |
+| `greaterThan(other)` | Greater than comparison |
+| `lessThan(other)` | Less than comparison |
+| `max(other)` | Return maximum |
+| `min(other)` | Return minimum |
+| `toString()` | Fraction string "p/q" |
+| `toDecimalString(precision?)` | Convert to decimal (default 50 digits) |
+| `toFixedPoint()` | Convert to FixedPoint (when possible) |
+
+## Next Steps
+
+- [Money API Reference](/docs/api/money) — Primary currency type
+- [Exchange Rates](/docs/api/exchange-rate) — Currency conversion
+- [Core Concepts](/docs/core-concepts) — Precision and rounding
