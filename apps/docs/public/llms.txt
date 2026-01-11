@@ -1,0 +1,24 @@
+# cent.thesis.co llms.txt
+
+> Cent is an arbitrary-precision currency library for TypeScript.
+
+## Quick Start
+npm install @thesis-co/cent
+
+## Core Usage
+- Use string inputs: Money("$100.50")
+- Specify rounding for division: amount.divide(3, Round.HALF_UP)
+- All operations are immutable
+
+## Key Types
+- Money: Currency values with arbitrary precision
+- FixedPoint: Fixed-point decimal numbers
+- Rational: Exact fractional arithmetic
+- ExchangeRate: Currency conversion
+- PriceRange: Price range operations
+
+## Links
+- AI Guide: https://cent.thesis.co/docs/ai-guide
+- API Reference: https://cent.thesis.co/docs/api/money
+- Playground: https://cent.thesis.co/playground
+- GitHub: https://github.com/thesis/cent

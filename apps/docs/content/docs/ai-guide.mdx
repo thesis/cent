@@ -1,0 +1,170 @@
+---
+title: AI Reference
+description: Compact reference for AI code generation
+---
+
+> This page is optimized for AI assistants. For detailed documentation, see [Getting Started](/docs/getting-started).
+
+## Installation
+
+```bash
+npm install @thesis-co/cent
+```
+
+## Core Rule
+
+**Always use string inputs for precision:**
+
+```typescript
+Money("$100.50") // Correct
+Money(100.5) // Works but warns about precision loss
+```
+
+## Common Operations
+
+| Task | Code |
+|------|------|
+| Create USD | `Money("$100.50")` |
+| Create EUR | `Money("100.50 EUR")` |
+| Create BTC | `Money("0.5 BTC")` or `Money("50000000 sat")` |
+| Add | `a.add(b)` or `a.add("$25.00")` |
+| Subtract | `a.subtract(b)` |
+| Multiply | `a.multiply(2)` or `a.multiply("1.5")` |
+| Divide | `a.divide(2)` or `a.divide(3, Round.HALF_UP)` |
+| Add percentage | `price.multiply("1.08")` or `price.add(price.multiply("8%"))` |
+| Compare | `a.equals(b)`, `a.greaterThan(b)`, `a.compare(b)` |
+| Split evenly | `amount.distribute(3)` |
+| Split by ratio | `amount.allocate([1, 2, 1])` |
+| Sum array | `Money.sum(amounts)` |
+
+## Formatting
+
+`toString()` accepts formatting options:
+
+```typescript
+const price = Money("$1234.56")
+
+price.toString() // "$1,234.56"
+price.toString({ symbol: false }) // "1,234.56"
+price.toString({ grouping: false }) // "$1234.56"
+price.toString({ decimals: 0 }) // "$1,235"
+price.toString({ locale: "de-DE" }) // "1.234,56 $"
+```
+
+## Imports
+
+```typescript
+import {
+  Money, // Factory function
+  FixedPoint, // Fixed-point numbers
+  Rational, // Rational numbers
+  Round, // Rounding modes
+  ExchangeRate, // Currency conversion
+  Price, // Price ratios
+  PriceRange, // Price ranges
+  USD,
+  EUR,
+  BTC,
+  ETH, // Currency constants
+} from "@thesis-co/cent"
+```
+
+## Rounding Modes
+
+Always specify rounding for division by non-2/5 numbers:
+
+```typescript
+amount.divide(3, Round.HALF_UP) // Common choice
+amount.divide(3, Round.HALF_EVEN) // Banker's rounding
+amount.divide(3, Round.FLOOR) // Round down
+amount.divide(3, Round.CEILING) // Round up
+```
+
+## Exchange Rates
+
+```typescript
+const rate = new ExchangeRate(USD, EUR, "0.92")
+const euros = rate.convert(Money("$100")) // 92.00 EUR
+
+// Reverse conversion works automatically
+const dollars = rate.convert(Money("92 EUR")) // $100.00
+```
+
+## Price Ranges
+
+```typescript
+const range = PriceRange("$50 - $100")
+range.contains(Money("$75")) // true
+range.midpoint.toString() // "$75.00"
+```
+
+## Anti-Patterns
+
+```typescript
+// Division without rounding (throws if not exact)
+amount.divide(3) // Error! Always specify rounding mode
+
+// Comparing different currencies (throws)
+usd.equals(eur) // Error! Convert first with ExchangeRate
+
+// Manual number parsing - use Money methods instead
+Number.parseFloat(price.toString()) // Bad!
+price.toNumber() // Use this if you need a number
+
+// Manual formatting - use toString options
+`$${amount.toFixed(2)}` // Bad!
+amount.toString() // Built-in formatting
+
+// Manual reduce for sums
+amounts.reduce((a, b) => a.add(b), Money.zero("USD")) // Verbose
+Money.sum(amounts) // Use this instead
+```
+
+## Safe Parsing
+
+For user input, use `Money.parse()`:
+
+```typescript
+const result = Money.parse(userInput)
+if (result.isOk()) {
+  const money = result.unwrap()
+} else {
+  const error = result.unwrapErr()
+}
+
+// Or with default
+const amount = Money.parse(input).unwrapOr(Money.zero("USD"))
+```
+
+## Complete Example
+
+```typescript
+import { Money } from "@thesis-co/cent"
+
+function calculateInvoice(items: Array<{ price: string; qty: number }>) {
+  // Sum line items
+  const lineItems = items.map((item) => Money(item.price).multiply(item.qty))
+  const subtotal = Money.sum(lineItems)
+
+  // Apply 10% discount
+  const discount = subtotal.multiply("10%")
+  const discounted = subtotal.subtract(discount)
+
+  // Add 8.25% tax
+  const tax = discounted.multiply("8.25%")
+  const total = discounted.add(tax)
+
+  return {
+    subtotal: subtotal.toString(),
+    discount: discount.toString(),
+    tax: tax.toString(),
+    total: total.toString(),
+  }
+}
+```
+
+## Links
+
+- [Full API Reference](/docs/api/money)
+- [Guides & Examples](/docs/guides/tax-calculations)
+- [GitHub](https://github.com/thesis/cent)

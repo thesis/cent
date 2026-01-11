@@ -1,0 +1,154 @@
+---
+title: Core Concepts
+description: Understanding Money, precision, and immutability in cent
+---
+
+cent is built on a few key principles that make financial calculations safe and predictable.
+
+## Arbitrary Precision
+
+cent uses `BigInt` under the hood, which means:
+
+- **No precision loss** — Values are stored exactly as specified
+- **No limits** — Handle amounts from satoshis to quadrillions
+- **No floating point errors** — `0.1 + 0.2` actually equals `0.3`
+
+```typescript
+// JavaScript Number fails at large values
+Number.MAX_SAFE_INTEGER // 9,007,199,254,740,991
+
+// cent handles any size
+const huge = Money("$9,999,999,999,999,999.99")
+const precise = Money("0.123456789012345678 ETH") // Full 18 decimals
+```
+
+## Immutability
+
+All operations return new instances. The original value is never modified:
+
+```typescript
+const price = Money("$100.00")
+const withTax = price.add("$8.25")
+
+console.log(price.toString()) // "$100.00" (unchanged)
+console.log(withTax.toString()) // "$108.25" (new instance)
+```
+
+This prevents accidental mutations and makes code easier to reason about.
+
+## Type Safety
+
+cent prevents common mistakes at compile time:
+
+```typescript
+const usd = Money("$100")
+const eur = Money("100 EUR")
+
+// TypeScript error: Can't compare different currencies
+usd.equals(eur) // Error!
+
+// Convert first using an exchange rate
+const rate = new ExchangeRate(USD, EUR, "0.92")
+usd.equals(eur.convert(rate)) // OK
+```
+
+## Safe Parsing
+
+For user input or external data, use `Money.parse()` which returns a `Result` type:
+
+```typescript
+const result = Money.parse(userInput)
+  .map((money) => money.add("8.25%"))
+  .map((money) => money.roundTo(2, Round.HALF_UP))
+
+const total = result.match({
+  ok: (money) => money.toString(),
+  err: (error) => `Invalid amount: ${error.suggestion}`,
+})
+
+// Or provide a default
+const amount = Money.parse(untrustedInput).unwrapOr(Money.zero("USD"))
+```
+
+## Rounding Modes
+
+Division and some multiplications may produce values that can't be represented exactly. cent requires you to specify how to handle this:
+
+```typescript
+const price = Money("$100.00")
+
+// Division by factors of 2 and 5 is exact
+price.divide(2) // $50.00 (exact)
+price.divide(5) // $20.00 (exact)
+
+// Other divisors require a rounding mode
+price.divide(3, Round.HALF_UP) // $33.33
+price.divide(3, Round.HALF_EVEN) // $33.33 (banker's rounding)
+price.divide(3, Round.CEILING) // $33.34
+price.divide(3, Round.FLOOR) // $33.33
+```
+
+**Available rounding modes:**
+
+| Mode | Description |
+|------|-------------|
+| `Round.UP` | Round away from zero |
+| `Round.DOWN` | Round toward zero (truncate) |
+| `Round.CEILING` | Round toward positive infinity |
+| `Round.FLOOR` | Round toward negative infinity |
+| `Round.HALF_UP` | Round to nearest, ties away from zero |
+| `Round.HALF_DOWN` | Round to nearest, ties toward zero |
+| `Round.HALF_EVEN` | Round to nearest, ties to even (banker's rounding) |
+
+## Numeric Types
+
+cent provides three numeric types for different use cases:
+
+### Money
+
+The primary type for working with currency values:
+
+```typescript
+const usd = Money("$100.50")
+const btc = Money("0.5 BTC")
+```
+
+### FixedPoint
+
+For decimal numbers where you need to track precision:
+
+```typescript
+const rate = FixedPoint("0.875")
+const percentage = FixedPoint("8.25%") // Becomes 0.0825
+```
+
+### Rational
+
+For exact fractional arithmetic without precision loss:
+
+```typescript
+const oneThird = Rational("1/3")
+const result = oneThird.multiply("3") // Exactly 1
+```
+
+## Currency Support
+
+cent includes 180+ currencies with proper metadata:
+
+```typescript
+import { USD, EUR, BTC, ETH, JPY } from "@thesis-co/cent"
+
+console.log(USD.decimals) // 2n
+console.log(BTC.decimals) // 8n
+console.log(ETH.decimals) // 18n
+console.log(JPY.decimals) // 0n
+
+console.log(USD.symbol) // "$"
+console.log(USD.fractionalUnit) // "cent"
+```
+
+## Next Steps
+
+- [Money API Reference](/docs/api/money) — Complete method documentation
+- [Tax Calculations Guide](/docs/guides/tax-calculations) — Practical examples
+- [Crypto Precision Guide](/docs/guides/crypto-precision) — Working with BTC and ETH

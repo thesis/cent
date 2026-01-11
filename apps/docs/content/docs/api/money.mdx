@@ -1,0 +1,304 @@
+---
+title: Money API Reference
+description: Complete API reference for the Money class
+---
+
+The `Money` class is the primary way to work with currency values in cent.
+
+## Creating Money
+
+### Money(input)
+
+Factory function to create Money from various input types.
+
+```typescript
+// From string with currency symbol
+const usd = Money("$100.50")
+const eur = Money("100.50 EUR")
+
+// From string with currency code
+const btc = Money("0.5 BTC")
+const eth = Money("1.5 ETH")
+
+// With explicit currency
+const amount = Money("100.50", "USD")
+```
+
+**Parameters:**
+- `input` - String, number, or existing Money value
+- `currency` (optional) - Currency code to use
+
+**Returns:** `Money` instance
+
+### Money.zero(currency)
+
+Create a zero-value Money for a given currency.
+
+```typescript
+const zero = Money.zero("USD") // $0.00
+const zeroSats = Money.zero("BTC") // 0.00000000 BTC
+```
+
+### Money.parse(input)
+
+Safely parse untrusted input, returning a `Result` type.
+
+```typescript
+const result = Money.parse(userInput)
+
+if (result.isOk()) {
+  const money = result.unwrap()
+} else {
+  const error = result.unwrapErr()
+  console.log(error.message, error.suggestion)
+}
+
+// Or with default value
+const amount = Money.parse(input).unwrapOr(Money.zero("USD"))
+```
+
+## Arithmetic Operations
+
+All operations return new `Money` instances (immutable).
+
+### add(other)
+
+Add another Money value or string.
+
+```typescript
+const total = price.add(tax)
+const also = price.add("$10.00")
+const withPercent = price.add(price.multiply("8%"))
+```
+
+### subtract(other)
+
+Subtract another Money value or string.
+
+```typescript
+const remaining = balance.subtract(payment)
+const discount = price.subtract("$5.00")
+```
+
+### multiply(factor)
+
+Multiply by a number, string, or percentage.
+
+```typescript
+const doubled = price.multiply(2)
+const tax = subtotal.multiply("8.25%")
+const scaled = price.multiply("1.5")
+```
+
+### divide(divisor, roundingMode?)
+
+Divide by a number. Rounding mode is required for non-exact divisions.
+
+```typescript
+// Exact divisions (factors of 2 and 5)
+const half = price.divide(2)
+const fifth = price.divide(5)
+
+// Non-exact divisions require rounding
+const third = price.divide(3, Round.HALF_UP)
+const seventh = price.divide(7, Round.CEILING)
+```
+
+### negate()
+
+Return the negation of this Money.
+
+```typescript
+const positive = Money("$100")
+const negative = positive.negate() // -$100
+```
+
+### abs()
+
+Return the absolute value.
+
+```typescript
+const neg = Money("-$100")
+const pos = neg.abs() // $100
+```
+
+## Comparison Operations
+
+### equals(other)
+
+Check if two Money values are equal.
+
+```typescript
+const a = Money("$100")
+const b = Money("$100.00")
+a.equals(b) // true
+```
+
+### greaterThan(other)
+
+Check if this is greater than another value.
+
+```typescript
+price.greaterThan(minimum) // boolean
+```
+
+### lessThan(other)
+
+Check if this is less than another value.
+
+```typescript
+balance.lessThan(overdraftLimit) // boolean
+```
+
+### greaterThanOrEqual(other)
+
+```typescript
+total.greaterThanOrEqual(minimum) // boolean
+```
+
+### lessThanOrEqual(other)
+
+```typescript
+expense.lessThanOrEqual(budget) // boolean
+```
+
+### compare(other)
+
+Returns -1, 0, or 1 for sorting.
+
+```typescript
+amounts.sort((a, b) => a.compare(b))
+```
+
+### isPositive() / isNegative() / isZero()
+
+```typescript
+balance.isPositive() // true if > 0
+balance.isNegative() // true if < 0
+balance.isZero() // true if exactly 0
+```
+
+## Distribution Methods
+
+### distribute(count, options?)
+
+Split evenly among N recipients.
+
+```typescript
+const [a, b, c] = price.distribute(3)
+// Remainder goes to first recipient
+```
+
+**Options:**
+- `distributeFractionalUnits` - Whether to include sub-unit precision (default: true)
+
+### allocate(ratios)
+
+Split by ratios for proportional distribution.
+
+```typescript
+const [marketing, dev, ops] = budget.allocate([2, 5, 3])
+// $1000 becomes [$200, $500, $300]
+```
+
+### concretize()
+
+Separate into whole units and fractional remainder.
+
+```typescript
+const [main, fractional] = Money("$100.00123").concretize()
+// main: $100.00, fractional: $0.00123
+```
+
+## Rounding Methods
+
+### round(mode)
+
+Round to currency's default precision.
+
+```typescript
+const rounded = precise.round(Round.HALF_UP)
+```
+
+### roundTo(decimals, mode)
+
+Round to a specific number of decimal places.
+
+```typescript
+const cents = amount.roundTo(2, Round.HALF_EVEN)
+const whole = amount.roundTo(0, Round.FLOOR)
+```
+
+## Formatting Methods
+
+### toString()
+
+Format as a string with currency symbol.
+
+```typescript
+Money("$100.50").toString() // "$100.50"
+Money("0.5 BTC").toString() // "0.50000000 BTC"
+```
+
+### toJSON()
+
+Return JSON-serializable representation.
+
+```typescript
+JSON.stringify({ price: Money("$100") })
+// {"price": {"amount": "10000", "currency": "USD"}}
+```
+
+## Properties
+
+### currency
+
+The Currency object for this Money.
+
+```typescript
+const m = Money("$100")
+m.currency.code // "USD"
+m.currency.symbol // "$"
+m.currency.decimals // 2n
+```
+
+### amount
+
+The raw BigInt amount in smallest units.
+
+```typescript
+Money("$1.50").amount // 150n (cents)
+Money("1 BTC").amount // 100000000n (satoshis)
+```
+
+## Static Methods
+
+### Money.min(...values)
+
+Return the minimum of multiple Money values.
+
+```typescript
+const lowest = Money.min(a, b, c)
+```
+
+### Money.max(...values)
+
+Return the maximum of multiple Money values.
+
+```typescript
+const highest = Money.max(a, b, c)
+```
+
+### Money.sum(values)
+
+Sum an array of Money values.
+
+```typescript
+const total = Money.sum(lineItems)
+```
+
+## Next Steps
+
+- [Core Concepts](/docs/core-concepts) — Understanding precision and immutability
+- [Tax Calculations](/docs/guides/tax-calculations) — Practical percentage examples
+- [Crypto Precision](/docs/guides/crypto-precision) — Working with BTC and ETH

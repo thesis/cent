@@ -1,0 +1,55 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  /* Black on white color scheme */
+  --fd-background: 0 0% 100%;
+  --fd-foreground: 0 0% 5%;
+  --fd-primary: 0 0% 0%;
+  --fd-primary-foreground: 0 0% 100%;
+  --fd-muted: 0 0% 96%;
+  --fd-muted-foreground: 0 0% 30%;
+  --fd-border: 0 0% 85%;
+  --fd-card: 0 0% 98%;
+  --fd-card-foreground: 0 0% 5%;
+  --fd-accent: 0 0% 95%;
+  --fd-accent-foreground: 0 0% 10%;
+  --fd-popover: 0 0% 100%;
+  --fd-popover-foreground: 0 0% 5%;
+  --fd-secondary: 0 0% 96%;
+  --fd-secondary-foreground: 0 0% 10%;
+}
+
+.dark {
+  /* Inverted for dark mode */
+  --fd-background: 0 0% 5%;
+  --fd-foreground: 0 0% 95%;
+  --fd-primary: 0 0% 100%;
+  --fd-primary-foreground: 0 0% 0%;
+  --fd-muted: 0 0% 12%;
+  --fd-muted-foreground: 0 0% 70%;
+  --fd-border: 0 0% 20%;
+  --fd-card: 0 0% 8%;
+  --fd-card-foreground: 0 0% 95%;
+  --fd-accent: 0 0% 15%;
+  --fd-accent-foreground: 0 0% 90%;
+  --fd-popover: 0 0% 8%;
+  --fd-popover-foreground: 0 0% 95%;
+  --fd-secondary: 0 0% 15%;
+  --fd-secondary-foreground: 0 0% 90%;
+}
+
+/* Ensure monospace throughout */
+body {
+  font-family: var(--font-mono), ui-monospace, monospace;
+}
+
+/* Code blocks styling */
+pre {
+  font-family: var(--font-mono), ui-monospace, monospace !important;
+}
+
+code {
+  font-family: var(--font-mono), ui-monospace, monospace !important;
+}

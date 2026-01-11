@@ -1,0 +1,16 @@
+{
+  "title": "Cent",
+  "pages": [
+    "index",
+    "getting-started",
+    "core-concepts",
+    "---Guides---",
+    "guides/tax-calculations",
+    "guides/splitting-bills",
+    "guides/crypto-precision",
+    "---API---",
+    "api/money",
+    "---Reference---",
+    "ai-guide"
+  ]
+}

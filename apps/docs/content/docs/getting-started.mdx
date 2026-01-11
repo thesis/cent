@@ -1,0 +1,77 @@
+---
+title: Getting Started
+description: Install cent and start using precise financial calculations in minutes
+---
+
+## Installation
+
+<Tabs items={["npm", "pnpm", "yarn"]}>
+  <Tab value="npm">
+```bash
+npm install @thesis-co/cent
+```
+  </Tab>
+  <Tab value="pnpm">
+```bash
+pnpm add @thesis-co/cent
+```
+  </Tab>
+  <Tab value="yarn">
+```bash
+yarn add @thesis-co/cent
+```
+  </Tab>
+</Tabs>
+
+## Quick Start
+
+```typescript
+import { Money, Round } from "@thesis-co/cent"
+
+// Create money values from strings
+const price = Money("$100.50")
+const btc = Money("0.5 BTC")
+
+// Arithmetic operations
+const total = price.add("$25.25") // $125.75
+
+// Division with rounding
+const split = total.divide(3, Round.HALF_UP) // $41.92
+
+// Allocation and distribution
+const [a, b, c] = price.distribute(3) // [$33.50, $33.50, $33.50]
+
+// Formatting
+console.log(price.toString()) // "$100.50"
+```
+
+## Configuration
+
+Configure library-wide defaults at application startup:
+
+```typescript
+import { configure, Round } from "@thesis-co/cent"
+
+configure({
+  numberInputMode: process.env.NODE_ENV === "production" ? "error" : "warn",
+  strictPrecision: process.env.NODE_ENV === "production",
+  defaultRoundingMode: Round.HALF_UP,
+  defaultCurrency: "USD",
+})
+```
+
+**Options:**
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `numberInputMode` | How to handle JS number inputs: `'warn'`, `'error'`, or `'silent'` | `'warn'` |
+| `strictPrecision` | Throw on any operation that would lose precision | `false` |
+| `defaultRoundingMode` | Default rounding mode, or `'none'` to require explicit rounding | `Round.HALF_UP` |
+| `defaultCurrency` | Default currency code | `'USD'` |
+| `defaultLocale` | Default locale for formatting | `'en-US'` |
+
+## Next Steps
+
+- [Core Concepts](/docs/core-concepts) — Understand Money, precision, and immutability
+- [API Reference](/docs/api/money) — Complete Money class documentation
+- [Guides](/docs/guides/tax-calculations) — Practical examples and patterns
