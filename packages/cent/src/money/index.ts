@@ -2,6 +2,7 @@ import { assetsEqual, isAssetAmount } from "../assets"
 import { getConfig } from "../config"
 import { getCurrencyFromCode } from "../currencies"
 import {
+  CentError,
   CurrencyMismatchError,
   DivisionError,
   EmptyArrayError,
@@ -11,6 +12,8 @@ import {
   PrecisionLossError,
   ValidationError,
 } from "../errors"
+import { Ok, Err, ok, err } from "../result"
+import type { Result } from "../result"
 import { FixedPointNumber } from "../fixed-point"
 import { isOnlyFactorsOf2And5 } from "../math-utils"
 import { RationalNumber } from "../rationals"
@@ -1960,6 +1963,130 @@ export class Money {
       }
     }
     return result
+  }
+
+  /**
+   * Parse a string into a Money instance, returning a Result instead of throwing.
+   *
+   * This is useful for handling user input or external data where you want
+   * to handle errors programmatically without try/catch.
+   *
+   * @param input - The string to parse (e.g., "$100.00", "100 USD", "€50")
+   * @returns A Result containing either the Money or a ParseError
+   *
+   * @example
+   * import { Money } from '@thesis-co/cent';
+   *
+   * // Success case
+   * const result = Money.parse("$100.00");
+   * if (result.ok) {
+   *   console.log(result.value.toString());  // "$100.00"
+   * }
+   *
+   * // Error case
+   * const invalid = Money.parse("not money");
+   * if (!invalid.ok) {
+   *   console.log(invalid.error.suggestion);  // helpful message
+   * }
+   *
+   * // Pattern matching
+   * Money.parse(userInput).match({
+   *   ok: (money) => processPayment(money),
+   *   err: (error) => showError(error.message),
+   * });
+   *
+   * // With default value
+   * const amount = Money.parse(input).unwrapOr(Money.zero("USD"));
+   */
+  static parse(input: string): Result<Money, ParseError> {
+    try {
+      const money = MoneyFactory(input)
+      return ok(money)
+    } catch (e) {
+      if (e instanceof ParseError) {
+        return err(e)
+      }
+      // Convert other errors to ParseError
+      const message = e instanceof Error ? e.message : String(e)
+      return err(
+        new ParseError(input, message, {
+          code: ErrorCode.PARSE_ERROR,
+          suggestion: 'Use a valid money format like "$100.00", "100 USD", or "€50".',
+        })
+      )
+    }
+  }
+
+  /**
+   * Try to create a Money instance from various input types, returning a Result.
+   *
+   * This is a more general version of `parse` that accepts any input type
+   * that Money() normally accepts.
+   *
+   * @param input - Any valid Money input (string, number, bigint, AssetAmount, JSON)
+   * @param currency - Currency code (required for number/bigint inputs)
+   * @returns A Result containing either the Money or a CentError
+   *
+   * @example
+   * import { Money } from '@thesis-co/cent';
+   *
+   * // String input
+   * Money.tryFrom("$100.00")
+   *
+   * // Number input (requires currency)
+   * Money.tryFrom(100.50, "USD")
+   *
+   * // Bigint input (requires currency)
+   * Money.tryFrom(10050n, "USD")
+   *
+   * // JSON input
+   * Money.tryFrom({ amount: "100.00", currency: "USD" })
+   *
+   * // Safe processing of user input
+   * Money.tryFrom(userInput, "USD").match({
+   *   ok: (money) => saveToDatabase(money),
+   *   err: (error) => logError(error),
+   * });
+   */
+  static tryFrom(
+    input: string | number | bigint | AssetAmount | unknown,
+    currency?: string | Currency
+  ): Result<Money, CentError> {
+    try {
+      let money: Money
+      if (typeof input === "number" || typeof input === "bigint") {
+        if (!currency) {
+          return err(
+            new InvalidInputError(
+              "Currency is required for number or bigint input",
+              {
+                code: ErrorCode.INVALID_INPUT,
+                suggestion:
+                  'Provide a currency code: Money.tryFrom(100, "USD")',
+              }
+            )
+          )
+        }
+        money = MoneyFactory(input as number, currency)
+      } else if (typeof input === "string") {
+        money = MoneyFactory(input)
+      } else {
+        money = MoneyFactory(input)
+      }
+      return ok(money)
+    } catch (e) {
+      if (e instanceof CentError) {
+        return err(e)
+      }
+      // Convert other errors to InvalidInputError
+      const message = e instanceof Error ? e.message : String(e)
+      return err(
+        new InvalidInputError(message, {
+          code: ErrorCode.INVALID_INPUT,
+          suggestion: "Check the input format and try again.",
+        })
+      )
+    }
   }
 
   /**

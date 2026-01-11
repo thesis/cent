@@ -93,6 +93,28 @@ withConfig({ strictPrecision: true }, () => {
 // Configuration is restored after the block
 ```
 
+## Safe Parsing
+
+For user input or external data, use `Money.parse()` which returns a `Result` type instead of throwing exceptions. This enables clean, chainable error handling without try/catch blocks:
+
+```typescript
+import { Money } from '@thesis/cent'
+
+// Parse user input safely
+const result = Money.parse(userInput)
+  .map(money => money.add("8.25%"))           // Add tax if valid
+  .map(money => money.roundTo(2, Round.HALF_UP)) // Round to cents
+
+// Handle success or failure
+const total = result.match({
+  ok: (money) => money.toString(),
+  err: (error) => `Invalid amount: ${error.suggestion}`,
+})
+
+// Or provide a default for invalid input
+const amount = Money.parse(untrustedInput).unwrapOr(Money.zero("USD"))
+```
+
 ## Core utils
 
 ### `Money()` and the `Money` class

@@ -113,3 +113,6 @@ export {
   withConfig,
 } from "./config"
 export type { CentConfig } from "./config"
+// Result types
+export { Ok, Err, ok, err } from "./result"
+export type { Result } from "./result"
