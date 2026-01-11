@@ -2365,6 +2365,150 @@ export class Money {
   }
 
   /**
+   * Clamp this Money value to be within the specified bounds.
+   *
+   * Returns a new Money instance that is:
+   * - `min` if this value is less than `min`
+   * - `max` if this value is greater than `max`
+   * - this value if it's within bounds
+   *
+   * @param min - The minimum bound (Money, string, or number)
+   * @param max - The maximum bound (Money, string, or number)
+   * @returns A new Money instance clamped to the bounds
+   * @throws InvalidInputError if min > max
+   * @throws CurrencyMismatchError if currencies don't match
+   *
+   * @example
+   * import { Money } from '@thesis-co/cent';
+   *
+   * Money("$50").clamp("$0", "$100")     // $50.00 (within bounds)
+   * Money("-$50").clamp("$0", "$100")    // $0.00 (below min)
+   * Money("$150").clamp("$0", "$100")    // $100.00 (above max)
+   *
+   * // With Money instances
+   * Money("$50").clamp(Money("$0"), Money("$100"))
+   *
+   * // With numbers (interpreted in same currency)
+   * Money("$50").clamp(0, 100)
+   */
+  clamp(min: Money | string | number, max: Money | string | number): Money {
+    const minMoney = min instanceof Money ? min : this.parseComparable(min)
+    const maxMoney = max instanceof Money ? max : this.parseComparable(max)
+
+    // Validate currencies match
+    if (minMoney.currency.code !== this.currency.code) {
+      throw new CurrencyMismatchError(
+        "clamp",
+        this.currency.code,
+        minMoney.currency.code
+      )
+    }
+    if (maxMoney.currency.code !== this.currency.code) {
+      throw new CurrencyMismatchError(
+        "clamp",
+        this.currency.code,
+        maxMoney.currency.code
+      )
+    }
+
+    // Validate min <= max
+    if (minMoney.greaterThan(maxMoney)) {
+      throw new InvalidInputError(
+        `Invalid clamp bounds: min (${minMoney.toString()}) is greater than max (${maxMoney.toString()})`,
+        {
+          suggestion: "Ensure min is less than or equal to max.",
+        }
+      )
+    }
+
+    if (this.lessThan(minMoney)) {
+      return minMoney
+    }
+    if (this.greaterThan(maxMoney)) {
+      return maxMoney
+    }
+    return this
+  }
+
+  /**
+   * Return the larger of this value and the specified minimum.
+   *
+   * Equivalent to `clamp(min, Infinity)` - ensures the value is at least `min`.
+   *
+   * @param min - The minimum bound (Money, string, or number)
+   * @returns This value if >= min, otherwise min
+   * @throws CurrencyMismatchError if currencies don't match
+   *
+   * @example
+   * import { Money } from '@thesis-co/cent';
+   *
+   * Money("$50").atLeast("$0")     // $50.00 (already above min)
+   * Money("-$50").atLeast("$0")    // $0.00 (raised to min)
+   *
+   * // Ensure non-negative amounts
+   * const safeAmount = amount.atLeast(0)
+   *
+   * // With Money instance
+   * Money("$25").atLeast(Money("$50"))  // $50.00
+   */
+  atLeast(min: Money | string | number): Money {
+    const minMoney = min instanceof Money ? min : this.parseComparable(min)
+
+    // Validate currency matches
+    if (minMoney.currency.code !== this.currency.code) {
+      throw new CurrencyMismatchError(
+        "atLeast",
+        this.currency.code,
+        minMoney.currency.code
+      )
+    }
+
+    if (this.lessThan(minMoney)) {
+      return minMoney
+    }
+    return this
+  }
+
+  /**
+   * Return the smaller of this value and the specified maximum.
+   *
+   * Equivalent to `clamp(-Infinity, max)` - ensures the value is at most `max`.
+   *
+   * @param max - The maximum bound (Money, string, or number)
+   * @returns This value if <= max, otherwise max
+   * @throws CurrencyMismatchError if currencies don't match
+   *
+   * @example
+   * import { Money } from '@thesis-co/cent';
+   *
+   * Money("$50").atMost("$100")    // $50.00 (already below max)
+   * Money("$150").atMost("$100")   // $100.00 (reduced to max)
+   *
+   * // Cap at maximum allowed amount
+   * const cappedAmount = amount.atMost("$10000")
+   *
+   * // With Money instance
+   * Money("$75").atMost(Money("$50"))  // $50.00
+   */
+  atMost(max: Money | string | number): Money {
+    const maxMoney = max instanceof Money ? max : this.parseComparable(max)
+
+    // Validate currency matches
+    if (maxMoney.currency.code !== this.currency.code) {
+      throw new CurrencyMismatchError(
+        "atMost",
+        this.currency.code,
+        maxMoney.currency.code
+      )
+    }
+
+    if (this.greaterThan(maxMoney)) {
+      return maxMoney
+    }
+    return this
+  }
+
+  /**
    * Convert this Money instance to a localized string representation
    *
    * @param options - Formatting options for the string representation

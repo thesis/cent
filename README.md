@@ -52,6 +52,10 @@ const converted = usd.convert(price)    // Exact BTC amount
 const [first, second, third] = usd.allocate([1, 2, 1])    // [$25.13, $50.25, $25.12]
 const [a, b, c] = usd.distribute(3)                      // [$33.50, $33.50, $33.50]
 
+// Bounds and clamping
+const tip = total.multiply("20%").atLeast(5).atMost(50)  // $8.38 (min $5, max $50)
+const safe = Money("-$50").clamp("$0", "$100")           // $0.00
+
 // Formatting
 usd.toString({ locale: "en-US", compact: true })  // "$100.50"
 btc.toString({ preferredUnit: "satoshi" })        // "50,000,000 sat"
