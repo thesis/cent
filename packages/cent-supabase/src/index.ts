@@ -14,8 +14,9 @@ export type {
   TableConfig,
 } from "./types"
 
-// Factory function
-export { createCentSupabaseClient } from "./client"
+// Factory functions
+export { createCentSupabaseClient, wrapSupabaseClient } from "./client"
+export type { CentSupabaseClient } from "./client"
 
 // Helper functions for manual use
 export {

@@ -1,4 +1,35 @@
-import type { MoneyColumnConfig } from "./types"
+import type { MoneyColumnConfig, NormalizedTableConfig } from "./types"
+import { rewriteSelect } from "./transform/select"
+import { transformResponseData } from "./transform/response"
+import { serializeMoneyInData } from "./transform/mutation"
+
+/**
+ * Normalize a simple column config to NormalizedTableConfig
+ */
+function normalizeColumnConfig(
+  columns: Record<string, MoneyColumnConfig>,
+): NormalizedTableConfig {
+  const moneyColumns = Object.keys(columns)
+  const money: NormalizedTableConfig["money"] = {}
+
+  for (const [col, config] of Object.entries(columns)) {
+    if ("currencyColumn" in config) {
+      money[col] = {
+        currencyColumn: config.currencyColumn,
+        currencyCode: undefined,
+        minorUnits: config.minorUnits ?? false,
+      }
+    } else {
+      money[col] = {
+        currencyColumn: undefined,
+        currencyCode: config.currencyCode,
+        minorUnits: config.minorUnits ?? false,
+      }
+    }
+  }
+
+  return { moneyColumns, money }
+}
 
 /**
  * Build a SELECT string with ::text casts for money columns.
@@ -21,9 +52,17 @@ export function moneySelect(
   columns: string | string[],
   moneyColumns: string[],
 ): string {
-  // TODO: Implement in Phase C
   const colString = Array.isArray(columns) ? columns.join(", ") : columns
-  return colString
+  const config: NormalizedTableConfig = {
+    moneyColumns,
+    money: Object.fromEntries(
+      moneyColumns.map((col) => [
+        col,
+        { currencyCode: "USD", currencyColumn: undefined, minorUnits: false },
+      ]),
+    ),
+  }
+  return rewriteSelect(colString, config).select
 }
 
 /**
@@ -46,8 +85,8 @@ export function parseMoneyResult<T>(
   data: T,
   columns: Record<string, MoneyColumnConfig>,
 ): T {
-  // TODO: Implement in Phase C
-  return data
+  const config = normalizeColumnConfig(columns)
+  return transformResponseData(data, config, [])
 }
 
 /**
@@ -71,8 +110,8 @@ export function serializeMoney<T>(
   data: T,
   columns: Record<string, MoneyColumnConfig>,
 ): T {
-  // TODO: Implement in Phase C
-  return data
+  const config = normalizeColumnConfig(columns)
+  return serializeMoneyInData(data, config)
 }
 
 /**
@@ -92,10 +131,19 @@ export function serializeMoney<T>(
  * });
  * ```
  */
-export function transformRealtimePayload<T>(
+export function transformRealtimePayload<T extends { new?: unknown; old?: unknown }>(
   payload: T,
   config: { money: Record<string, MoneyColumnConfig> },
 ): T {
-  // TODO: Implement in Phase C
-  return payload
+  const tableConfig = normalizeColumnConfig(config.money)
+  const result = { ...payload }
+
+  if (result.new) {
+    result.new = transformResponseData(result.new, tableConfig, [])
+  }
+  if (result.old) {
+    result.old = transformResponseData(result.old, tableConfig, [])
+  }
+
+  return result
 }

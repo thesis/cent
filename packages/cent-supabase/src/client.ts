@@ -1,6 +1,7 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js"
 import type { CentSupabaseOptions, NormalizedConfig } from "./types"
 import { normalizeConfig } from "./types"
+import { createClientProxy } from "./proxy/client"
 
 /**
  * Extended Supabase client type with Money support
@@ -57,7 +58,24 @@ export function createCentSupabaseClient<DB = any>(
   // Normalize the configuration
   const config: NormalizedConfig = normalizeConfig(options)
 
-  // TODO: Return proxied client
-  // For now, return the raw client - proxy implementation coming in Phase C
-  return client as CentSupabaseClient<DB>
+  // Return proxied client with Money handling
+  return createClientProxy(client, config) as CentSupabaseClient<DB>
+}
+
+/**
+ * Wrap an existing Supabase client with Money column handling.
+ *
+ * Use this when you already have a Supabase client instance and want
+ * to add Money handling to it.
+ *
+ * @param client - An existing Supabase client
+ * @param options - Cent configuration specifying money columns per table
+ * @returns Enhanced Supabase client with Money support
+ */
+export function wrapSupabaseClient<DB = any>(
+  client: SupabaseClient<DB>,
+  options: CentSupabaseOptions,
+): CentSupabaseClient<DB> {
+  const config: NormalizedConfig = normalizeConfig(options)
+  return createClientProxy(client, config) as CentSupabaseClient<DB>
 }
