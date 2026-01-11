@@ -202,13 +202,35 @@ export class Money {
   }
 
   /**
-   * Add money or an asset amount to this Money instance
+   * Add money, an asset amount, or a percentage to this Money instance.
    *
-   * @param other - The Money, AssetAmount, or string representation to add
+   * When a percentage string is provided (e.g., "8.25%"), the result is
+   * `this * (1 + percent/100)`. This is useful for adding tax or tips.
+   *
+   * @param other - The Money, AssetAmount, string representation, or percentage to add
+   * @param round - Optional rounding mode when adding percentages
    * @returns A new Money instance with the sum
    * @throws Error if the assets are not the same type
+   *
+   * @example
+   * const price = Money("$100.00");
+   * price.add(Money("$10.00"));  // $110.00
+   * price.add("$10.00");         // $110.00
+   * price.add("8.25%");          // $108.25 (add 8.25% tax)
+   * price.add("20%");            // $120.00 (add 20% tip)
    */
-  add(other: Money | AssetAmount | string): Money {
+  add(other: Money | AssetAmount | string, round?: RoundingMode): Money {
+    // Check for percentage string first
+    if (typeof other === "string") {
+      const percentDecimal = parsePercentage(other)
+      if (percentDecimal !== null) {
+        // add("8.25%") means: amount * (1 + 0.0825) = amount * 1.0825
+        const one = new FixedPointNumber(1n, 0n)
+        const multiplier = one.add(percentDecimal)
+        return this.multiply(multiplier, round)
+      }
+    }
+
     let otherMoney: Money
     if (typeof other === "string") {
       otherMoney = Money.parseStringToMoney(other, this.currency)
@@ -252,13 +274,35 @@ export class Money {
   }
 
   /**
-   * Subtract money or an asset amount from this Money instance
+   * Subtract money, an asset amount, or a percentage from this Money instance.
    *
-   * @param other - The Money, AssetAmount, or string representation to subtract
+   * When a percentage string is provided (e.g., "10%"), the result is
+   * `this * (1 - percent/100)`. This is useful for discounts.
+   *
+   * @param other - The Money, AssetAmount, string representation, or percentage to subtract
+   * @param round - Optional rounding mode when subtracting percentages
    * @returns A new Money instance with the difference
    * @throws Error if the assets are not the same type
+   *
+   * @example
+   * const price = Money("$100.00");
+   * price.subtract(Money("$10.00"));  // $90.00
+   * price.subtract("$10.00");         // $90.00
+   * price.subtract("10%");            // $90.00 (10% discount)
+   * price.subtract("25%");            // $75.00 (25% off)
    */
-  subtract(other: Money | AssetAmount | string): Money {
+  subtract(other: Money | AssetAmount | string, round?: RoundingMode): Money {
+    // Check for percentage string first
+    if (typeof other === "string") {
+      const percentDecimal = parsePercentage(other)
+      if (percentDecimal !== null) {
+        // subtract("10%") means: amount * (1 - 0.10) = amount * 0.90
+        const one = new FixedPointNumber(1n, 0n)
+        const multiplier = one.subtract(percentDecimal)
+        return this.multiply(multiplier, round)
+      }
+    }
+
     let otherMoney: Money
     if (typeof other === "string") {
       otherMoney = Money.parseStringToMoney(other, this.currency)
@@ -363,9 +407,12 @@ export class Money {
   }
 
   /**
-   * Multiply this Money instance by a scalar or fixed-point number.
+   * Multiply this Money instance by a scalar, fixed-point number, or percentage.
    *
-   * @param factor - The value to multiply by (bigint, FixedPoint, or decimal string)
+   * When a percentage string is provided (e.g., "50%"), it multiplies by
+   * the percentage as a decimal (50% = 0.50).
+   *
+   * @param factor - The value to multiply by (bigint, FixedPoint, decimal string, or percentage string)
    * @param round - Optional rounding mode to round result to currency precision
    * @returns A new Money instance with the product
    *
@@ -374,6 +421,8 @@ export class Money {
    * price.multiply(3n);              // $300.00
    * price.multiply("1.5");           // $150.00
    * price.multiply("0.333", Round.HALF_UP);  // $33.30
+   * price.multiply("50%");           // $50.00 (50% of $100)
+   * price.multiply("150%");          // $150.00 (150% of $100)
    */
   multiply(
     factor: bigint | FixedPoint | string,
@@ -384,11 +433,19 @@ export class Money {
       this.balance.amount.decimals,
     )
 
-    // Parse string to FixedPoint if needed
-    const factorValue =
-      typeof factor === "string"
-        ? FixedPointNumber.fromDecimalString(factor)
-        : factor
+    // Check for percentage string
+    let factorValue: bigint | FixedPoint
+    if (typeof factor === "string") {
+      const percentDecimal = parsePercentage(factor)
+      if (percentDecimal !== null) {
+        // multiply("50%") means: amount * 0.50
+        factorValue = percentDecimal
+      } else {
+        factorValue = FixedPointNumber.fromDecimalString(factor)
+      }
+    } else {
+      factorValue = factor
+    }
 
     const result = thisFixedPoint.multiply(factorValue)
 
@@ -801,6 +858,110 @@ export class Money {
       this.currency,
       new FixedPointNumber(roundedAmount, targetDecimals),
     )
+  }
+
+  /**
+   * Extract the percentage portion from a total that includes the percentage.
+   *
+   * This is useful for VAT/tax calculations where you have the total amount
+   * (price + tax) and need to determine the tax portion.
+   *
+   * Formula: `total - (total / (1 + percent/100))`
+   *
+   * @param percent - The percentage to extract (e.g., "21%" or "21" for 21%)
+   * @param round - Optional rounding mode for the result
+   * @returns The extracted percentage amount
+   *
+   * @example
+   * import { Money, Round } from '@thesis-co/cent';
+   *
+   * // Total is $121 with 21% VAT included - extract the VAT amount
+   * const total = Money("$121.00");
+   * const vat = total.extractPercent("21%", Round.HALF_UP);  // $21.00
+   *
+   * // 8.25% sales tax on $108.25 total
+   * Money("$108.25").extractPercent("8.25%", Round.HALF_UP);  // $8.25
+   *
+   * @see {@link removePercent} to get the base amount (before percentage)
+   */
+  extractPercent(percent: string | number, round?: RoundingMode): Money {
+    // Parse the percentage value
+    let percentDecimal: FixedPointNumber
+    if (typeof percent === "string") {
+      const parsed = parsePercentage(percent)
+      if (parsed !== null) {
+        percentDecimal = parsed
+      } else {
+        // Try parsing as a plain number string (e.g., "21" for 21%)
+        const valueFixed = FixedPointNumber.fromDecimalString(percent)
+        const hundred = new FixedPointNumber(100n, 0n)
+        percentDecimal = valueFixed.divide(hundred)
+      }
+    } else {
+      // Number input - treat as percentage value (21 means 21%)
+      const valueFixed = FixedPointNumber.fromDecimalString(percent.toString())
+      const hundred = new FixedPointNumber(100n, 0n)
+      percentDecimal = valueFixed.divide(hundred)
+    }
+
+    // Formula: total - (total / (1 + percent/100))
+    // = total - baseAmount
+    // where baseAmount = total / (1 + percentDecimal)
+    const one = new FixedPointNumber(1n, 0n)
+    const divisor = one.add(percentDecimal)
+    const baseAmount = this.divide(divisor, round)
+
+    return this.subtract(baseAmount)
+  }
+
+  /**
+   * Remove a percentage from a total that includes the percentage.
+   *
+   * This is useful for VAT/tax calculations where you have the total amount
+   * (price + tax) and need to determine the original price before tax.
+   *
+   * Formula: `total / (1 + percent/100)`
+   *
+   * @param percent - The percentage to remove (e.g., "21%" or "21" for 21%)
+   * @param round - Optional rounding mode for the result
+   * @returns The base amount (before percentage was added)
+   *
+   * @example
+   * import { Money, Round } from '@thesis-co/cent';
+   *
+   * // Total is $121 with 21% VAT included - get pre-VAT price
+   * const total = Money("$121.00");
+   * const preVat = total.removePercent("21%", Round.HALF_UP);  // $100.00
+   *
+   * // Remove 8.25% sales tax from $108.25 total
+   * Money("$108.25").removePercent("8.25%", Round.HALF_UP);  // $100.00
+   *
+   * @see {@link extractPercent} to get just the percentage amount
+   */
+  removePercent(percent: string | number, round?: RoundingMode): Money {
+    // Parse the percentage value
+    let percentDecimal: FixedPointNumber
+    if (typeof percent === "string") {
+      const parsed = parsePercentage(percent)
+      if (parsed !== null) {
+        percentDecimal = parsed
+      } else {
+        // Try parsing as a plain number string (e.g., "21" for 21%)
+        const valueFixed = FixedPointNumber.fromDecimalString(percent)
+        const hundred = new FixedPointNumber(100n, 0n)
+        percentDecimal = valueFixed.divide(hundred)
+      }
+    } else {
+      // Number input - treat as percentage value (21 means 21%)
+      const valueFixed = FixedPointNumber.fromDecimalString(percent.toString())
+      const hundred = new FixedPointNumber(100n, 0n)
+      percentDecimal = valueFixed.divide(hundred)
+    }
+
+    // Formula: total / (1 + percent/100)
+    const one = new FixedPointNumber(1n, 0n)
+    const divisor = one.add(percentDecimal)
+    return this.divide(divisor, round)
   }
 
   /**
@@ -1752,6 +1913,44 @@ export class Money {
 
     return new Money(toMoney.currency, result)
   }
+}
+
+/**
+ * Parse a percentage string into a decimal multiplier.
+ * Supports formats: "8.25%", "8.25 %", "8.25percent", "8.25 percent"
+ *
+ * @param input - The percentage string to parse
+ * @returns The parsed percentage as a FixedPointNumber (e.g., "8.25%" becomes 0.0825)
+ *          or null if the input is not a percentage string
+ * @internal
+ */
+function parsePercentage(input: string): FixedPointNumber | null {
+  const trimmed = input.trim()
+
+  // Match patterns like "8.25%", "8.25 %", "8.25percent", "8.25 percent"
+  const percentMatch = trimmed.match(
+    /^(-?\d+(?:\.\d+)?)\s*(%|percent)$/i,
+  )
+
+  if (!percentMatch) {
+    return null
+  }
+
+  const percentValue = percentMatch[1]
+
+  // Convert percentage to decimal (divide by 100)
+  const valueFixed = FixedPointNumber.fromDecimalString(percentValue)
+  const hundred = new FixedPointNumber(100n, 0n)
+
+  return valueFixed.divide(hundred)
+}
+
+/**
+ * Check if a string is a percentage string.
+ * @internal
+ */
+function isPercentageString(input: string): boolean {
+  return parsePercentage(input) !== null
 }
 
 /**
