@@ -88,3 +88,31 @@ export {
   RoundingMode,
   TRUNC,
 } from "./types"
+export { Round } from "./rounding"
+export type { Round as RoundType } from "./rounding"
+// Error types
+export {
+  CentError,
+  CurrencyMismatchError,
+  DivisionError,
+  EmptyArrayError,
+  ErrorCode,
+  ExchangeRateError,
+  InvalidInputError,
+  ParseError,
+  PrecisionLossError,
+  ValidationError,
+} from "./errors"
+export type { CentErrorOptions, ErrorCode as ErrorCodeType } from "./errors"
+// Configuration
+export {
+  configure,
+  getConfig,
+  getDefaultConfig,
+  resetConfig,
+  withConfig,
+} from "./config"
+export type { CentConfig } from "./config"
+// Result types
+export { Ok, Err, ok, err } from "./result"
+export type { Result } from "./result"

@@ -1,8 +1,23 @@
 import { assetsEqual, isAssetAmount } from "../assets"
+import { getConfig } from "../config"
 import { getCurrencyFromCode } from "../currencies"
+import {
+  CentError,
+  CurrencyMismatchError,
+  DivisionError,
+  EmptyArrayError,
+  ErrorCode,
+  InvalidInputError,
+  ParseError,
+  PrecisionLossError,
+  ValidationError,
+} from "../errors"
+import { Ok, Err, ok, err } from "../result"
+import type { Result } from "../result"
 import { FixedPointNumber } from "../fixed-point"
+import { isOnlyFactorsOf2And5 } from "../math-utils"
 import { RationalNumber } from "../rationals"
-import type { AssetAmount, Currency, FixedPoint } from "../types"
+import type { AssetAmount, Currency, FixedPoint, RoundingMode } from "../types"
 import { parseMoneyString } from "./parsing"
 import type { MoneyAmount } from "./types"
 import {
@@ -40,6 +55,47 @@ export {
   MoneyJSONSchema,
   safeValidateMoneyJSON,
 } from "./schemas"
+
+// Import crypto currencies for sub-unit registry
+import { BTC, ETH, SOL } from "../currencies/crypto"
+import { USD, EUR, GBP, JPY } from "../currencies/fiat"
+
+/**
+ * Registry of known sub-units and their corresponding currencies/decimals.
+ * The decimals value represents the number of decimal places for the sub-unit.
+ */
+const SUB_UNIT_REGISTRY: Record<string, { currency: Currency; decimals: number }> = {
+  // Bitcoin sub-units
+  satoshi: { currency: BTC, decimals: 8 },
+  sat: { currency: BTC, decimals: 8 },
+  sats: { currency: BTC, decimals: 8 },
+  millisatoshi: { currency: BTC, decimals: 11 },
+  msat: { currency: BTC, decimals: 11 },
+  msats: { currency: BTC, decimals: 11 },
+
+  // Ethereum sub-units
+  wei: { currency: ETH, decimals: 18 },
+  kwei: { currency: ETH, decimals: 15 },
+  babbage: { currency: ETH, decimals: 15 },
+  mwei: { currency: ETH, decimals: 12 },
+  lovelace: { currency: ETH, decimals: 12 },
+  gwei: { currency: ETH, decimals: 9 },
+  shannon: { currency: ETH, decimals: 9 },
+  szabo: { currency: ETH, decimals: 6 },
+  finney: { currency: ETH, decimals: 3 },
+
+  // Solana sub-units
+  lamport: { currency: SOL, decimals: 9 },
+  lamports: { currency: SOL, decimals: 9 },
+
+  // Fiat sub-units (for convenience)
+  cent: { currency: USD, decimals: 2 },
+  cents: { currency: USD, decimals: 2 },
+  penny: { currency: GBP, decimals: 2 },
+  pence: { currency: GBP, decimals: 2 },
+  eurocent: { currency: EUR, decimals: 2 },
+  yen: { currency: JPY, decimals: 0 },
+}
 
 // Import formatting functions for internal use
 import {
@@ -115,8 +171,10 @@ export class Money {
 
     // Validate that currencies match
     if (!assetsEqual(parsed.currency, referenceCurrency)) {
-      throw new Error(
-        `Currency mismatch: expected ${referenceCurrency.code || referenceCurrency.name}, got ${parsed.currency.code || parsed.currency.name}`,
+      throw new CurrencyMismatchError(
+        referenceCurrency.code || referenceCurrency.name,
+        parsed.currency.code || parsed.currency.name,
+        "parse",
       )
     }
 
@@ -148,13 +206,35 @@ export class Money {
   }
 
   /**
-   * Add money or an asset amount to this Money instance
+   * Add money, an asset amount, or a percentage to this Money instance.
    *
-   * @param other - The Money, AssetAmount, or string representation to add
+   * When a percentage string is provided (e.g., "8.25%"), the result is
+   * `this * (1 + percent/100)`. This is useful for adding tax or tips.
+   *
+   * @param other - The Money, AssetAmount, string representation, or percentage to add
+   * @param round - Optional rounding mode when adding percentages
    * @returns A new Money instance with the sum
    * @throws Error if the assets are not the same type
+   *
+   * @example
+   * const price = Money("$100.00");
+   * price.add(Money("$10.00"));  // $110.00
+   * price.add("$10.00");         // $110.00
+   * price.add("8.25%");          // $108.25 (add 8.25% tax)
+   * price.add("20%");            // $120.00 (add 20% tip)
    */
-  add(other: Money | AssetAmount | string): Money {
+  add(other: Money | AssetAmount | string, round?: RoundingMode): Money {
+    // Check for percentage string first
+    if (typeof other === "string") {
+      const percentDecimal = parsePercentage(other)
+      if (percentDecimal !== null) {
+        // add("8.25%") means: amount * (1 + 0.0825) = amount * 1.0825
+        const one = new FixedPointNumber(1n, 0n)
+        const multiplier = one.add(percentDecimal)
+        return this.multiply(multiplier, round)
+      }
+    }
+
     let otherMoney: Money
     if (typeof other === "string") {
       otherMoney = Money.parseStringToMoney(other, this.currency)
@@ -165,7 +245,11 @@ export class Money {
     }
 
     if (!assetsEqual(this.currency, otherMoney.currency)) {
-      throw new Error("Cannot add Money with different asset types")
+      throw new CurrencyMismatchError(
+        this.currency.code || this.currency.name,
+        otherMoney.currency.code || otherMoney.currency.name,
+        "add",
+      )
     }
 
     // If both are FixedPointNumber, use fast path
@@ -194,13 +278,35 @@ export class Money {
   }
 
   /**
-   * Subtract money or an asset amount from this Money instance
+   * Subtract money, an asset amount, or a percentage from this Money instance.
    *
-   * @param other - The Money, AssetAmount, or string representation to subtract
+   * When a percentage string is provided (e.g., "10%"), the result is
+   * `this * (1 - percent/100)`. This is useful for discounts.
+   *
+   * @param other - The Money, AssetAmount, string representation, or percentage to subtract
+   * @param round - Optional rounding mode when subtracting percentages
    * @returns A new Money instance with the difference
    * @throws Error if the assets are not the same type
+   *
+   * @example
+   * const price = Money("$100.00");
+   * price.subtract(Money("$10.00"));  // $90.00
+   * price.subtract("$10.00");         // $90.00
+   * price.subtract("10%");            // $90.00 (10% discount)
+   * price.subtract("25%");            // $75.00 (25% off)
    */
-  subtract(other: Money | AssetAmount | string): Money {
+  subtract(other: Money | AssetAmount | string, round?: RoundingMode): Money {
+    // Check for percentage string first
+    if (typeof other === "string") {
+      const percentDecimal = parsePercentage(other)
+      if (percentDecimal !== null) {
+        // subtract("10%") means: amount * (1 - 0.10) = amount * 0.90
+        const one = new FixedPointNumber(1n, 0n)
+        const multiplier = one.subtract(percentDecimal)
+        return this.multiply(multiplier, round)
+      }
+    }
+
     let otherMoney: Money
     if (typeof other === "string") {
       otherMoney = Money.parseStringToMoney(other, this.currency)
@@ -211,7 +317,11 @@ export class Money {
     }
 
     if (!assetsEqual(this.currency, otherMoney.currency)) {
-      throw new Error("Cannot subtract Money with different asset types")
+      throw new CurrencyMismatchError(
+        this.currency.code || this.currency.name,
+        otherMoney.currency.code || otherMoney.currency.name,
+        "subtract",
+      )
     }
 
     // If both are FixedPointNumber, use fast path
@@ -248,7 +358,12 @@ export class Money {
   concretize(): [Money, Money] {
     // Check if the asset has a decimals property (is a FungibleAsset)
     if (!("decimals" in this.balance.asset)) {
-      throw new Error("Cannot concretize Money with non-fungible asset")
+      throw new InvalidInputError(
+        "Cannot concretize Money with non-fungible asset",
+        {
+          suggestion: "Use a fungible asset (like a currency) that has decimal precision defined.",
+        },
+      )
     }
 
     const assetDecimals = this.balance.asset.decimals
@@ -296,25 +411,561 @@ export class Money {
   }
 
   /**
-   * Multiply this Money instance by a scalar or fixed-point number
+   * Multiply this Money instance by a scalar, fixed-point number, or percentage.
    *
-   * @param other - The value to multiply by (bigint or FixedPoint)
+   * When a percentage string is provided (e.g., "50%"), it multiplies by
+   * the percentage as a decimal (50% = 0.50).
+   *
+   * @param factor - The value to multiply by (bigint, FixedPoint, decimal string, or percentage string)
+   * @param round - Optional rounding mode to round result to currency precision
    * @returns A new Money instance with the product
+   *
+   * @example
+   * const price = Money("$100.00");
+   * price.multiply(3n);              // $300.00
+   * price.multiply("1.5");           // $150.00
+   * price.multiply("0.333", Round.HALF_UP);  // $33.30
+   * price.multiply("50%");           // $50.00 (50% of $100)
+   * price.multiply("150%");          // $150.00 (150% of $100)
    */
-  multiply(other: bigint | FixedPoint): Money {
+  multiply(
+    factor: bigint | FixedPoint | string,
+    round?: RoundingMode,
+  ): Money {
     const thisFixedPoint = new FixedPointNumber(
       this.balance.amount.amount,
       this.balance.amount.decimals,
     )
-    const result = thisFixedPoint.multiply(other)
 
-    return new Money({
+    // Check for percentage string
+    let factorValue: bigint | FixedPoint
+    if (typeof factor === "string") {
+      const percentDecimal = parsePercentage(factor)
+      if (percentDecimal !== null) {
+        // multiply("50%") means: amount * 0.50
+        factorValue = percentDecimal
+      } else {
+        factorValue = FixedPointNumber.fromDecimalString(factor)
+      }
+    } else {
+      factorValue = factor
+    }
+
+    const result = thisFixedPoint.multiply(factorValue)
+
+    const money = new Money({
       asset: this.balance.asset,
       amount: {
         amount: result.amount,
         decimals: result.decimals,
       },
     })
+
+    // If rounding is requested, round to currency precision
+    if (round !== undefined) {
+      return money.roundTo(Number(this.currency.decimals), round)
+    }
+
+    return money
+  }
+
+  /**
+   * Divide this Money instance by a divisor.
+   *
+   * For divisors that are only composed of factors of 2 and 5 (like 2, 4, 5, 10, 20, 25, etc.),
+   * the division is exact and no rounding mode is required.
+   *
+   * For other divisors (like 3, 7, 11, etc.), a rounding mode must be provided
+   * to determine how to handle the non-terminating decimal result.
+   *
+   * @param divisor - The value to divide by (number, bigint, string, or FixedPoint)
+   * @param round - Rounding mode (required for divisors with factors other than 2 and 5)
+   * @returns A new Money instance with the quotient
+   * @throws Error if dividing by zero
+   * @throws Error if divisor requires rounding but no rounding mode provided
+   *
+   * @example
+   * const price = Money("$100.00");
+   *
+   * // Exact division (no rounding needed)
+   * price.divide(2);           // $50.00
+   * price.divide(5);           // $20.00
+   * price.divide(10);          // $10.00
+   *
+   * // Division requiring rounding
+   * price.divide(3, Round.HALF_UP);    // $33.33
+   * price.divide(7, Round.HALF_EVEN);  // $14.29
+   *
+   * // Error: rounding required
+   * price.divide(3);  // Throws: "Division by 3 requires a rounding mode"
+   *
+   * @see {@link Round} for available rounding modes
+   */
+  divide(
+    divisor: number | bigint | string | FixedPoint,
+    round?: RoundingMode,
+  ): Money {
+    // Convert divisor to bigint for factor checking
+    let divisorBigInt: bigint
+    let divisorDecimals = 0n
+
+    if (typeof divisor === "number") {
+      if (!Number.isFinite(divisor)) {
+        throw new DivisionError(
+          divisor,
+          "Cannot divide by Infinity or NaN",
+          {
+            code: ErrorCode.INVALID_DIVISOR,
+            suggestion: "Use a finite number as the divisor.",
+          },
+        )
+      }
+      if (divisor === 0) {
+        throw new DivisionError(0, "Cannot divide by zero")
+      }
+      // Convert number to string and parse as fixed-point
+      const str = divisor.toString()
+      const fp = FixedPointNumber.fromDecimalString(str)
+      divisorBigInt = fp.amount < 0n ? -fp.amount : fp.amount
+      divisorDecimals = fp.decimals
+    } else if (typeof divisor === "bigint") {
+      if (divisor === 0n) {
+        throw new DivisionError(0n, "Cannot divide by zero")
+      }
+      divisorBigInt = divisor < 0n ? -divisor : divisor
+    } else if (typeof divisor === "string") {
+      const fp = FixedPointNumber.fromDecimalString(divisor)
+      if (fp.amount === 0n) {
+        throw new DivisionError(divisor, "Cannot divide by zero")
+      }
+      divisorBigInt = fp.amount < 0n ? -fp.amount : fp.amount
+      divisorDecimals = fp.decimals
+    } else {
+      // FixedPoint object
+      if (divisor.amount === 0n) {
+        throw new DivisionError(divisor.amount, "Cannot divide by zero")
+      }
+      divisorBigInt = divisor.amount < 0n ? -divisor.amount : divisor.amount
+      divisorDecimals = divisor.decimals
+    }
+
+    // Check if divisor is composed only of factors of 2 and 5
+    const needsRounding = !isOnlyFactorsOf2And5(divisorBigInt)
+
+    if (needsRounding && round === undefined) {
+      const divisorStr = typeof divisor === "object"
+        ? new FixedPointNumber(divisor.amount, divisor.decimals).toString()
+        : String(divisor)
+      throw new DivisionError(
+        divisorStr,
+        `Division by ${divisorStr} requires a rounding mode because ${divisorStr} contains factors other than 2 and 5.`,
+        {
+          code: ErrorCode.DIVISION_REQUIRES_ROUNDING,
+          suggestion: `Use: amount.divide(${divisorStr}, Round.HALF_UP) or another rounding mode.`,
+          example: `import { Round } from '@thesis-co/cent';\namount.divide(${divisorStr}, Round.HALF_UP);`,
+        },
+      )
+    }
+
+    // Get the amount as FixedPointNumber
+    const thisFixedPoint = isFixedPointNumber(this.amount)
+      ? this.amount
+      : toFixedPointNumber(this.amount)
+
+    // Perform division with rounding if needed
+    if (needsRounding && round !== undefined) {
+      // For non-exact division, use RationalNumber for precision then round
+      const thisRational = new RationalNumber({
+        p: thisFixedPoint.amount,
+        q: 10n ** thisFixedPoint.decimals,
+      })
+
+      // Determine sign of divisor
+      let divisorSign = 1n
+      if (typeof divisor === "number" && divisor < 0) divisorSign = -1n
+      else if (typeof divisor === "bigint" && divisor < 0n) divisorSign = -1n
+      else if (typeof divisor === "string" && divisor.startsWith("-")) divisorSign = -1n
+      else if (typeof divisor === "object" && divisor.amount < 0n) divisorSign = -1n
+
+      // Create divisor as rational
+      const divisorRational = new RationalNumber({
+        p: divisorBigInt * divisorSign,
+        q: 10n ** divisorDecimals,
+      })
+
+      // Divide: this / divisor = this * (1/divisor) = this * (q/p)
+      const resultRational = thisRational.multiply(
+        new RationalNumber({ p: divisorRational.q, q: divisorRational.p }),
+      )
+
+      // Convert to fixed-point at currency precision with rounding
+      // We need to compute: (p / q) at `currencyDecimals` decimal places
+      // That's: round(p * 10^currencyDecimals / q)
+      const currencyDecimals = this.currency.decimals
+      const scaledNumerator = resultRational.p * 10n ** currencyDecimals
+      const denominator = resultRational.q
+
+      // Apply rounding to the division
+      const quotient = scaledNumerator / denominator
+      const remainder = scaledNumerator % denominator
+
+      let roundedAmount: bigint
+      if (remainder === 0n) {
+        roundedAmount = quotient
+      } else {
+        const isNegative = scaledNumerator < 0n !== denominator < 0n
+        const absRemainder = remainder < 0n ? -remainder : remainder
+        const absDenominator = denominator < 0n ? -denominator : denominator
+        const doubleRemainder = absRemainder * 2n
+
+        switch (round) {
+          case "ceil":
+            roundedAmount = isNegative ? quotient : quotient + 1n
+            break
+          case "floor":
+            roundedAmount = isNegative ? quotient - 1n : quotient
+            break
+          case "expand":
+            roundedAmount = quotient + (isNegative ? -1n : 1n)
+            break
+          case "trunc":
+            roundedAmount = quotient
+            break
+          case "halfCeil":
+            if (doubleRemainder > absDenominator) {
+              roundedAmount = quotient + (isNegative ? -1n : 1n)
+            } else if (doubleRemainder === absDenominator) {
+              roundedAmount = isNegative ? quotient : quotient + 1n
+            } else {
+              roundedAmount = quotient
+            }
+            break
+          case "halfFloor":
+            if (doubleRemainder > absDenominator) {
+              roundedAmount = quotient + (isNegative ? -1n : 1n)
+            } else if (doubleRemainder === absDenominator) {
+              roundedAmount = isNegative ? quotient - 1n : quotient
+            } else {
+              roundedAmount = quotient
+            }
+            break
+          case "halfExpand":
+            if (doubleRemainder >= absDenominator) {
+              roundedAmount = quotient + (isNegative ? -1n : 1n)
+            } else {
+              roundedAmount = quotient
+            }
+            break
+          case "halfTrunc":
+            if (doubleRemainder > absDenominator) {
+              roundedAmount = quotient + (isNegative ? -1n : 1n)
+            } else {
+              roundedAmount = quotient
+            }
+            break
+          case "halfEven":
+          default:
+            if (doubleRemainder > absDenominator) {
+              roundedAmount = quotient + (isNegative ? -1n : 1n)
+            } else if (doubleRemainder === absDenominator) {
+              const adjustedQuotient = quotient + (isNegative ? -1n : 1n)
+              roundedAmount = adjustedQuotient % 2n === 0n ? adjustedQuotient : quotient
+            } else {
+              roundedAmount = quotient
+            }
+            break
+        }
+      }
+
+      return new Money(
+        this.currency,
+        new FixedPointNumber(roundedAmount, currencyDecimals),
+      )
+    }
+
+    // Exact division (divisor is only factors of 2 and 5)
+    // Build the FixedPoint divisor
+    let fpDivisor: FixedPoint
+    if (typeof divisor === "bigint") {
+      fpDivisor = { amount: divisor, decimals: 0n }
+    } else if (typeof divisor === "number" || typeof divisor === "string") {
+      const fp = FixedPointNumber.fromDecimalString(
+        typeof divisor === "number" ? divisor.toString() : divisor,
+      )
+      fpDivisor = { amount: fp.amount, decimals: fp.decimals }
+    } else {
+      fpDivisor = divisor
+    }
+
+    const result = thisFixedPoint.divide(fpDivisor)
+
+    return new Money({
+      asset: this.currency,
+      amount: {
+        amount: result.amount,
+        decimals: result.decimals,
+      },
+    })
+  }
+
+  /**
+   * Round this Money instance to its currency's standard precision.
+   *
+   * Most fiat currencies have 2 decimal places (e.g., USD, EUR),
+   * while cryptocurrencies vary (BTC has 8, ETH has 18).
+   *
+   * @param mode - The rounding mode to use (defaults to HALF_UP if not specified)
+   * @returns A new Money instance rounded to the currency's precision
+   *
+   * @example
+   * import { Money, Round } from '@thesis-co/cent';
+   *
+   * Money("$100.125").round();                    // $100.13 (default HALF_UP)
+   * Money("$100.125").round(Round.HALF_EVEN);    // $100.12 (banker's rounding)
+   * Money("$100.125").round(Round.FLOOR);        // $100.12
+   * Money("$100.125").round(Round.CEILING);      // $100.13
+   *
+   * @see {@link roundTo} for rounding to a specific number of decimal places
+   */
+  round(mode?: RoundingMode): Money {
+    return this.roundTo(Number(this.currency.decimals), mode)
+  }
+
+  /**
+   * Round this Money instance to a specific number of decimal places.
+   *
+   * @param decimals - The number of decimal places to round to
+   * @param mode - The rounding mode to use (defaults to HALF_UP if not specified)
+   * @returns A new Money instance rounded to the specified precision
+   * @throws Error if decimals is negative
+   *
+   * @example
+   * import { Money, Round } from '@thesis-co/cent';
+   *
+   * const precise = Money("$100.12345");
+   *
+   * precise.roundTo(2);                   // $100.12
+   * precise.roundTo(3);                   // $100.123
+   * precise.roundTo(4, Round.HALF_UP);    // $100.1235
+   * precise.roundTo(0);                   // $100.00
+   *
+   * @see {@link round} for rounding to the currency's standard precision
+   */
+  roundTo(decimals: number, mode?: RoundingMode): Money {
+    if (decimals < 0) {
+      throw new InvalidInputError(
+        `Decimal places must be non-negative, got ${decimals}`,
+        {
+          code: ErrorCode.INVALID_PRECISION,
+          suggestion: "Use a non-negative integer for decimal places.",
+        },
+      )
+    }
+
+    const targetDecimals = BigInt(decimals)
+
+    // Get the amount as FixedPointNumber
+    const thisFixedPoint = isFixedPointNumber(this.amount)
+      ? this.amount
+      : toFixedPointNumber(this.amount)
+
+    // If already at or below target precision, just normalize
+    if (thisFixedPoint.decimals <= targetDecimals) {
+      const normalized = thisFixedPoint.normalize({
+        amount: 0n,
+        decimals: targetDecimals,
+      })
+      return new Money(this.currency, normalized)
+    }
+
+    // Need to round down - use applyRounding logic
+    const scaleDiff = thisFixedPoint.decimals - targetDecimals
+    const divisor = 10n ** scaleDiff
+
+    // Default to HALF_EXPAND (HALF_UP) if no mode specified
+    const roundingMode = mode ?? ("halfExpand" as RoundingMode)
+
+    // Apply rounding
+    const quotient = thisFixedPoint.amount / divisor
+    const remainder = thisFixedPoint.amount % divisor
+
+    let roundedAmount: bigint
+
+    if (remainder === 0n) {
+      roundedAmount = quotient
+    } else {
+      const isNegative = thisFixedPoint.amount < 0n
+      const absRemainder = remainder < 0n ? -remainder : remainder
+      const doubleRemainder = absRemainder * 2n
+      const absDivisor = divisor
+
+      switch (roundingMode) {
+        case "ceil":
+          roundedAmount = isNegative ? quotient : quotient + 1n
+          break
+        case "floor":
+          roundedAmount = isNegative ? quotient - 1n : quotient
+          break
+        case "expand":
+          roundedAmount = quotient + (isNegative ? -1n : 1n)
+          break
+        case "trunc":
+          roundedAmount = quotient
+          break
+        case "halfCeil":
+          if (doubleRemainder > absDivisor) {
+            roundedAmount = quotient + (isNegative ? -1n : 1n)
+          } else if (doubleRemainder === absDivisor) {
+            roundedAmount = isNegative ? quotient : quotient + 1n
+          } else {
+            roundedAmount = quotient
+          }
+          break
+        case "halfFloor":
+          if (doubleRemainder > absDivisor) {
+            roundedAmount = quotient + (isNegative ? -1n : 1n)
+          } else if (doubleRemainder === absDivisor) {
+            roundedAmount = isNegative ? quotient - 1n : quotient
+          } else {
+            roundedAmount = quotient
+          }
+          break
+        case "halfExpand":
+          if (doubleRemainder >= absDivisor) {
+            roundedAmount = quotient + (isNegative ? -1n : 1n)
+          } else {
+            roundedAmount = quotient
+          }
+          break
+        case "halfTrunc":
+          if (doubleRemainder > absDivisor) {
+            roundedAmount = quotient + (isNegative ? -1n : 1n)
+          } else {
+            roundedAmount = quotient
+          }
+          break
+        case "halfEven":
+        default:
+          if (doubleRemainder > absDivisor) {
+            roundedAmount = quotient + (isNegative ? -1n : 1n)
+          } else if (doubleRemainder === absDivisor) {
+            const adjustedQuotient = quotient + (isNegative ? -1n : 1n)
+            roundedAmount = adjustedQuotient % 2n === 0n ? adjustedQuotient : quotient
+          } else {
+            roundedAmount = quotient
+          }
+          break
+      }
+    }
+
+    return new Money(
+      this.currency,
+      new FixedPointNumber(roundedAmount, targetDecimals),
+    )
+  }
+
+  /**
+   * Extract the percentage portion from a total that includes the percentage.
+   *
+   * This is useful for VAT/tax calculations where you have the total amount
+   * (price + tax) and need to determine the tax portion.
+   *
+   * Formula: `total - (total / (1 + percent/100))`
+   *
+   * @param percent - The percentage to extract (e.g., "21%" or "21" for 21%)
+   * @param round - Optional rounding mode for the result
+   * @returns The extracted percentage amount
+   *
+   * @example
+   * import { Money, Round } from '@thesis-co/cent';
+   *
+   * // Total is $121 with 21% VAT included - extract the VAT amount
+   * const total = Money("$121.00");
+   * const vat = total.extractPercent("21%", Round.HALF_UP);  // $21.00
+   *
+   * // 8.25% sales tax on $108.25 total
+   * Money("$108.25").extractPercent("8.25%", Round.HALF_UP);  // $8.25
+   *
+   * @see {@link removePercent} to get the base amount (before percentage)
+   */
+  extractPercent(percent: string | number, round?: RoundingMode): Money {
+    // Parse the percentage value
+    let percentDecimal: FixedPointNumber
+    if (typeof percent === "string") {
+      const parsed = parsePercentage(percent)
+      if (parsed !== null) {
+        percentDecimal = parsed
+      } else {
+        // Try parsing as a plain number string (e.g., "21" for 21%)
+        const valueFixed = FixedPointNumber.fromDecimalString(percent)
+        const hundred = new FixedPointNumber(100n, 0n)
+        percentDecimal = valueFixed.divide(hundred)
+      }
+    } else {
+      // Number input - treat as percentage value (21 means 21%)
+      const valueFixed = FixedPointNumber.fromDecimalString(percent.toString())
+      const hundred = new FixedPointNumber(100n, 0n)
+      percentDecimal = valueFixed.divide(hundred)
+    }
+
+    // Formula: total - (total / (1 + percent/100))
+    // = total - baseAmount
+    // where baseAmount = total / (1 + percentDecimal)
+    const one = new FixedPointNumber(1n, 0n)
+    const divisor = one.add(percentDecimal)
+    const baseAmount = this.divide(divisor, round)
+
+    return this.subtract(baseAmount)
+  }
+
+  /**
+   * Remove a percentage from a total that includes the percentage.
+   *
+   * This is useful for VAT/tax calculations where you have the total amount
+   * (price + tax) and need to determine the original price before tax.
+   *
+   * Formula: `total / (1 + percent/100)`
+   *
+   * @param percent - The percentage to remove (e.g., "21%" or "21" for 21%)
+   * @param round - Optional rounding mode for the result
+   * @returns The base amount (before percentage was added)
+   *
+   * @example
+   * import { Money, Round } from '@thesis-co/cent';
+   *
+   * // Total is $121 with 21% VAT included - get pre-VAT price
+   * const total = Money("$121.00");
+   * const preVat = total.removePercent("21%", Round.HALF_UP);  // $100.00
+   *
+   * // Remove 8.25% sales tax from $108.25 total
+   * Money("$108.25").removePercent("8.25%", Round.HALF_UP);  // $100.00
+   *
+   * @see {@link extractPercent} to get just the percentage amount
+   */
+  removePercent(percent: string | number, round?: RoundingMode): Money {
+    // Parse the percentage value
+    let percentDecimal: FixedPointNumber
+    if (typeof percent === "string") {
+      const parsed = parsePercentage(percent)
+      if (parsed !== null) {
+        percentDecimal = parsed
+      } else {
+        // Try parsing as a plain number string (e.g., "21" for 21%)
+        const valueFixed = FixedPointNumber.fromDecimalString(percent)
+        const hundred = new FixedPointNumber(100n, 0n)
+        percentDecimal = valueFixed.divide(hundred)
+      }
+    } else {
+      // Number input - treat as percentage value (21 means 21%)
+      const valueFixed = FixedPointNumber.fromDecimalString(percent.toString())
+      const hundred = new FixedPointNumber(100n, 0n)
+      percentDecimal = valueFixed.divide(hundred)
+    }
+
+    // Formula: total / (1 + percent/100)
+    const one = new FixedPointNumber(1n, 0n)
+    const divisor = one.add(percentDecimal)
+    return this.divide(divisor, round)
   }
 
   /**
@@ -345,7 +996,11 @@ export class Money {
     const otherAmount = otherMoney.balance
 
     if (!assetsEqual(this.balance.asset, otherAmount.asset)) {
-      throw new Error("Cannot compare Money with different asset types")
+      throw new CurrencyMismatchError(
+        this.currency.code || this.currency.name,
+        otherMoney.currency.code || otherMoney.currency.name,
+        "compare",
+      )
     }
 
     const thisFixedPoint = new FixedPointNumber(
@@ -379,7 +1034,11 @@ export class Money {
     const otherAmount = otherMoney.balance
 
     if (!assetsEqual(this.balance.asset, otherAmount.asset)) {
-      throw new Error("Cannot compare Money with different asset types")
+      throw new CurrencyMismatchError(
+        this.currency.code || this.currency.name,
+        otherMoney.currency.code || otherMoney.currency.name,
+        "compare",
+      )
     }
 
     const thisFixedPoint = new FixedPointNumber(
@@ -413,7 +1072,11 @@ export class Money {
     const otherAmount = otherMoney.balance
 
     if (!assetsEqual(this.balance.asset, otherAmount.asset)) {
-      throw new Error("Cannot compare Money with different asset types")
+      throw new CurrencyMismatchError(
+        this.currency.code || this.currency.name,
+        otherMoney.currency.code || otherMoney.currency.name,
+        "compare",
+      )
     }
 
     const thisFixedPoint = new FixedPointNumber(
@@ -447,7 +1110,11 @@ export class Money {
     const otherAmount = otherMoney.balance
 
     if (!assetsEqual(this.balance.asset, otherAmount.asset)) {
-      throw new Error("Cannot compare Money with different asset types")
+      throw new CurrencyMismatchError(
+        this.currency.code || this.currency.name,
+        otherMoney.currency.code || otherMoney.currency.name,
+        "compare",
+      )
     }
 
     const thisFixedPoint = new FixedPointNumber(
@@ -555,19 +1222,38 @@ export class Money {
     options: { distributeFractionalUnits?: boolean } = {},
   ): Money[] {
     if (ratios.length === 0) {
-      throw new Error("Cannot allocate with empty ratios array")
+      throw new InvalidInputError(
+        "Cannot allocate with empty ratios array",
+        {
+          code: ErrorCode.EMPTY_ARRAY,
+          suggestion: "Provide at least one ratio for allocation.",
+          example: "money.allocate([1, 2, 1])",
+        },
+      )
     }
 
     // Validate ratios are non-negative
     ratios.forEach((ratio) => {
       if (ratio < 0) {
-        throw new Error("Cannot allocate with negative ratios")
+        throw new InvalidInputError(
+          `Cannot allocate with negative ratios: got ${ratio}`,
+          {
+            code: ErrorCode.INVALID_RATIO,
+            suggestion: "All ratios must be non-negative integers.",
+          },
+        )
       }
     })
 
     const totalRatio = ratios.reduce((sum, ratio) => sum + ratio, 0)
     if (totalRatio === 0) {
-      throw new Error("Cannot allocate with all zero ratios")
+      throw new InvalidInputError(
+        "Cannot allocate with all zero ratios",
+        {
+          code: ErrorCode.INVALID_RATIO,
+          suggestion: "At least one ratio must be greater than zero.",
+        },
+      )
     }
 
     const { distributeFractionalUnits = true } = options
@@ -682,7 +1368,13 @@ export class Money {
     options: { distributeFractionalUnits?: boolean } = {},
   ): Money[] {
     if (!Number.isInteger(parts) || parts <= 0) {
-      throw new Error("Parts must be a positive integer")
+      throw new InvalidInputError(
+        `Parts must be a positive integer, got ${parts}`,
+        {
+          suggestion: "Provide a positive integer for the number of parts.",
+          example: "money.distribute(3)",
+        },
+      )
     }
 
     // Use allocate with equal ratios
@@ -708,7 +1400,11 @@ export class Money {
 
     return others.reduce((maxValue: Money, money) => {
       if (!assetsEqual(currentBalance.asset, money.balance.asset)) {
-        throw new Error("Cannot compare Money with different asset types")
+        throw new CurrencyMismatchError(
+          this.currency.code || this.currency.name,
+          money.currency.code || money.currency.name,
+          "compare",
+        )
       }
 
       return maxValue.lessThan(money) ? money : maxValue
@@ -733,7 +1429,11 @@ export class Money {
 
     return others.reduce((minValue: Money, money) => {
       if (!assetsEqual(currentBalance.asset, money.balance.asset)) {
-        throw new Error("Cannot compare Money with different asset types")
+        throw new CurrencyMismatchError(
+          this.currency.code || this.currency.name,
+          money.currency.code || money.currency.name,
+          "compare",
+        )
       }
 
       return minValue.greaterThan(money) ? money : minValue
@@ -869,7 +1569,11 @@ export class Money {
     }
 
     if (!assetsEqual(this.currency, otherMoney.currency)) {
-      throw new Error("Cannot compare Money with different asset types")
+      throw new CurrencyMismatchError(
+        this.currency.code || this.currency.name,
+        otherMoney.currency.code || otherMoney.currency.name,
+        "compare",
+      )
     }
 
     if (this.lessThan(otherMoney)) {
@@ -934,7 +1638,13 @@ export class Money {
   static fromJSON(json: unknown): Money {
     // First validate that json is an object
     if (typeof json !== "object" || json === null) {
-      throw new Error("Invalid JSON input: expected object")
+      throw new ValidationError(
+        "Invalid JSON input: expected object",
+        {
+          code: ErrorCode.INVALID_JSON,
+          suggestion: "Provide a valid JSON object with 'currency' and 'amount' properties.",
+        },
+      )
     }
 
     // Check if this is the old format (has 'asset' instead of 'currency')
@@ -1003,10 +1713,799 @@ export class Money {
         amount = FixedPointNumber.fromJSON(jsonObj.amount) // legacy {amount, decimals} -> FixedPointNumber
       }
     } else {
-      throw new Error("Invalid amount format in JSON")
+      throw new ValidationError(
+        "Invalid amount format in JSON",
+        {
+          code: ErrorCode.INVALID_JSON,
+          suggestion: "Amount should be a decimal string or an object with {amount, decimals} or {p, q} properties.",
+        },
+      )
     }
 
     return new Money(currency, amount)
+  }
+
+  /**
+   * Create a Money instance from a sub-unit amount.
+   *
+   * This method allows creating Money from sub-units like satoshis, gwei, wei,
+   * lamports, etc. The sub-unit name determines both the currency and the
+   * decimal offset.
+   *
+   * @param amount - The amount in sub-units (as bigint)
+   * @param unit - The sub-unit name (e.g., "sat", "msat", "gwei", "wei", "lamport")
+   * @returns A new Money instance
+   * @throws InvalidInputError if the unit is not recognized
+   *
+   * @example
+   * Money.fromSubUnits(100000000n, "sat")     // 1 BTC
+   * Money.fromSubUnits(1000n, "msat")         // 0.000000001 BTC (1000 millisatoshis)
+   * Money.fromSubUnits(1000000000n, "gwei")   // 1 ETH
+   * Money.fromSubUnits(1000000000n, "wei")    // 0.000000001 ETH
+   * Money.fromSubUnits(1000000000n, "lamport") // 1 SOL
+   */
+  static fromSubUnits(amount: bigint, unit: string): Money {
+    const unitInfo = SUB_UNIT_REGISTRY[unit.toLowerCase()]
+
+    if (!unitInfo) {
+      const knownUnits = Object.keys(SUB_UNIT_REGISTRY).join(", ")
+      throw new InvalidInputError(
+        `Unknown sub-unit: "${unit}"`,
+        {
+          suggestion: `Use one of the known sub-units: ${knownUnits}`,
+        },
+      )
+    }
+
+    const { currency, decimals } = unitInfo
+
+    return new Money({
+      asset: currency,
+      amount: {
+        amount,
+        decimals: BigInt(decimals),
+      },
+    })
+  }
+
+  /**
+   * Create a zero Money instance for a given currency.
+   *
+   * @param currency - The currency code or Currency object
+   * @returns A Money instance with zero value
+   *
+   * @example
+   * import { Money } from '@thesis-co/cent';
+   *
+   * Money.zero("USD")           // $0.00
+   * Money.zero("BTC")           // 0 BTC
+   * Money.zero("EUR")           // €0.00
+   */
+  static zero(currency: string | Currency): Money {
+    const curr =
+      typeof currency === "string" ? getCurrencyFromCode(currency) : currency
+
+    if (!curr) {
+      throw new InvalidInputError(`Unknown currency: "${currency}"`, {
+        code: ErrorCode.UNKNOWN_CURRENCY,
+        suggestion: "Use a valid currency code like 'USD', 'EUR', or 'BTC'.",
+      })
+    }
+
+    return new Money({
+      asset: curr,
+      amount: {
+        amount: 0n,
+        decimals: curr.decimals,
+      },
+    })
+  }
+
+  /**
+   * Sum an array of Money instances.
+   *
+   * All amounts must be in the same currency. If the array is empty,
+   * either provide a default value or an EmptyArrayError is thrown.
+   *
+   * @param amounts - Array of Money instances to sum
+   * @param defaultValue - Optional default value to return for empty arrays
+   * @returns The sum of all amounts
+   * @throws EmptyArrayError if array is empty and no default provided
+   * @throws CurrencyMismatchError if amounts have different currencies
+   *
+   * @example
+   * import { Money } from '@thesis-co/cent';
+   *
+   * const items = [Money("$10.00"), Money("$20.00"), Money("$30.00")];
+   * Money.sum(items);                    // $60.00
+   *
+   * // With default for empty arrays
+   * Money.sum([], Money.zero("USD"));    // $0.00
+   *
+   * // Mixed currencies throw
+   * Money.sum([Money("$10"), Money("€20")]);  // throws CurrencyMismatchError
+   */
+  static sum(amounts: Money[], defaultValue?: Money): Money {
+    if (amounts.length === 0) {
+      if (defaultValue !== undefined) {
+        return defaultValue
+      }
+      throw new EmptyArrayError("sum", {
+        suggestion:
+          "Provide at least one Money instance, or use a default value: Money.sum([], Money.zero('USD'))",
+        example: 'Money.sum([Money("$10"), Money("$20")])',
+      })
+    }
+
+    let result = amounts[0]
+    for (let i = 1; i < amounts.length; i++) {
+      result = result.add(amounts[i])
+    }
+    return result
+  }
+
+  /**
+   * Calculate the average of an array of Money instances.
+   *
+   * All amounts must be in the same currency.
+   *
+   * @param amounts - Array of Money instances to average
+   * @param round - Optional rounding mode for the result
+   * @returns The average of all amounts
+   * @throws EmptyArrayError if array is empty
+   * @throws CurrencyMismatchError if amounts have different currencies
+   *
+   * @example
+   * import { Money, Round } from '@thesis-co/cent';
+   *
+   * const prices = [Money("$10.00"), Money("$20.00"), Money("$30.00")];
+   * Money.avg(prices);                   // $20.00
+   *
+   * // With rounding
+   * const odd = [Money("$10.00"), Money("$20.00")];
+   * Money.avg([...odd, Money("$5.00")], Round.HALF_UP);  // $11.67
+   */
+  static avg(amounts: Money[], round?: RoundingMode): Money {
+    if (amounts.length === 0) {
+      throw new EmptyArrayError("avg", {
+        suggestion: "Provide at least one Money instance to calculate an average.",
+        example: 'Money.avg([Money("$10"), Money("$20"), Money("$30")])',
+      })
+    }
+
+    const sum = Money.sum(amounts)
+    return sum.divide(amounts.length, round)
+  }
+
+  /**
+   * Find the minimum value among Money instances.
+   *
+   * Accepts either multiple arguments or a single array.
+   * All amounts must be in the same currency.
+   *
+   * @param amounts - Money instances to compare (variadic or array)
+   * @returns The minimum Money value
+   * @throws EmptyArrayError if no amounts provided
+   * @throws CurrencyMismatchError if amounts have different currencies
+   *
+   * @example
+   * import { Money } from '@thesis-co/cent';
+   *
+   * // Variadic form
+   * Money.min(Money("$30"), Money("$10"), Money("$20"));  // $10.00
+   *
+   * // Array form
+   * const prices = [Money("$30"), Money("$10"), Money("$20")];
+   * Money.min(prices);  // $10.00
+   */
+  static min(...amounts: Money[] | [Money[]]): Money {
+    // Handle both variadic and array form
+    const arr =
+      amounts.length === 1 && Array.isArray(amounts[0])
+        ? amounts[0]
+        : (amounts as Money[])
+
+    if (arr.length === 0) {
+      throw new EmptyArrayError("min", {
+        suggestion: "Provide at least one Money instance to find the minimum.",
+        example: 'Money.min(Money("$10"), Money("$20"), Money("$30"))',
+      })
+    }
+
+    let result = arr[0]
+    for (let i = 1; i < arr.length; i++) {
+      if (arr[i].lessThan(result)) {
+        result = arr[i]
+      }
+    }
+    return result
+  }
+
+  /**
+   * Find the maximum value among Money instances.
+   *
+   * Accepts either multiple arguments or a single array.
+   * All amounts must be in the same currency.
+   *
+   * @param amounts - Money instances to compare (variadic or array)
+   * @returns The maximum Money value
+   * @throws EmptyArrayError if no amounts provided
+   * @throws CurrencyMismatchError if amounts have different currencies
+   *
+   * @example
+   * import { Money } from '@thesis-co/cent';
+   *
+   * // Variadic form
+   * Money.max(Money("$10"), Money("$30"), Money("$20"));  // $30.00
+   *
+   * // Array form
+   * const prices = [Money("$10"), Money("$30"), Money("$20")];
+   * Money.max(prices);  // $30.00
+   */
+  static max(...amounts: Money[] | [Money[]]): Money {
+    // Handle both variadic and array form
+    const arr =
+      amounts.length === 1 && Array.isArray(amounts[0])
+        ? amounts[0]
+        : (amounts as Money[])
+
+    if (arr.length === 0) {
+      throw new EmptyArrayError("max", {
+        suggestion: "Provide at least one Money instance to find the maximum.",
+        example: 'Money.max(Money("$10"), Money("$20"), Money("$30"))',
+      })
+    }
+
+    let result = arr[0]
+    for (let i = 1; i < arr.length; i++) {
+      if (arr[i].greaterThan(result)) {
+        result = arr[i]
+      }
+    }
+    return result
+  }
+
+  /**
+   * Parse a string into a Money instance, returning a Result instead of throwing.
+   *
+   * This is useful for handling user input or external data where you want
+   * to handle errors programmatically without try/catch.
+   *
+   * @param input - The string to parse (e.g., "$100.00", "100 USD", "€50")
+   * @returns A Result containing either the Money or a ParseError
+   *
+   * @example
+   * import { Money } from '@thesis-co/cent';
+   *
+   * // Success case
+   * const result = Money.parse("$100.00");
+   * if (result.ok) {
+   *   console.log(result.value.toString());  // "$100.00"
+   * }
+   *
+   * // Error case
+   * const invalid = Money.parse("not money");
+   * if (!invalid.ok) {
+   *   console.log(invalid.error.suggestion);  // helpful message
+   * }
+   *
+   * // Pattern matching
+   * Money.parse(userInput).match({
+   *   ok: (money) => processPayment(money),
+   *   err: (error) => showError(error.message),
+   * });
+   *
+   * // With default value
+   * const amount = Money.parse(input).unwrapOr(Money.zero("USD"));
+   */
+  static parse(input: string): Result<Money, ParseError> {
+    try {
+      const money = MoneyFactory(input)
+      return ok(money)
+    } catch (e) {
+      if (e instanceof ParseError) {
+        return err(e)
+      }
+      // Convert other errors to ParseError
+      const message = e instanceof Error ? e.message : String(e)
+      return err(
+        new ParseError(input, message, {
+          code: ErrorCode.PARSE_ERROR,
+          suggestion: 'Use a valid money format like "$100.00", "100 USD", or "€50".',
+        })
+      )
+    }
+  }
+
+  /**
+   * Try to create a Money instance from various input types, returning a Result.
+   *
+   * This is a more general version of `parse` that accepts any input type
+   * that Money() normally accepts.
+   *
+   * @param input - Any valid Money input (string, number, bigint, AssetAmount, JSON)
+   * @param currency - Currency code (required for number/bigint inputs)
+   * @returns A Result containing either the Money or a CentError
+   *
+   * @example
+   * import { Money } from '@thesis-co/cent';
+   *
+   * // String input
+   * Money.tryFrom("$100.00")
+   *
+   * // Number input (requires currency)
+   * Money.tryFrom(100.50, "USD")
+   *
+   * // Bigint input (requires currency)
+   * Money.tryFrom(10050n, "USD")
+   *
+   * // JSON input
+   * Money.tryFrom({ amount: "100.00", currency: "USD" })
+   *
+   * // Safe processing of user input
+   * Money.tryFrom(userInput, "USD").match({
+   *   ok: (money) => saveToDatabase(money),
+   *   err: (error) => logError(error),
+   * });
+   */
+  static tryFrom(
+    input: string | number | bigint | AssetAmount | unknown,
+    currency?: string | Currency
+  ): Result<Money, CentError> {
+    try {
+      let money: Money
+      if (typeof input === "number" || typeof input === "bigint") {
+        if (!currency) {
+          return err(
+            new InvalidInputError(
+              "Currency is required for number or bigint input",
+              {
+                code: ErrorCode.INVALID_INPUT,
+                suggestion:
+                  'Provide a currency code: Money.tryFrom(100, "USD")',
+              }
+            )
+          )
+        }
+        money = MoneyFactory(input as number, currency)
+      } else if (typeof input === "string") {
+        money = MoneyFactory(input)
+      } else {
+        money = MoneyFactory(input)
+      }
+      return ok(money)
+    } catch (e) {
+      if (e instanceof CentError) {
+        return err(e)
+      }
+      // Convert other errors to InvalidInputError
+      const message = e instanceof Error ? e.message : String(e)
+      return err(
+        new InvalidInputError(message, {
+          code: ErrorCode.INVALID_INPUT,
+          suggestion: "Check the input format and try again.",
+        })
+      )
+    }
+  }
+
+  /**
+   * Type guard to check if a value is a Money instance.
+   *
+   * Optionally checks if the Money is in a specific currency.
+   *
+   * @param value - The value to check
+   * @param currency - Optional currency code to match
+   * @returns True if value is Money (optionally matching currency)
+   *
+   * @example
+   * import { Money } from '@thesis-co/cent';
+   *
+   * function processPayment(amount: unknown) {
+   *   if (Money.isMoney(amount)) {
+   *     // TypeScript knows amount is Money here
+   *     console.log(amount.toString());
+   *   }
+   * }
+   *
+   * // With currency check
+   * if (Money.isMoney(value, "USD")) {
+   *   // value is Money in USD
+   * }
+   */
+  static isMoney(value: unknown, currency?: string): value is Money {
+    if (!(value instanceof Money)) {
+      return false
+    }
+    if (currency !== undefined) {
+      return value.currency.code === currency
+    }
+    return true
+  }
+
+  /**
+   * Assert that a value is a Money instance, throwing if not.
+   *
+   * @param value - The value to check
+   * @param message - Optional custom error message
+   * @throws ValidationError if value is not Money
+   *
+   * @example
+   * import { Money } from '@thesis-co/cent';
+   *
+   * function processPayment(amount: unknown) {
+   *   Money.assertMoney(amount);
+   *   // TypeScript knows amount is Money after this point
+   *   return amount.multiply(2n);
+   * }
+   */
+  static assertMoney(
+    value: unknown,
+    message?: string
+  ): asserts value is Money {
+    if (!(value instanceof Money)) {
+      throw new ValidationError(
+        message ?? `Expected Money instance, got ${typeof value}`,
+        {
+          suggestion: 'Use Money("$100") or Money.parse() to create Money instances.',
+        }
+      )
+    }
+  }
+
+  /**
+   * Assert that a Money instance has a positive value (greater than zero).
+   *
+   * @param money - The Money instance to check
+   * @param message - Optional custom error message
+   * @throws ValidationError if money is not positive
+   *
+   * @example
+   * import { Money } from '@thesis-co/cent';
+   *
+   * Money.assertPositive(Money("$100"));  // OK
+   * Money.assertPositive(Money("$0"));    // throws
+   * Money.assertPositive(Money("-$50")); // throws
+   */
+  static assertPositive(money: Money, message?: string): void {
+    if (!money.isPositive()) {
+      throw new ValidationError(
+        message ?? `Expected positive amount, got ${money.toString()}`,
+        {
+          code: ErrorCode.INVALID_RANGE,
+          suggestion: "Provide an amount greater than zero.",
+        }
+      )
+    }
+  }
+
+  /**
+   * Assert that a Money instance has a non-negative value (zero or greater).
+   *
+   * @param money - The Money instance to check
+   * @param message - Optional custom error message
+   * @throws ValidationError if money is negative
+   *
+   * @example
+   * import { Money } from '@thesis-co/cent';
+   *
+   * Money.assertNonNegative(Money("$100")); // OK
+   * Money.assertNonNegative(Money("$0"));   // OK
+   * Money.assertNonNegative(Money("-$50")); // throws
+   */
+  static assertNonNegative(money: Money, message?: string): void {
+    if (money.isNegative()) {
+      throw new ValidationError(
+        message ?? `Expected non-negative amount, got ${money.toString()}`,
+        {
+          code: ErrorCode.INVALID_RANGE,
+          suggestion: "Provide an amount greater than or equal to zero.",
+        }
+      )
+    }
+  }
+
+  /**
+   * Assert that a Money instance has a non-zero value.
+   *
+   * @param money - The Money instance to check
+   * @param message - Optional custom error message
+   * @throws ValidationError if money is zero
+   *
+   * @example
+   * import { Money } from '@thesis-co/cent';
+   *
+   * Money.assertNonZero(Money("$100"));  // OK
+   * Money.assertNonZero(Money("-$50")); // OK
+   * Money.assertNonZero(Money("$0"));    // throws
+   */
+  static assertNonZero(money: Money, message?: string): void {
+    if (money.isZero()) {
+      throw new ValidationError(
+        message ?? `Expected non-zero amount, got ${money.toString()}`,
+        {
+          code: ErrorCode.INVALID_RANGE,
+          suggestion: "Provide a non-zero amount.",
+        }
+      )
+    }
+  }
+
+  /**
+   * Validate this Money instance against constraints, returning a Result.
+   *
+   * This is useful for validating user input or business rules without
+   * throwing exceptions.
+   *
+   * @param options - Validation constraints
+   * @returns Result containing this Money if valid, or ValidationError if not
+   *
+   * @example
+   * import { Money } from '@thesis-co/cent';
+   *
+   * const amount = Money("$50");
+   *
+   * // Single constraint
+   * amount.validate({ positive: true });
+   *
+   * // Multiple constraints
+   * amount.validate({
+   *   min: Money("$10"),
+   *   max: Money("$1000"),
+   *   positive: true,
+   * });
+   *
+   * // Use with Result methods
+   * Money("$50").validate({ min: "$100" }).match({
+   *   ok: (money) => processPayment(money),
+   *   err: (error) => showError(error.message),
+   * });
+   */
+  validate(options: {
+    min?: Money | string | number
+    max?: Money | string | number
+    positive?: boolean
+    nonNegative?: boolean
+    nonZero?: boolean
+  }): Result<Money, ValidationError> {
+    const { min, max, positive, nonNegative, nonZero } = options
+
+    // Check positive constraint
+    if (positive && !this.isPositive()) {
+      return err(
+        new ValidationError(
+          `Amount must be positive, got ${this.toString()}`,
+          {
+            code: ErrorCode.INVALID_RANGE,
+            suggestion: "Provide an amount greater than zero.",
+          }
+        )
+      )
+    }
+
+    // Check nonNegative constraint
+    if (nonNegative && this.isNegative()) {
+      return err(
+        new ValidationError(
+          `Amount must be non-negative, got ${this.toString()}`,
+          {
+            code: ErrorCode.INVALID_RANGE,
+            suggestion: "Provide an amount greater than or equal to zero.",
+          }
+        )
+      )
+    }
+
+    // Check nonZero constraint
+    if (nonZero && this.isZero()) {
+      return err(
+        new ValidationError(
+          `Amount must be non-zero, got ${this.toString()}`,
+          {
+            code: ErrorCode.INVALID_RANGE,
+            suggestion: "Provide a non-zero amount.",
+          }
+        )
+      )
+    }
+
+    // Check min constraint
+    if (min !== undefined) {
+      const minMoney = min instanceof Money ? min : this.parseComparable(min)
+      if (this.lessThan(minMoney)) {
+        return err(
+          new ValidationError(
+            `Amount ${this.toString()} is less than minimum ${minMoney.toString()}`,
+            {
+              code: ErrorCode.INVALID_RANGE,
+              suggestion: `Provide an amount of at least ${minMoney.toString()}.`,
+            }
+          )
+        )
+      }
+    }
+
+    // Check max constraint
+    if (max !== undefined) {
+      const maxMoney = max instanceof Money ? max : this.parseComparable(max)
+      if (this.greaterThan(maxMoney)) {
+        return err(
+          new ValidationError(
+            `Amount ${this.toString()} is greater than maximum ${maxMoney.toString()}`,
+            {
+              code: ErrorCode.INVALID_RANGE,
+              suggestion: `Provide an amount of at most ${maxMoney.toString()}.`,
+            }
+          )
+        )
+      }
+    }
+
+    return ok(this)
+  }
+
+  /**
+   * Parse a comparable value (string or number) to Money in this currency.
+   * @internal
+   */
+  private parseComparable(value: string | number): Money {
+    if (typeof value === "number") {
+      return MoneyFactory(value, this.currency)
+    }
+    // Try parsing as Money string, fall back to assuming same currency
+    try {
+      return MoneyFactory(value)
+    } catch {
+      // If parsing fails, try as raw number string with same currency
+      return MoneyFactory(
+        parseFloat(value),
+        this.currency
+      )
+    }
+  }
+
+  /**
+   * Clamp this Money value to be within the specified bounds.
+   *
+   * Returns a new Money instance that is:
+   * - `min` if this value is less than `min`
+   * - `max` if this value is greater than `max`
+   * - this value if it's within bounds
+   *
+   * @param min - The minimum bound (Money, string, or number)
+   * @param max - The maximum bound (Money, string, or number)
+   * @returns A new Money instance clamped to the bounds
+   * @throws InvalidInputError if min > max
+   * @throws CurrencyMismatchError if currencies don't match
+   *
+   * @example
+   * import { Money } from '@thesis-co/cent';
+   *
+   * Money("$50").clamp("$0", "$100")     // $50.00 (within bounds)
+   * Money("-$50").clamp("$0", "$100")    // $0.00 (below min)
+   * Money("$150").clamp("$0", "$100")    // $100.00 (above max)
+   *
+   * // With Money instances
+   * Money("$50").clamp(Money("$0"), Money("$100"))
+   *
+   * // With numbers (interpreted in same currency)
+   * Money("$50").clamp(0, 100)
+   */
+  clamp(min: Money | string | number, max: Money | string | number): Money {
+    const minMoney = min instanceof Money ? min : this.parseComparable(min)
+    const maxMoney = max instanceof Money ? max : this.parseComparable(max)
+
+    // Validate currencies match
+    if (minMoney.currency.code !== this.currency.code) {
+      throw new CurrencyMismatchError(
+        "clamp",
+        this.currency.code,
+        minMoney.currency.code
+      )
+    }
+    if (maxMoney.currency.code !== this.currency.code) {
+      throw new CurrencyMismatchError(
+        "clamp",
+        this.currency.code,
+        maxMoney.currency.code
+      )
+    }
+
+    // Validate min <= max
+    if (minMoney.greaterThan(maxMoney)) {
+      throw new InvalidInputError(
+        `Invalid clamp bounds: min (${minMoney.toString()}) is greater than max (${maxMoney.toString()})`,
+        {
+          suggestion: "Ensure min is less than or equal to max.",
+        }
+      )
+    }
+
+    if (this.lessThan(minMoney)) {
+      return minMoney
+    }
+    if (this.greaterThan(maxMoney)) {
+      return maxMoney
+    }
+    return this
+  }
+
+  /**
+   * Return the larger of this value and the specified minimum.
+   *
+   * Equivalent to `clamp(min, Infinity)` - ensures the value is at least `min`.
+   *
+   * @param min - The minimum bound (Money, string, or number)
+   * @returns This value if >= min, otherwise min
+   * @throws CurrencyMismatchError if currencies don't match
+   *
+   * @example
+   * import { Money } from '@thesis-co/cent';
+   *
+   * Money("$50").atLeast("$0")     // $50.00 (already above min)
+   * Money("-$50").atLeast("$0")    // $0.00 (raised to min)
+   *
+   * // Ensure non-negative amounts
+   * const safeAmount = amount.atLeast(0)
+   *
+   * // With Money instance
+   * Money("$25").atLeast(Money("$50"))  // $50.00
+   */
+  atLeast(min: Money | string | number): Money {
+    const minMoney = min instanceof Money ? min : this.parseComparable(min)
+
+    // Validate currency matches
+    if (minMoney.currency.code !== this.currency.code) {
+      throw new CurrencyMismatchError(
+        "atLeast",
+        this.currency.code,
+        minMoney.currency.code
+      )
+    }
+
+    if (this.lessThan(minMoney)) {
+      return minMoney
+    }
+    return this
+  }
+
+  /**
+   * Return the smaller of this value and the specified maximum.
+   *
+   * Equivalent to `clamp(-Infinity, max)` - ensures the value is at most `max`.
+   *
+   * @param max - The maximum bound (Money, string, or number)
+   * @returns This value if <= max, otherwise max
+   * @throws CurrencyMismatchError if currencies don't match
+   *
+   * @example
+   * import { Money } from '@thesis-co/cent';
+   *
+   * Money("$50").atMost("$100")    // $50.00 (already below max)
+   * Money("$150").atMost("$100")   // $100.00 (reduced to max)
+   *
+   * // Cap at maximum allowed amount
+   * const cappedAmount = amount.atMost("$10000")
+   *
+   * // With Money instance
+   * Money("$75").atMost(Money("$50"))  // $50.00
+   */
+  atMost(max: Money | string | number): Money {
+    const maxMoney = max instanceof Money ? max : this.parseComparable(max)
+
+    // Validate currency matches
+    if (maxMoney.currency.code !== this.currency.code) {
+      throw new CurrencyMismatchError(
+        "atMost",
+        this.currency.code,
+        maxMoney.currency.code
+      )
+    }
+
+    if (this.greaterThan(maxMoney)) {
+      return maxMoney
+    }
+    return this
   }
 
   /**
@@ -1112,8 +2611,13 @@ export class Money {
       fromMoney = money2
       toMoney = money1
     } else {
-      throw new Error(
-        `Cannot convert ${this.currency.code || this.currency.name} using price with currencies ${money1.currency.code || money1.currency.name} and ${money2.currency.code || money2.currency.name}`,
+      throw new CurrencyMismatchError(
+        this.currency.code || this.currency.name,
+        `${money1.currency.code || money1.currency.name}/${money2.currency.code || money2.currency.name}`,
+        "convert",
+        {
+          suggestion: `The price or exchange rate must include ${this.currency.code || this.currency.name} as one of its currencies.`,
+        },
       )
     }
 
@@ -1156,39 +2660,201 @@ export class Money {
 }
 
 /**
- * Factory function for creating Money instances from string representations
- * Also supports original constructor pattern with AssetAmount
+ * Parse a percentage string into a decimal multiplier.
+ * Supports formats: "8.25%", "8.25 %", "8.25percent", "8.25 percent"
+ *
+ * @param input - The percentage string to parse
+ * @returns The parsed percentage as a FixedPointNumber (e.g., "8.25%" becomes 0.0825)
+ *          or null if the input is not a percentage string
+ * @internal
+ */
+function parsePercentage(input: string): FixedPointNumber | null {
+  const trimmed = input.trim()
+
+  // Match patterns like "8.25%", "8.25 %", "8.25percent", "8.25 percent"
+  const percentMatch = trimmed.match(
+    /^(-?\d+(?:\.\d+)?)\s*(%|percent)$/i,
+  )
+
+  if (!percentMatch) {
+    return null
+  }
+
+  const percentValue = percentMatch[1]
+
+  // Convert percentage to decimal (divide by 100)
+  const valueFixed = FixedPointNumber.fromDecimalString(percentValue)
+  const hundred = new FixedPointNumber(100n, 0n)
+
+  return valueFixed.divide(hundred)
+}
+
+/**
+ * Check if a string is a percentage string.
+ * @internal
+ */
+function isPercentageString(input: string): boolean {
+  return parsePercentage(input) !== null
+}
+
+/**
+ * Validate a JavaScript number input based on configuration.
+ * @internal
+ */
+function validateNumberInput(value: number, currencyCode: string): void {
+  const config = getConfig()
+
+  // Check for NaN/Infinity first (always an error)
+  if (!Number.isFinite(value)) {
+    throw new InvalidInputError(
+      `Invalid number input: ${value}`,
+      {
+        code: ErrorCode.INVALID_INPUT,
+        suggestion: "Use a finite number value.",
+      },
+    )
+  }
+
+  // If 'never' mode, reject all number inputs
+  if (config.numberInputMode === "never") {
+    throw new InvalidInputError(
+      `Number inputs are not allowed (numberInputMode: 'never')`,
+      {
+        code: ErrorCode.INVALID_INPUT,
+        suggestion: `Use a string instead: Money("${value} ${currencyCode}")`,
+        example: `Money("${value} ${currencyCode}")`,
+      },
+    )
+  }
+
+  // If 'silent' mode, allow everything
+  if (config.numberInputMode === "silent") {
+    return
+  }
+
+  // Check for potential precision loss
+  const hasPrecisionIssue =
+    !Number.isSafeInteger(value) ||
+    (value.toString().includes(".") &&
+      value.toString().split(".")[1].length > config.precisionWarningThreshold)
+
+  if (hasPrecisionIssue) {
+    const message =
+      `Number ${value} may lose precision. ` +
+      `Use a string for exact values: Money("${value} ${currencyCode}")`
+
+    if (config.numberInputMode === "error") {
+      throw new PrecisionLossError(message, {
+        suggestion: `Use a string instead: Money("${value} ${currencyCode}")`,
+        example: `Money("${value} ${currencyCode}")`,
+      })
+    }
+
+    // 'warn' mode
+    console.warn(`[cent] ${message}`)
+  }
+}
+
+/**
+ * Factory function for creating Money instances from various inputs.
  *
  * Supports multiple formats:
- * - Currency symbols: "$100", "€1,234.56", "£50.25"
- * - Currency codes: "USD 100", "100 EUR", "JPY 1,000"
- * - Crypto main units: "₿1.5", "BTC 0.001", "ETH 2.5"
- * - Crypto sub-units: "1000 sat", "100000 wei", "50 gwei"
- * - Number formats: US (1,234.56) and EU (1.234,56)
+ * - Strings: "$100", "€1,234.56", "BTC 0.001", "1000 sat"
+ * - Numbers: Money(100.50, "USD") - requires currency code
+ * - Bigints: Money(10050n, "USD") - interpreted as minor units (cents)
+ * - AssetAmount objects
+ * - JSON objects
  *
- * Symbol disambiguation uses trading volume priority:
- * $ → USD, £ → GBP, ¥ → JPY, € → EUR, etc.
- * Use currency codes for non-primary currencies.
- *
- * @param input - String representation of money amount or AssetAmount
- * @returns Money instance
- * @throws Error for invalid format or unknown currency
+ * Number inputs are validated based on the `numberInputMode` configuration:
+ * - `'warn'`: Log warning for imprecise numbers (default)
+ * - `'error'`: Throw error for imprecise numbers
+ * - `'silent'`: Allow all numbers
+ * - `'never'`: Throw error for ANY number input
  *
  * @example
- * Money("$100.50")        // USD $100.50
- * Money("€1.234,56")      // EUR €1,234.56 (EU format)
- * Money("JPY 1,000")      // JPY ¥1,000 (no decimals)
- * Money("1000 sat")       // BTC 0.00001000 (satoshis)
- * Money("100 gwei")       // ETH 0.0000001 (gwei)
+ * // String parsing
+ * Money("$100.50")           // USD $100.50
+ * Money("€1.234,56")         // EUR €1,234.56 (EU format)
+ * Money("1000 sat")          // BTC 0.00001000 (satoshis)
+ *
+ * @example
+ * // Number input (requires currency)
+ * Money(100.50, "USD")       // USD $100.50
+ * Money(99.99, "EUR")        // EUR €99.99
+ *
+ * @example
+ * // Bigint input as minor units (requires currency)
+ * Money(10050n, "USD")       // USD $100.50 (10050 cents)
+ * Money(100000000n, "BTC")   // BTC 1.00000000 (100M satoshis)
  */
 export function MoneyFactory(input: string): Money
+export function MoneyFactory(amount: number, currency: string | Currency): Money
+export function MoneyFactory(minorUnits: bigint, currency: string | Currency): Money
 export function MoneyFactory(balance: AssetAmount): Money
 export function MoneyFactory(json: unknown): Money
 export function MoneyFactory(
-  inputOrBalanceOrJson: string | AssetAmount | unknown,
+  inputOrBalanceOrJson: string | number | bigint | AssetAmount | unknown,
+  currency?: string | Currency,
 ): Money {
+  // Number input mode
+  if (typeof inputOrBalanceOrJson === "number") {
+    if (currency === undefined) {
+      throw new InvalidInputError(
+        "Currency is required when using number input",
+        {
+          suggestion: 'Provide a currency code: Money(100.50, "USD")',
+          example: 'Money(100.50, "USD")',
+        },
+      )
+    }
+
+    const currencyObj = typeof currency === "string"
+      ? getCurrencyFromCode(currency)
+      : currency
+
+    validateNumberInput(inputOrBalanceOrJson, currencyObj.code || currencyObj.name)
+
+    // Convert number to fixed-point representation
+    const str = inputOrBalanceOrJson.toString()
+    const fp = FixedPointNumber.fromDecimalString(str)
+
+    return new Money({
+      asset: currencyObj,
+      amount: {
+        amount: fp.amount,
+        decimals: fp.decimals,
+      },
+    })
+  }
+
+  // Bigint input mode (minor units)
+  if (typeof inputOrBalanceOrJson === "bigint") {
+    if (currency === undefined) {
+      throw new InvalidInputError(
+        "Currency is required when using bigint input",
+        {
+          suggestion: 'Provide a currency code: Money(10050n, "USD")',
+          example: 'Money(10050n, "USD") // 10050 cents = $100.50',
+        },
+      )
+    }
+
+    const currencyObj = typeof currency === "string"
+      ? getCurrencyFromCode(currency)
+      : currency
+
+    // Bigint is interpreted as minor units (e.g., cents for USD, satoshis for BTC)
+    return new Money({
+      asset: currencyObj,
+      amount: {
+        amount: inputOrBalanceOrJson,
+        decimals: currencyObj.decimals,
+      },
+    })
+  }
+
+  // String parsing mode
   if (typeof inputOrBalanceOrJson === "string") {
-    // String parsing mode
     const parseResult = parseMoneyString(inputOrBalanceOrJson)
 
     return new Money({
