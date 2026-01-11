@@ -306,3 +306,37 @@ export class ExchangeRateError extends CentError {
     this.name = "ExchangeRateError"
   }
 }
+
+/**
+ * Error thrown when an array operation is performed on an empty array.
+ *
+ * @example
+ * import { Money, EmptyArrayError } from '@thesis-co/cent';
+ *
+ * try {
+ *   Money.sum([]);
+ * } catch (error) {
+ *   if (error instanceof EmptyArrayError) {
+ *     console.log(error.suggestion);  // "Provide at least one Money instance..."
+ *   }
+ * }
+ */
+export class EmptyArrayError extends CentError {
+  constructor(
+    operation: string,
+    options?: {
+      suggestion?: string
+      example?: string
+    }
+  ) {
+    super({
+      code: ErrorCode.EMPTY_ARRAY,
+      message: `Cannot perform ${operation} on an empty array`,
+      suggestion:
+        options?.suggestion ??
+        `Provide at least one Money instance, or use a default value if available.`,
+      example: options?.example,
+    })
+    this.name = "EmptyArrayError"
+  }
+}

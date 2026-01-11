@@ -95,6 +95,7 @@ export {
   CentError,
   CurrencyMismatchError,
   DivisionError,
+  EmptyArrayError,
   ErrorCode,
   ExchangeRateError,
   InvalidInputError,

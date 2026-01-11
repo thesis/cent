@@ -4,6 +4,7 @@ import { getCurrencyFromCode } from "../currencies"
 import {
   CurrencyMismatchError,
   DivisionError,
+  EmptyArrayError,
   ErrorCode,
   InvalidInputError,
   ParseError,
@@ -1762,6 +1763,203 @@ export class Money {
         decimals: BigInt(decimals),
       },
     })
+  }
+
+  /**
+   * Create a zero Money instance for a given currency.
+   *
+   * @param currency - The currency code or Currency object
+   * @returns A Money instance with zero value
+   *
+   * @example
+   * import { Money } from '@thesis-co/cent';
+   *
+   * Money.zero("USD")           // $0.00
+   * Money.zero("BTC")           // 0 BTC
+   * Money.zero("EUR")           // €0.00
+   */
+  static zero(currency: string | Currency): Money {
+    const curr =
+      typeof currency === "string" ? getCurrencyFromCode(currency) : currency
+
+    if (!curr) {
+      throw new InvalidInputError(`Unknown currency: "${currency}"`, {
+        code: ErrorCode.UNKNOWN_CURRENCY,
+        suggestion: "Use a valid currency code like 'USD', 'EUR', or 'BTC'.",
+      })
+    }
+
+    return new Money({
+      asset: curr,
+      amount: {
+        amount: 0n,
+        decimals: curr.decimals,
+      },
+    })
+  }
+
+  /**
+   * Sum an array of Money instances.
+   *
+   * All amounts must be in the same currency. If the array is empty,
+   * either provide a default value or an EmptyArrayError is thrown.
+   *
+   * @param amounts - Array of Money instances to sum
+   * @param defaultValue - Optional default value to return for empty arrays
+   * @returns The sum of all amounts
+   * @throws EmptyArrayError if array is empty and no default provided
+   * @throws CurrencyMismatchError if amounts have different currencies
+   *
+   * @example
+   * import { Money } from '@thesis-co/cent';
+   *
+   * const items = [Money("$10.00"), Money("$20.00"), Money("$30.00")];
+   * Money.sum(items);                    // $60.00
+   *
+   * // With default for empty arrays
+   * Money.sum([], Money.zero("USD"));    // $0.00
+   *
+   * // Mixed currencies throw
+   * Money.sum([Money("$10"), Money("€20")]);  // throws CurrencyMismatchError
+   */
+  static sum(amounts: Money[], defaultValue?: Money): Money {
+    if (amounts.length === 0) {
+      if (defaultValue !== undefined) {
+        return defaultValue
+      }
+      throw new EmptyArrayError("sum", {
+        suggestion:
+          "Provide at least one Money instance, or use a default value: Money.sum([], Money.zero('USD'))",
+        example: 'Money.sum([Money("$10"), Money("$20")])',
+      })
+    }
+
+    let result = amounts[0]
+    for (let i = 1; i < amounts.length; i++) {
+      result = result.add(amounts[i])
+    }
+    return result
+  }
+
+  /**
+   * Calculate the average of an array of Money instances.
+   *
+   * All amounts must be in the same currency.
+   *
+   * @param amounts - Array of Money instances to average
+   * @param round - Optional rounding mode for the result
+   * @returns The average of all amounts
+   * @throws EmptyArrayError if array is empty
+   * @throws CurrencyMismatchError if amounts have different currencies
+   *
+   * @example
+   * import { Money, Round } from '@thesis-co/cent';
+   *
+   * const prices = [Money("$10.00"), Money("$20.00"), Money("$30.00")];
+   * Money.avg(prices);                   // $20.00
+   *
+   * // With rounding
+   * const odd = [Money("$10.00"), Money("$20.00")];
+   * Money.avg([...odd, Money("$5.00")], Round.HALF_UP);  // $11.67
+   */
+  static avg(amounts: Money[], round?: RoundingMode): Money {
+    if (amounts.length === 0) {
+      throw new EmptyArrayError("avg", {
+        suggestion: "Provide at least one Money instance to calculate an average.",
+        example: 'Money.avg([Money("$10"), Money("$20"), Money("$30")])',
+      })
+    }
+
+    const sum = Money.sum(amounts)
+    return sum.divide(amounts.length, round)
+  }
+
+  /**
+   * Find the minimum value among Money instances.
+   *
+   * Accepts either multiple arguments or a single array.
+   * All amounts must be in the same currency.
+   *
+   * @param amounts - Money instances to compare (variadic or array)
+   * @returns The minimum Money value
+   * @throws EmptyArrayError if no amounts provided
+   * @throws CurrencyMismatchError if amounts have different currencies
+   *
+   * @example
+   * import { Money } from '@thesis-co/cent';
+   *
+   * // Variadic form
+   * Money.min(Money("$30"), Money("$10"), Money("$20"));  // $10.00
+   *
+   * // Array form
+   * const prices = [Money("$30"), Money("$10"), Money("$20")];
+   * Money.min(prices);  // $10.00
+   */
+  static min(...amounts: Money[] | [Money[]]): Money {
+    // Handle both variadic and array form
+    const arr =
+      amounts.length === 1 && Array.isArray(amounts[0])
+        ? amounts[0]
+        : (amounts as Money[])
+
+    if (arr.length === 0) {
+      throw new EmptyArrayError("min", {
+        suggestion: "Provide at least one Money instance to find the minimum.",
+        example: 'Money.min(Money("$10"), Money("$20"), Money("$30"))',
+      })
+    }
+
+    let result = arr[0]
+    for (let i = 1; i < arr.length; i++) {
+      if (arr[i].lessThan(result)) {
+        result = arr[i]
+      }
+    }
+    return result
+  }
+
+  /**
+   * Find the maximum value among Money instances.
+   *
+   * Accepts either multiple arguments or a single array.
+   * All amounts must be in the same currency.
+   *
+   * @param amounts - Money instances to compare (variadic or array)
+   * @returns The maximum Money value
+   * @throws EmptyArrayError if no amounts provided
+   * @throws CurrencyMismatchError if amounts have different currencies
+   *
+   * @example
+   * import { Money } from '@thesis-co/cent';
+   *
+   * // Variadic form
+   * Money.max(Money("$10"), Money("$30"), Money("$20"));  // $30.00
+   *
+   * // Array form
+   * const prices = [Money("$10"), Money("$30"), Money("$20")];
+   * Money.max(prices);  // $30.00
+   */
+  static max(...amounts: Money[] | [Money[]]): Money {
+    // Handle both variadic and array form
+    const arr =
+      amounts.length === 1 && Array.isArray(amounts[0])
+        ? amounts[0]
+        : (amounts as Money[])
+
+    if (arr.length === 0) {
+      throw new EmptyArrayError("max", {
+        suggestion: "Provide at least one Money instance to find the maximum.",
+        example: 'Money.max(Money("$10"), Money("$20"), Money("$30"))',
+      })
+    }
+
+    let result = arr[0]
+    for (let i = 1; i < arr.length; i++) {
+      if (arr[i].greaterThan(result)) {
+        result = arr[i]
+      }
+    }
+    return result
   }
 
   /**
