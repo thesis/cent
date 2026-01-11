@@ -1552,6 +1552,63 @@ export class Money {
   }
 
   /**
+   * Get the amount as a decimal string (e.g., "100.50").
+   * Useful for database storage in DECIMAL/NUMERIC columns.
+   *
+   * @returns The amount as a decimal string without currency symbol
+   *
+   * @example
+   * const price = Money("$100.50");
+   * price.toDecimalString();  // "100.50"
+   *
+   * const btc = Money("1.5 BTC");
+   * btc.toDecimalString();  // "1.5"
+   */
+  toDecimalString(): string {
+    if (isFixedPointNumber(this.amount)) {
+      return this.amount.toString()
+    }
+    return this.amount.toDecimalString(50n)
+  }
+
+  /**
+   * Get the amount in minor units (cents, satoshis, wei, etc.)
+   * scaled to the currency's canonical decimal places.
+   *
+   * @returns The amount as a bigint in the smallest currency unit
+   *
+   * @example
+   * const price = Money("$100.50");
+   * price.toMinorUnits();  // 10050n (cents)
+   *
+   * const btc = Money("1.5 BTC");
+   * btc.toMinorUnits();  // 150000000n (satoshis)
+   */
+  toMinorUnits(): bigint {
+    const currencyDecimals = BigInt(this.currency.decimals)
+    const fixedPoint = isFixedPointNumber(this.amount)
+      ? this.amount
+      : toFixedPointNumber(this.amount, currencyDecimals)
+
+    const currentDecimals = fixedPoint.decimals
+    const currentAmount = fixedPoint.amount
+
+    if (currentDecimals === currencyDecimals) {
+      return currentAmount
+    }
+
+    if (currentDecimals > currencyDecimals) {
+      // Truncate extra precision
+      const scale = 10n ** (currentDecimals - currencyDecimals)
+      return currentAmount / scale
+    }
+
+    // Scale up
+    const scale = 10n ** (currencyDecimals - currentDecimals)
+    return currentAmount * scale
+  }
+
+  /**
    * Compare this Money instance with another Money instance
    *
    * @param other - The Money, AssetAmount, or string representation to compare with

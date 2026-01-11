@@ -2,11 +2,13 @@ import {
   findFractionalUnitInfo,
   getCurrencyDisplayPart,
   Money,
+  MoneyFactory,
   MoneyJSONSchema,
   normalizeLocale,
   pluralizeFractionalUnit,
   shouldUseIsoFormatting,
 } from "../src/money"
+import { FixedPointNumber } from "../src/fixed-point"
 import {
   type AssetAmount,
   CEIL,
@@ -2978,6 +2980,113 @@ describe("Money", () => {
         // This would need BTC currency setup - placeholder for now
         // expect(() => usd100.add('1000 sat')).toThrow('Currency mismatch')
       })
+    })
+  })
+
+  describe("toDecimalString", () => {
+    it("should return decimal string for USD amounts", () => {
+      const money = MoneyFactory("$100.50")
+      expect(money.toDecimalString()).toBe("100.50")
+    })
+
+    it("should return decimal string without currency symbol", () => {
+      const money = MoneyFactory("€1234.56")
+      expect(money.toDecimalString()).toBe("1234.56")
+    })
+
+    it("should handle zero amounts", () => {
+      const money = MoneyFactory("$0.00")
+      expect(money.toDecimalString()).toBe("0.00")
+    })
+
+    it("should handle whole numbers", () => {
+      const money = MoneyFactory("$100")
+      expect(money.toDecimalString()).toBe("100.00")
+    })
+
+    it("should handle very small decimals", () => {
+      const money = MoneyFactory("0.00000001 BTC")
+      expect(money.toDecimalString()).toBe("0.00000001")
+    })
+
+    it("should handle large numbers without precision loss", () => {
+      // 900719925474099.28 - larger than MAX_SAFE_INTEGER
+      const money = MoneyFactory("$900719925474099.28")
+      expect(money.toDecimalString()).toBe("900719925474099.28")
+    })
+
+    it("should handle negative amounts", () => {
+      const money = MoneyFactory("-$50.25")
+      expect(money.toDecimalString()).toBe("-50.25")
+    })
+  })
+
+  describe("toMinorUnits", () => {
+    it("should return cents for USD amounts", () => {
+      const money = MoneyFactory("$100.50")
+      expect(money.toMinorUnits()).toBe(10050n)
+    })
+
+    it("should return cents for EUR amounts", () => {
+      const money = MoneyFactory("€50.25")
+      expect(money.toMinorUnits()).toBe(5025n)
+    })
+
+    it("should return satoshis for BTC amounts", () => {
+      const money = MoneyFactory("1.5 BTC")
+      expect(money.toMinorUnits()).toBe(150000000n)
+    })
+
+    it("should handle whole numbers", () => {
+      const money = MoneyFactory("$100")
+      expect(money.toMinorUnits()).toBe(10000n)
+    })
+
+    it("should handle zero amounts", () => {
+      const money = MoneyFactory("$0.00")
+      expect(money.toMinorUnits()).toBe(0n)
+    })
+
+    it("should handle amounts created from minor units", () => {
+      const money = MoneyFactory(10050n, "USD")
+      expect(money.toMinorUnits()).toBe(10050n)
+    })
+
+    it("should truncate extra precision to currency decimals", () => {
+      // USD has 2 decimals, so extra precision should be truncated
+      const money = new Money(
+        usdCurrency,
+        new FixedPointNumber(100505n, 3n), // 100.505 with 3 decimals
+      )
+      // Should truncate to 10050 cents (100.50)
+      expect(money.toMinorUnits()).toBe(10050n)
+    })
+
+    it("should handle large numbers without precision loss", () => {
+      // Create money with a very large amount
+      const money = MoneyFactory("$900719925474099.28")
+      expect(money.toMinorUnits()).toBe(90071992547409928n)
+    })
+
+    it("should handle negative amounts", () => {
+      const money = MoneyFactory("-$50.25")
+      expect(money.toMinorUnits()).toBe(-5025n)
+    })
+
+    it("should handle sub-satoshi BTC amounts by truncating", () => {
+      // BTC has 8 decimals, 0.000000001 would be sub-satoshi
+      const btcCurrency: Currency = {
+        name: "Bitcoin",
+        code: "BTC",
+        decimals: 8n,
+        symbol: "₿",
+      }
+      const money = new Money(
+        btcCurrency,
+        new FixedPointNumber(15n, 10n), // 0.0000000015 BTC (sub-satoshi)
+      )
+      // Should truncate to 0 satoshis
+      expect(money.toMinorUnits()).toBe(0n)
     })
   })
 })
