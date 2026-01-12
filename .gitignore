@@ -5,6 +5,9 @@ packages/*/dist/
 .next/
 .vercel/
 
+# Generated Fumadocs files
+apps/docs/.source/
+
 # Copied package docs (generated at build time)
 apps/docs/content/docs/zod/
 apps/docs/content/docs/react/
