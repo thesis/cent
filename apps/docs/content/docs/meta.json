@@ -10,6 +10,14 @@
     "guides/crypto-precision",
     "---API---",
     "api/money",
+    "api/fixed-point",
+    "api/exchange-rate",
+    "api/price",
+    "api/price-range",
+    "---Integrations---",
+    "...zod",
+    "...react",
+    "...supabase",
     "---Reference---",
     "ai-guide"
   ]
