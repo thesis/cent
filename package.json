@@ -1,56 +1,22 @@
 {
-  "name": "@thesis-co/cent",
-  "version": "0.0.5",
-  "description": "A precise financial calculation library for JavaScript/TypeScript",
-  "main": "dist/index.js",
-  "types": "dist/index.d.ts",
-  "files": [
-    "dist"
-  ],
+  "name": "@thesis-co/cent-monorepo",
+  "private": true,
+  "packageManager": "pnpm@10.6.3",
+  "description": "Monorepo for Cent financial calculation libraries",
   "repository": {
     "type": "git",
     "url": "https://github.com/thesis/cent.git"
   },
-  "keywords": [
-    "finance",
-    "currency",
-    "money",
-    "decimal",
-    "precision",
-    "calculation"
-  ],
   "author": "Matt Luongo (@mhluongo)",
-  "publishConfig": {
-    "access": "public"
-  },
   "scripts": {
-    "lint": "pnpx @biomejs/biome check",
-    "lint:fix": "pnpx @biomejs/biome check --write",
-    "build": "tsc",
-    "test": "jest",
-    "prepublishOnly": "pnpm run build && pnpm run test && pnpm run lint"
+    "build": "turbo run build",
+    "test": "turbo run test",
+    "lint": "turbo run lint",
+    "lint:fix": "pnpm -r lint:fix"
   },
   "devDependencies": {
     "@thesis-co/biome-config": "github:thesis/biome-config",
-    "@types/jest": "^29.5.12",
-    "@types/node": "^20.11.24",
-    "jest": "^29.7.0",
-    "ts-jest": "^29.1.2",
+    "turbo": "^2.0.0",
     "typescript": "5.5.4"
-  },
-  "dependencies": {
-    "zod": "^3.25.67"
-  },
-  "browserslist": {
-    "production": [
-      ">0.2%",
-      "not dead",
-      "not op_mini all"
-    ],
-    "development": [
-      "last 1 chrome version",
-      "last 1 firefox version",
-      "last 1 safari version"
-    ]
   }
 }

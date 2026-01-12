@@ -54,7 +54,9 @@ jobs:
     - name: Cache build artifacts
       uses: actions/cache@v4
       with:
-        path: dist
+        path: |
+          packages/*/dist
+          .turbo
         key: build-${{ github.sha }}
 
   test:
@@ -80,7 +82,9 @@ jobs:
     - name: Restore build artifacts
       uses: actions/cache@v4
       with:
-        path: dist
+        path: |
+          packages/*/dist
+          .turbo
         key: build-${{ github.sha }}
 
     - name: Run tests
