@@ -613,6 +613,10 @@ console.log(btcRange.toString({ preferredUnit: "sat" })) // "100,000 sats - 1,00
 
 ## Other features
 
+### Zod Integration
+
+For input validation and parsing, see [`@thesis-co/cent-zod`](./packages/cent-zod) which provides Zod schemas for all `cent` types.
+
 ### Currency support
 
 `cent` includes comprehensive currency metadata for accurate formatting:
