@@ -1,0 +1,99 @@
+---
+title: Overview
+description: Precision-safe money storage and querying with Supabase
+---
+
+# Supabase
+
+Store and query money values in Supabase without precision loss.
+
+## The Problem
+
+The Supabase client returns `DECIMAL` columns as JSON numbers, losing precision:
+
+```typescript
+// Database stores: 19.99
+const { data } = await supabase.from('products').select('price').single()
+console.log(data.price)  // 19.990000000000002
+```
+
+This package wraps the Supabase client to cast money columns to text on the wire, then converts them to `Money` objects in your app.
+
+## Installation
+
+<Tabs items={["npm", "pnpm", "yarn"]}>
+  <Tab value="npm">
+```bash
+npm install @thesis-co/cent-supabase @thesis-co/cent @supabase/supabase-js
+```
+  </Tab>
+  <Tab value="pnpm">
+```bash
+pnpm add @thesis-co/cent-supabase @thesis-co/cent @supabase/supabase-js
+```
+  </Tab>
+  <Tab value="yarn">
+```bash
+yarn add @thesis-co/cent-supabase @thesis-co/cent @supabase/supabase-js
+```
+  </Tab>
+</Tabs>
+
+## Quick Start
+
+```typescript
+import { createCentSupabaseClient } from '@thesis-co/cent-supabase'
+import { Money } from '@thesis-co/cent'
+
+const supabase = createCentSupabaseClient(
+  process.env.SUPABASE_URL!,
+  process.env.SUPABASE_ANON_KEY!,
+  {
+    tables: {
+      products: {
+        money: {
+          price: { currencyCode: 'USD' },
+          cost: { currencyCode: 'USD' }
+        }
+      }
+    }
+  }
+)
+
+// SELECT returns Money objects
+const { data } = await supabase.from('products').select('*')
+console.log(data[0].price.toString()) // "$29.99"
+
+// INSERT accepts Money objects
+await supabase.from('products').insert({
+  name: 'Widget',
+  price: Money('$29.99'),
+  cost: Money('$15.00')
+})
+```
+
+## Database Schema
+
+Use `DECIMAL`/`NUMERIC` columns, not PostgreSQL's `MONEY` type:
+
+```sql
+CREATE TABLE products (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name TEXT NOT NULL,
+  price DECIMAL(19,4) NOT NULL,
+  currency TEXT NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT now()
+)
+```
+
+| Use Case | PostgreSQL Type |
+|----------|-----------------|
+| USD, EUR (2 decimals) | `DECIMAL(19,4)` |
+| BTC (8 decimals) | `DECIMAL(28,8)` |
+| ETH (18 decimals) | `DECIMAL(38,18)` |
+| Minor units (cents, sats) | `BIGINT` |
+
+## Next Steps
+
+- [Configuration](/docs/supabase/configuration) - Static/dynamic currencies, minor units, helper functions
+- [Getting Started](/docs/getting-started) - Learn the basics of Cent

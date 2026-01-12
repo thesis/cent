@@ -1,0 +1,65 @@
+---
+title: Overview
+description: Zod schemas for parsing and validating Cent types
+---
+
+# Zod
+
+Validate user input, API responses, and form data with Zod schemas for `@thesis-co/cent` types.
+
+## Installation
+
+<Tabs items={["npm", "pnpm", "yarn"]}>
+  <Tab value="npm">
+```bash
+npm install @thesis-co/cent-zod
+```
+  </Tab>
+  <Tab value="pnpm">
+```bash
+pnpm add @thesis-co/cent-zod
+```
+  </Tab>
+  <Tab value="yarn">
+```bash
+yarn add @thesis-co/cent-zod
+```
+  </Tab>
+</Tabs>
+
+## Quick Start
+
+```typescript
+import { zMoney, zMoneyString } from "@thesis-co/cent-zod"
+
+// Parse a money string
+const money = zMoneyString.parse("$100.50") // Returns Money instance
+
+// With validation constraints
+const schema = zMoney({
+  currency: "USD",
+  min: "$0.50",
+  max: "$10000",
+  positive: true,
+})
+
+schema.parse(Money("$50")) // Valid
+schema.parse(Money("-$10")) // Throws ZodError (not positive)
+```
+
+## Type Inference
+
+All schemas support Zod's type inference:
+
+```typescript
+import { z } from "zod"
+import { zMoney } from "@thesis-co/cent-zod"
+
+const schema = zMoney("USD")
+type USDMoney = z.infer<typeof schema> // Money
+```
+
+## Next Steps
+
+- [Schema Reference](/docs/zod/schemas) - Full API documentation for all schemas
+- [Core Concepts](/docs/core-concepts) - Understanding Money, precision, and immutability

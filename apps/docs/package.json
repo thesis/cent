@@ -3,8 +3,9 @@
   "version": "0.0.1",
   "private": true,
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
+    "copy-docs": "tsx scripts/copy-package-docs.ts",
+    "dev": "pnpm run copy-docs && next dev",
+    "build": "pnpm run copy-docs && next build",
     "start": "next start",
     "lint": "next lint",
     "pages:build": "npx @cloudflare/next-on-pages",
@@ -24,6 +25,7 @@
     "lz-string": "^1.5.0"
   },
   "devDependencies": {
+    "tsx": "^4.0.0",
     "@cloudflare/next-on-pages": "^1.13.0",
     "@types/node": "^20.11.24",
     "@types/react": "^18.3.0",

@@ -1,0 +1,85 @@
+---
+title: Overview
+description: React components and hooks for displaying and managing money values
+---
+
+# React
+
+Display, input, and manage money values with React components and hooks for `@thesis-co/cent`.
+
+## Installation
+
+<Tabs items={["npm", "pnpm", "yarn"]}>
+  <Tab value="npm">
+```bash
+npm install @thesis-co/cent @thesis-co/cent-react
+```
+  </Tab>
+  <Tab value="pnpm">
+```bash
+pnpm add @thesis-co/cent @thesis-co/cent-react
+```
+  </Tab>
+  <Tab value="yarn">
+```bash
+yarn add @thesis-co/cent @thesis-co/cent-react
+```
+  </Tab>
+</Tabs>
+
+## Quick Start
+
+```tsx
+import { MoneyDisplay, MoneyInput, MoneyProvider } from '@thesis-co/cent-react';
+import { Money } from '@thesis-co/cent';
+
+function App() {
+  const [amount, setAmount] = useState<Money | null>(null);
+
+  return (
+    <MoneyProvider locale="en-US" defaultCurrency="USD">
+      <MoneyInput
+        value={amount}
+        onChange={(e) => setAmount(e.target.value)}
+        currency="USD"
+      />
+      <MoneyDisplay value={amount} />
+    </MoneyProvider>
+  );
+}
+```
+
+## MoneyProvider
+
+Set default configuration for all descendant components:
+
+```tsx
+import { MoneyProvider } from '@thesis-co/cent-react';
+
+function App() {
+  return (
+    <MoneyProvider
+      locale="de-DE"
+      defaultCurrency="EUR"
+      exchangeRateResolver={async (from, to) => {
+        const response = await fetch(`/api/rates/${from}/${to}`);
+        const data = await response.json();
+        return new ExchangeRate(from, to, data.rate);
+      }}
+    >
+      <YourApp />
+    </MoneyProvider>
+  );
+}
+```
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `locale` | `string` | Default locale for formatting |
+| `defaultCurrency` | `string` | Default currency code |
+| `exchangeRateResolver` | `(from, to) => Promise<ExchangeRate>` | Required for `useExchangeRate` |
+
+## Next Steps
+
+- [Components](/docs/react/components) - MoneyDisplay, MoneyInput, MoneyDiff
+- [Hooks](/docs/react/hooks) - useMoney, useExchangeRate, useMoneyConfig

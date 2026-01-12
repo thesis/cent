@@ -4,3 +4,8 @@ packages/*/dist/
 .turbo/
 .next/
 .vercel/
+
+# Copied package docs (generated at build time)
+apps/docs/content/docs/zod/
+apps/docs/content/docs/react/
+apps/docs/content/docs/supabase/

@@ -15,9 +15,9 @@
     "api/price",
     "api/price-range",
     "---Integrations---",
-    "...zod",
-    "...react",
-    "...supabase",
+    "zod",
+    "react",
+    "supabase",
     "---Reference---",
     "ai-guide"
   ]
