@@ -32,4 +32,4 @@ function App() {
 
 ## Documentation
 
-See the [full documentation](https://cent.thesis.co/docs/react) for all components (`MoneyDisplay`, `MoneyInput`, `MoneyDiff`) and hooks (`useMoney`, `useExchangeRate`).
+See the [full documentation](./docs/) for all components (`MoneyDisplay`, `MoneyInput`, `MoneyDiff`) and hooks (`useMoney`, `useExchangeRate`).

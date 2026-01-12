@@ -27,4 +27,4 @@ const schema = zMoney({
 
 ## Documentation
 
-See the [full documentation](https://cent.thesis.co/docs/zod) for all schemas including `zPrice`, `zExchangeRate`, `zPriceRange`, and `zCurrency`.
+See the [full documentation](./docs/) for all schemas including `zPrice`, `zExchangeRate`, `zPriceRange`, and `zCurrency`.

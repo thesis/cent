@@ -32,4 +32,4 @@ console.log(data[0].price.toString()) // "$29.99"
 
 ## Documentation
 
-See the [full documentation](https://cent.thesis.co/docs/supabase) for static/dynamic currencies, minor units, realtime subscriptions, and helper functions.
+See the [full documentation](./docs/) for static/dynamic currencies, minor units, realtime subscriptions, and helper functions.
