@@ -229,9 +229,59 @@ const cents = amount.roundTo(2, Round.HALF_EVEN)
 const whole = amount.roundTo(0, Round.FLOOR)
 ```
 
+## Clamping Methods
+
+### clamp(min, max)
+
+Constrain a value within a range.
+
+```typescript
+Money("$50").clamp("$0", "$100")   // $50.00 (within bounds)
+Money("-$50").clamp("$0", "$100")  // $0.00 (below min, clamped up)
+Money("$150").clamp("$0", "$100")  // $100.00 (above max, clamped down)
+
+// With Money instances
+const min = Money("$10")
+const max = Money("$1000")
+price.clamp(min, max)
+
+// With numbers (interpreted in same currency)
+price.clamp(0, 100)
+```
+
+### atLeast(min)
+
+Ensure a minimum value.
+
+```typescript
+Money("$50").atLeast("$0")   // $50.00 (already above min)
+Money("-$50").atLeast("$0")  // $0.00 (raised to min)
+
+// Ensure non-negative amounts
+const safeAmount = amount.atLeast(0)
+
+// With Money instance
+Money("$25").atLeast(Money("$50"))  // $50.00
+```
+
+### atMost(max)
+
+Ensure a maximum value.
+
+```typescript
+Money("$50").atMost("$100")   // $50.00 (already below max)
+Money("$150").atMost("$100")  // $100.00 (reduced to max)
+
+// Cap at maximum allowed amount
+const cappedAmount = amount.atMost("$10000")
+
+// With Money instance
+Money("$75").atMost(Money("$50"))  // $50.00
+```
+
 ## Formatting Methods
 
-### toString()
+### toString(options?)
 
 Format as a string with currency symbol.
 
@@ -239,6 +289,39 @@ Format as a string with currency symbol.
 Money("$100.50").toString() // "$100.50"
 Money("0.5 BTC").toString() // "0.50000000 BTC"
 ```
+
+**Options:**
+
+```typescript
+const price = Money("$1234.567")
+
+// Locale formatting
+price.toString({ locale: "de-DE" }) // "1.234,57 $"
+
+// Compact notation
+Money("$1500000").toString({ compact: true }) // "$1.5M"
+
+// Control decimal places
+price.toString({ maxDecimals: 2 }) // "$1,234.57"
+price.toString({ minDecimals: 4 }) // "$1,234.5670"
+
+// Exclude currency symbol
+price.toString({ excludeCurrency: true }) // "1,234.567"
+
+// Rounding mode for formatting
+price.toString({ maxDecimals: 2, roundingMode: Round.FLOOR }) // "$1,234.56"
+```
+
+| Option | Type | Description |
+|--------|------|-------------|
+| `locale` | `string` | Display locale (default "en-US") |
+| `compact` | `boolean` | Use compact notation (e.g., $1M) |
+| `maxDecimals` | `number` | Maximum decimal places to display |
+| `minDecimals` | `number` | Minimum decimal places (forces trailing zeros) |
+| `excludeCurrency` | `boolean` | Exclude currency symbol/code |
+| `preferSymbol` | `boolean` | Prefer symbol over code for non-ISO currencies |
+| `preferredUnit` | `string` | Preferred fractional unit (e.g., "sat" for BTC) |
+| `roundingMode` | `RoundingMode` | Rounding mode for formatting |
 
 ### toJSON()
 

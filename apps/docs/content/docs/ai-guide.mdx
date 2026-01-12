@@ -3,7 +3,7 @@ title: AI Reference
 description: Compact reference for AI code generation
 ---
 
-> This page is optimized for AI assistants. For detailed documentation, see [Getting Started](/docs/getting-started).
+**NOTE:** This page is optimized for AI assistants. For detailed documentation, see [Getting Started](/docs/getting-started).
 
 ## Installation
 
@@ -45,9 +45,9 @@ Money(100.5) // Works but warns about precision loss
 const price = Money("$1234.56")
 
 price.toString() // "$1,234.56"
-price.toString({ symbol: false }) // "1,234.56"
-price.toString({ grouping: false }) // "$1234.56"
-price.toString({ decimals: 0 }) // "$1,235"
+price.toString({ excludeCurrency: true }) // "1,234.56"
+price.toString({ compact: true }) // "$1K"
+price.toString({ maxDecimals: 0 }) // "$1,235"
 price.toString({ locale: "de-DE" }) // "1.234,56 $"
 ```
 
