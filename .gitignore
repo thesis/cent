@@ -12,3 +12,7 @@ apps/docs/.source/
 apps/docs/content/docs/zod/
 apps/docs/content/docs/react/
 apps/docs/content/docs/supabase/
+apps/docs/content/docs/type-docs/
+
+# TypeDoc-generated API docs in packages
+packages/cent/docs/api/

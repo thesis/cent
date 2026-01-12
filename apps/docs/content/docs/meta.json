@@ -18,6 +18,8 @@
     "zod",
     "react",
     "supabase",
+    "---TypeDocs---",
+    "type-docs",
     "---Reference---",
     "ai-guide"
   ]
