@@ -1,0 +1,90 @@
+---
+title: Getting Started
+description: Install cent and start using precise financial calculations in minutes
+---
+
+# Getting Started
+
+Install cent and start using precise financial calculations in your TypeScript project.
+
+## Installation
+
+```bash
+npm install @thesis-co/cent
+```
+
+Or with your preferred package manager:
+
+```bash
+pnpm add @thesis-co/cent
+yarn add @thesis-co/cent
+```
+
+## Quick Start
+
+```typescript
+import { Money, Round } from '@thesis-co/cent';
+
+// Create money values from strings
+const price = Money("$100.50");
+const btc = Money("0.5 BTC");
+
+// Arithmetic operations
+const total = price.add("$25.25");  // $125.75
+
+// Division with rounding
+const split = total.divide(3, Round.HALF_UP);  // $41.92
+
+// Allocation and distribution
+const [a, b, c] = price.distribute(3);  // [$33.50, $33.50, $33.50]
+
+// Formatting
+console.log(price.toString());  // "$100.50"
+```
+
+## Why cent?
+
+JavaScript's floating point math is famously broken for financial calculations:
+
+```typescript
+0.1 + 0.2;       // 0.30000000000000004
+19.99 * 3;       // 59.96999999999999
+```
+
+cent solves this with arbitrary-precision arithmetic:
+
+```typescript
+Money("$0.10").add("$0.20").toString();  // "$0.30"
+Money("$19.99").multiply(3).toString();   // "$59.97"
+```
+
+## Configuration
+
+Configure library-wide defaults at application startup:
+
+```typescript
+import { configure, Round } from '@thesis-co/cent';
+
+configure({
+  numberInputMode: process.env.NODE_ENV === 'production' ? 'error' : 'warn',
+  strictPrecision: process.env.NODE_ENV === 'production',
+  defaultRoundingMode: Round.HALF_UP,
+  defaultCurrency: 'USD',
+});
+```
+
+**Options:**
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `numberInputMode` | How to handle JS number inputs: `'warn'`, `'error'`, or `'silent'` | `'warn'` |
+| `strictPrecision` | Throw on any operation that would lose precision | `false` |
+| `defaultRoundingMode` | Default rounding mode, or `'none'` to require explicit rounding | `Round.HALF_UP` |
+| `defaultCurrency` | Default currency code | `'USD'` |
+| `defaultLocale` | Default locale for formatting | `'en-US'` |
+
+## Next Steps
+
+- [Core Concepts](/docs/core-concepts) — Understand Money, precision, and immutability
+- [API Reference](/docs/api/money) — Complete Money class documentation
+- [Guides](/docs/guides/tax-calculations) — Practical examples and patterns

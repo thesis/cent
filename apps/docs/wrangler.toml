@@ -1,0 +1,7 @@
+name = "cent-docs"
+compatibility_date = "2024-01-01"
+compatibility_flags = ["nodejs_compat"]
+
+# Note: @cloudflare/next-on-pages uses Vercel's Build Output API format internally,
+# so the output directory is .vercel/output/static by design
+pages_build_output_dir = ".vercel/output/static"

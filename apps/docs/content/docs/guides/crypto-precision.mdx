@@ -1,0 +1,209 @@
+---
+title: Crypto Precision
+description: Working with Bitcoin, Ethereum, and other cryptocurrencies
+---
+
+cent handles cryptocurrency with full precision — 8 decimal places for Bitcoin (satoshi precision by default, sub-satoshi precision supported), 18 for Ethereum (wei precision by default), and 9 for Solana (lamport precision by default).
+
+## Bitcoin (BTC)
+
+### Working with Bitcoin
+
+```typescript
+import { Money, BTC } from "@thesis-co/cent"
+
+// From BTC amount
+const btc = Money("0.5 BTC")
+const precise = Money("0.00012345 BTC")
+
+// From satoshis (1 BTC = 100,000,000 sats)
+const sats = Money("50000000 sats")
+const alsoHalfBtc = Money("0.5 BTC")
+sats.equals(alsoHalfBtc) // true
+
+// Access the raw satoshi amount
+const oneBtc = Money("1 BTC")
+console.log(oneBtc.amount) // 100000000n (satoshis)
+
+// Work at satoshi precision
+const fee = Money("1000 sats")
+const total = btc.add(fee)
+```
+
+### Bitcoin Use Cases
+
+```typescript
+// Mining rewards with precise split
+const blockReward = Money("6.25 BTC")
+const [pool, miner] = blockReward.allocate([2, 98])
+
+// Transaction fee calculation
+const txSize = 250 // vbytes
+const feeRate = Money("50 sats") // per vbyte
+const txFee = feeRate.multiply(txSize)
+```
+
+### Lightning
+
+The Lightning Network supports millisatoshis (1/1000th of a satoshi) for streaming payments and sub-satoshi precision:
+
+```typescript
+// Millisatoshi precision
+const oneMilliSat = Money("1 msats")
+const streamPayment = Money("500 msats")
+
+// Streaming payment rate
+const ratePerSecond = Money("10 msats") // per second
+const duration = 3600 // 1 hour
+const totalStreamed = ratePerSecond.multiply(duration)
+console.log(totalStreamed.toString()) // "36000 msats"
+```
+
+## Ethereum (ETH)
+
+### Working with Ethereum
+
+Wei is the smallest natural unit of Ethereum — there are 10^18 wei in 1 ETH. Most ERC-20 tokens also use 18 decimals.
+
+```typescript
+import { Money, ETH } from "@thesis-co/cent"
+
+// From ETH amount
+const eth = Money("1.5 ETH")
+const precise = Money("1.234567890123456789 ETH") // Full 18 decimals
+
+// Access the raw wei amount
+const oneEth = Money("1 ETH")
+console.log(oneEth.amount) // 1000000000000000000n (wei)
+console.log(ETH.decimals) // 18n
+
+// Gas calculations in gwei (1 gwei = 10^9 wei)
+const gasPrice = Money("0.000000020 ETH") // 20 gwei
+const gasLimit = 21000
+const gasCost = gasPrice.multiply(gasLimit)
+console.log(gasCost.toString()) // "0.00042 ETH"
+```
+
+### Ethereum Use Cases
+
+```typescript
+// DeFi precision
+const stakeAmount = Money("100.123456789012345678 ETH")
+
+// Token-like calculations
+const price = Money("0.000001 ETH") // Price per token
+const quantity = 1000000
+const total = price.multiply(quantity)
+
+// Percentage yield calculation
+const principal = Money("10 ETH")
+const apy = "5.25%"
+const yearlyYield = principal.multiply(apy)
+```
+
+## Solana (SOL)
+
+Lamports are the smallest unit of Solana — there are 10^9 lamports in 1 SOL (9 decimal places).
+
+```typescript
+import { Money, SOL } from "@thesis-co/cent"
+
+// From SOL amount
+const sol = Money("10.5 SOL")
+const precise = Money("1.123456789 SOL") // Full 9 decimals
+
+// Access the raw lamport amount
+const oneSol = Money("1 SOL")
+console.log(oneSol.amount) // 1000000000n (lamports)
+console.log(SOL.decimals) // 9n
+
+// Transaction fees
+const txFee = Money("0.000005 SOL") // 5000 lamports
+const totalCost = sol.add(txFee)
+```
+
+## Currency Conversion
+
+### BTC to ETH
+
+```typescript
+import { Money, ExchangeRate, BTC, ETH } from "@thesis-co/cent"
+
+// Define exchange rate: 1 BTC = 15.5 ETH
+const rate = new ExchangeRate(BTC, ETH, "15.5")
+
+const btcAmount = Money("0.5 BTC")
+const ethAmount = rate.convert(btcAmount)
+
+console.log(ethAmount.toString()) // "7.75 ETH"
+```
+
+### Crypto to Fiat
+
+```typescript
+import { Money, ExchangeRate, BTC, USD } from "@thesis-co/cent"
+
+// 1 BTC = $45,000
+const btcUsd = new ExchangeRate(BTC, USD, "45000")
+
+const holdings = Money("0.25 BTC")
+const usdValue = btcUsd.convert(holdings)
+
+console.log(usdValue.toString()) // "$11,250.00"
+```
+
+## Handling Large Numbers
+
+cent handles extremely large values without precision loss:
+
+```typescript
+// Total Bitcoin supply in satoshis
+const maxSupply = Money("21000000 BTC")
+console.log(maxSupply.amount) // 2100000000000000n sats
+
+// Very small amounts
+const dust = Money("1 sats")
+const halfDust = dust.divide(2, Round.FLOOR) // Still works!
+
+// Ethereum with full precision
+const weiAmount = Money("0.000000000000000001 ETH") // 1 wei
+```
+
+## Best Practices
+
+### Always Use Strings
+
+```typescript
+// Correct - preserves precision
+const btc = Money("0.12345678 BTC")
+
+// Avoid - may lose precision for very precise values
+const btc = Money(0.12345678, "BTC")
+```
+
+### Specify Rounding for Division
+
+```typescript
+// For crypto calculations, be explicit about rounding
+const split = btcAmount.divide(3, Round.FLOOR) // Round down for safety
+const fee = amount.multiply("0.1%").round(Round.CEILING) // Round up for fees
+```
+
+### Keep Full Precision Until Display
+
+```typescript
+// Calculate with full precision
+const result = amount
+  .multiply(rate)
+  .add(fee)
+  .subtract(discount)
+
+// Round only when displaying
+console.log(result.roundTo(8, Round.HALF_UP).toString())
+```
+
+## Next Steps
+
+- [Money API Reference](/docs/api/money) — Complete method documentation
+- [Currency Conversion Guide](/docs/guides/currency-conversion) — Multi-currency support
+- [Tax Calculations](/docs/guides/tax-calculations) — Percentage operations

@@ -2,3 +2,17 @@ node_modules/
 dist/
 packages/*/dist/
 .turbo/
+.next/
+.vercel/
+
+# Generated Fumadocs files
+apps/docs/.source/
+
+# Copied package docs (generated at build time)
+apps/docs/content/docs/zod/
+apps/docs/content/docs/react/
+apps/docs/content/docs/supabase/
+apps/docs/content/docs/type-docs/
+
+# TypeDoc-generated API docs in packages
+packages/cent/docs/api/

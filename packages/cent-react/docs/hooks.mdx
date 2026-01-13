@@ -1,0 +1,135 @@
+---
+title: Hooks
+description: React hooks for managing money state and exchange rates
+---
+
+# Hooks
+
+## useMoney
+
+Manage money state with built-in validation.
+
+```tsx
+import { useMoney, MoneyDisplay } from '@thesis-co/cent-react';
+
+function TipCalculator() {
+  const bill = useMoney({ currency: 'USD' });
+  const tip = bill.money?.multiply(0.18) ?? null;
+
+  return (
+    <div>
+      <input {...bill.inputProps} placeholder="Bill amount" />
+      {bill.error && <span className="error">{bill.error.message}</span>}
+
+      <p>Tip (18%): <MoneyDisplay value={tip} /></p>
+      <p>Total: <MoneyDisplay value={bill.money?.add(tip ?? Money.zero('USD'))} /></p>
+    </div>
+  );
+}
+```
+
+### Options
+
+| Option | Type | Description |
+|--------|------|-------------|
+| `currency` | `string` | Currency code for the money value |
+| `initialValue` | `Money` | Initial value |
+| `min` | `string \| Money` | Minimum allowed value |
+| `max` | `string \| Money` | Maximum allowed value |
+
+### Return Value
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `money` | `Money \| null` | Current money value |
+| `inputProps` | `object` | Props to spread on an input element |
+| `error` | `{ message: string } \| null` | Validation error |
+| `setMoney` | `(money: Money \| null) => void` | Set the value programmatically |
+| `reset` | `() => void` | Reset to initial value |
+
+## useExchangeRate
+
+Fetch and manage exchange rates with polling and staleness tracking.
+
+```tsx
+import { useExchangeRate, MoneyDisplay } from '@thesis-co/cent-react';
+import { Money } from '@thesis-co/cent';
+
+function CurrencyConverter() {
+  const [usd, setUsd] = useState(Money.zero('USD'));
+
+  const { convert, isLoading, isStale, refetch } = useExchangeRate({
+    from: 'USD',
+    to: 'EUR',
+    pollInterval: 60000,    // Refresh every minute
+    staleThreshold: 300000, // Stale after 5 minutes
+  });
+
+  const eur = convert(usd);
+
+  return (
+    <div>
+      <MoneyInput value={usd} onChange={(e) => setUsd(e.target.value)} currency="USD" />
+
+      {isLoading ? (
+        <span>Loading...</span>
+      ) : (
+        <MoneyDisplay value={eur} />
+      )}
+
+      {isStale && (
+        <button onClick={refetch}>Rate may be outdated. Refresh?</button>
+      )}
+    </div>
+  );
+}
+```
+
+**Note:** Requires `exchangeRateResolver` to be provided via `MoneyProvider`.
+
+### Options
+
+| Option | Type | Description |
+|--------|------|-------------|
+| `from` | `string` | Base currency code |
+| `to` | `string` | Quote currency code |
+| `pollInterval` | `number` | Auto-refresh interval in ms |
+| `staleThreshold` | `number` | Time in ms before rate is considered stale |
+
+### Return Value
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `rate` | `ExchangeRate \| null` | Current exchange rate |
+| `convert` | `(money: Money) => Money \| null` | Convert money to target currency |
+| `isLoading` | `boolean` | Initial loading state |
+| `isStale` | `boolean` | Rate exceeds stale threshold |
+| `error` | `Error \| null` | Fetch error |
+| `refetch` | `() => void` | Manually refresh the rate |
+
+## useMoneyConfig
+
+Access `MoneyProvider` context values.
+
+```tsx
+import { useMoneyConfig } from '@thesis-co/cent-react';
+
+function CurrencySelector() {
+  const { locale, defaultCurrency } = useMoneyConfig();
+
+  return (
+    <div>
+      Current locale: {locale}
+      Default currency: {defaultCurrency}
+    </div>
+  );
+}
+```
+
+### Return Value
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `locale` | `string` | Current locale |
+| `defaultCurrency` | `string` | Default currency code |
+| `exchangeRateResolver` | `function \| undefined` | Exchange rate resolver function |

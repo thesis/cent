@@ -1,0 +1,227 @@
+---
+title: Price
+description: Arbitrary price ratios between any two assets
+---
+
+`Price` represents a ratio between any two assets. Unlike `ExchangeRate`, which is designed for currency pairs from external services, `Price` handles arbitrary price relationships including non-currency assets.
+
+## When to Use Price vs ExchangeRate
+
+| Use Case | Type |
+|----------|------|
+| Rates from exchanges/APIs | `ExchangeRate` |
+| Arbitrary asset ratios | `Price` |
+| Time-stamped rates | `ExchangeRate` |
+| Custom/non-currency assets | `Price` |
+| Bid/ask spreads | `ExchangeRate` |
+
+## Creating Prices
+
+### From Money Values
+
+```typescript
+import { Price, Money } from "@thesis-co/cent"
+
+// $50,000 per BTC
+const btcPrice = new Price(Money("$50,000"), Money("1 BTC"))
+
+// €5.00 per apple (custom asset)
+const APPLE = {
+  name: "Apple",
+  code: "APPLE",
+  decimals: 0n,
+  symbol: "🍎",
+}
+
+const usdPerApple = new Price(Money("$5.00"), {
+  asset: APPLE,
+  amount: { amount: 1n, decimals: 0n },
+})
+```
+
+### With Custom Assets
+
+```typescript
+const APPLE = {
+  name: "Apple",
+  code: "APPLE",
+  decimals: 0n,
+  symbol: "🍎",
+}
+
+const ORANGE = {
+  name: "Orange",
+  code: "ORANGE",
+  decimals: 0n,
+  symbol: "🍊",
+}
+
+// 10,000 apples per BTC
+const applesPerBtc = new Price(
+  { asset: APPLE, amount: { amount: 10000n, decimals: 0n } },
+  Money("1 BTC")
+)
+```
+
+## Price Operations
+
+### Scalar Multiplication and Division
+
+```typescript
+const usdPerApple = new Price(Money("$5.00"), {
+  asset: APPLE,
+  amount: { amount: 1n, decimals: 0n },
+})
+
+// Double the price
+const doubled = usdPerApple.multiply("2") // $10.00/apple
+
+// Half the price
+const halved = usdPerApple.divide("2") // $2.50/apple
+```
+
+### Price-to-Price Multiplication
+
+When two prices share a common asset, you can multiply them to derive a new price:
+
+```typescript
+// $5/apple × 10,000 apples/BTC = $50,000/BTC
+const usdPerBtc = usdPerApple.multiply(applesPerBtc)
+
+console.log(usdPerBtc.amounts[0].amount.amount) // 5000000n ($50,000.00)
+```
+
+The shared asset (apples) cancels out, leaving you with USD/BTC.
+
+### Price-to-Price Division
+
+```typescript
+// $50,000/BTC ÷ $5/apple = 10,000 apples/BTC
+const calculatedApplesPerBtc = usdPerBtc.divide(usdPerApple)
+```
+
+### Validation
+
+Price operations validate that assets can be combined:
+
+```typescript
+try {
+  const orangesPerBtc = new Price(
+    { asset: ORANGE, amount: { amount: 5000n, decimals: 0n } },
+    Money("1 BTC")
+  )
+
+  // Error: no shared asset between USD/Apple and Orange/BTC
+  usdPerApple.multiply(orangesPerBtc)
+} catch (error) {
+  console.log(error.message)
+  // "Cannot multiply prices: no shared asset found between US Dollar/Apple and Orange/Bitcoin"
+}
+```
+
+## Converting to Mathematical Ratio
+
+```typescript
+const price = new Price(Money("$5.00"), {
+  asset: APPLE,
+  amount: { amount: 1n, decimals: 0n },
+})
+
+// Get as RationalNumber for further math
+const ratio = price.asRatio() // 500/1 (in cents/apple)
+```
+
+## Converting to ExchangeRate
+
+When both sides of a Price are currencies, convert to ExchangeRate for additional features:
+
+```typescript
+const btcUsdPrice = new Price(Money("$50,000"), Money("1 BTC"))
+
+const exchangeRate = btcUsdPrice.toExchangeRate({
+  precision: 2, // Decimal places
+  baseAsSelection: "denominator", // BTC as base
+})
+
+// Now you can use ExchangeRate features
+console.log(exchangeRate.toString({ format: "ratio" })) // "1 BTC = $50,000.00"
+```
+
+## API Reference
+
+### Constructor
+
+```typescript
+new Price(numerator: Money | AssetAmount, denominator: Money | AssetAmount)
+```
+
+### Methods
+
+| Method | Description |
+|--------|-------------|
+| `multiply(scalar \| Price)` | Scalar or Price-to-Price multiplication |
+| `divide(scalar \| Price)` | Scalar or Price-to-Price division |
+| `invert()` | Swap numerator and denominator |
+| `asRatio()` | Convert to RationalNumber |
+| `equals(other)` | Check equality |
+| `toExchangeRate(options?)` | Convert to ExchangeRate (currency pairs only) |
+
+### Properties
+
+| Property | Description |
+|----------|-------------|
+| `amounts` | Tuple of [numerator, denominator] AssetAmounts |
+
+## Use Cases
+
+### Commodity Pricing
+
+```typescript
+const BARREL = { name: "Barrel of Oil", code: "BBL", decimals: 0n, symbol: "🛢️" }
+
+const oilPrice = new Price(Money("$75.50"), {
+  asset: BARREL,
+  amount: { amount: 1n, decimals: 0n },
+})
+
+// Calculate cost of 100 barrels
+const cost = oilPrice.multiply("100")
+```
+
+### Unit Conversions with Value
+
+```typescript
+// Price per kilogram
+const pricePerKg = new Price(Money("$12.99"), {
+  asset: { name: "Kilogram", code: "KG", decimals: 3n, symbol: "kg" },
+  amount: { amount: 1000n, decimals: 3n }, // 1.000 kg
+})
+
+// Derive price per gram
+const pricePerGram = pricePerKg.divide("1000")
+```
+
+### Derived Rates
+
+```typescript
+// If you have:
+// - Gold price in USD
+// - USD/EUR exchange rate
+// You can derive gold price in EUR
+
+const goldUsd = new Price(Money("$2000"), {
+  asset: { name: "Troy Ounce Gold", code: "XAU", decimals: 0n, symbol: "Au" },
+  amount: { amount: 1n, decimals: 0n },
+})
+
+const usdPerEur = new Price(Money("$1.08"), Money("€1"))
+
+// goldUsd × (EUR/USD) = gold in EUR
+const goldEur = goldUsd.divide(usdPerEur)
+```
+
+## Next Steps
+
+- [ExchangeRate](/docs/api/exchange-rate) — Currency-specific rate handling
+- [PriceRange](/docs/api/price-range) — Price range operations
+- [Money API Reference](/docs/api/money) — Currency values

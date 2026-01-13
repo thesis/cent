@@ -1,0 +1,162 @@
+---
+title: Components
+description: React components for displaying and inputting money values
+---
+
+# Components
+
+## MoneyDisplay
+
+Display formatted money values with locale-aware formatting.
+
+```tsx
+import { MoneyDisplay } from '@thesis-co/cent-react';
+import { Money } from '@thesis-co/cent';
+
+// Basic usage
+<MoneyDisplay value={Money("$1234.56")} />
+// "$1,234.56"
+
+// Compact notation
+<MoneyDisplay value={Money("$1500000")} compact />
+// "$1.5M"
+
+// Crypto with preferred unit
+<MoneyDisplay value={Money("0.001 BTC")} preferredUnit="sat" />
+// "100,000 sats"
+
+// Locale formatting
+<MoneyDisplay value={Money("€1234.56")} locale="de-DE" />
+// "1.234,56 €"
+
+// Null handling
+<MoneyDisplay value={null} placeholder="—" />
+// "—"
+```
+
+### Props
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `value` | `Money \| null` | required | Money value to display |
+| `compact` | `boolean` | `false` | Use compact notation (1.5M) |
+| `locale` | `string` | from provider | Locale for formatting |
+| `preferredUnit` | `string` | - | Preferred unit (e.g., "sat") |
+| `placeholder` | `ReactNode` | - | Shown when value is null |
+| `children` | `(parts) => ReactNode` | - | Custom parts renderer |
+
+### Custom Rendering
+
+```tsx
+<MoneyDisplay value={Money("$99.99")}>
+  {({ parts, isNegative }) => (
+    <span className={isNegative ? 'text-red-500' : ''}>
+      {parts.map((part, i) => (
+        <span key={i} className={part.type}>{part.value}</span>
+      ))}
+    </span>
+  )}
+</MoneyDisplay>
+```
+
+## MoneyInput
+
+Controlled input component for money values.
+
+```tsx
+import { MoneyInput } from '@thesis-co/cent-react';
+
+function PaymentForm() {
+  const [amount, setAmount] = useState<Money | null>(null);
+
+  return (
+    <MoneyInput
+      name="amount"
+      value={amount}
+      onChange={(e) => setAmount(e.target.value)}
+      currency="USD"
+      min="$1"
+      max="$10000"
+      placeholder="Enter amount"
+    />
+  );
+}
+```
+
+### Props
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `value` | `Money \| null` | required | Current value |
+| `onChange` | `(e) => void` | required | Change handler |
+| `currency` | `string` | from provider | Currency code |
+| `min` | `string \| Money` | - | Minimum value |
+| `max` | `string \| Money` | - | Maximum value |
+| `placeholder` | `string` | - | Input placeholder |
+| `name` | `string` | - | Form field name |
+| `disabled` | `boolean` | `false` | Disable input |
+
+### With react-hook-form
+
+```tsx
+import { Controller, useForm } from 'react-hook-form';
+import { MoneyInput } from '@thesis-co/cent-react';
+
+function CheckoutForm() {
+  const { control, handleSubmit } = useForm();
+
+  return (
+    <form onSubmit={handleSubmit(onSubmit)}>
+      <Controller
+        name="amount"
+        control={control}
+        render={({ field }) => (
+          <MoneyInput {...field} currency="USD" />
+        )}
+      />
+    </form>
+  );
+}
+```
+
+## MoneyDiff
+
+Display the difference between two money values.
+
+```tsx
+import { MoneyDiff } from '@thesis-co/cent-react';
+import { Money } from '@thesis-co/cent';
+
+// Basic difference
+<MoneyDiff value={Money("$120")} compareTo={Money("$100")} />
+// "+$20.00"
+
+// With percentage change
+<MoneyDiff
+  value={Money("$120")}
+  compareTo={Money("$100")}
+  showPercentage
+/>
+// "+$20.00 (+20.00%)"
+```
+
+### Props
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `value` | `Money` | required | Current value |
+| `compareTo` | `Money` | required | Value to compare against |
+| `showPercentage` | `boolean` | `false` | Show percentage change |
+| `children` | `(data) => ReactNode` | - | Custom renderer |
+
+### Custom Rendering
+
+```tsx
+<MoneyDiff value={newPrice} compareTo={oldPrice}>
+  {({ direction, formatted }) => (
+    <span className={direction === 'increase' ? 'text-green-500' : 'text-red-500'}>
+      {formatted.difference}
+    </span>
+  )}
+</MoneyDiff>
+```

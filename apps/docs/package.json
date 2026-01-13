@@ -1,0 +1,40 @@
+{
+  "name": "@thesis-co/cent-docs",
+  "version": "0.0.1",
+  "private": true,
+  "scripts": {
+    "copy-docs": "tsx scripts/copy-package-docs.ts",
+    "dev": "pnpm run copy-docs && next dev",
+    "build": "pnpm run copy-docs && next build",
+    "start": "next start",
+    "lint": "next lint",
+    "pages:build": "npx @cloudflare/next-on-pages",
+    "pages:dev": "npx wrangler pages dev .vercel/output/static --compatibility-date=2024-01-01",
+    "pages:deploy": "npx wrangler pages deploy .vercel/output/static"
+  },
+  "dependencies": {
+    "fumadocs-core": "^14.0.0",
+    "fumadocs-mdx": "^10.0.0",
+    "fumadocs-ui": "^14.0.0",
+    "next": "^14.2.0",
+    "react": "^18.3.0",
+    "react-dom": "^18.3.0",
+    "@thesis-co/cent": "workspace:*",
+    "@monaco-editor/react": "^4.6.0",
+    "sucrase": "^3.35.0",
+    "lz-string": "^1.5.0"
+  },
+  "devDependencies": {
+    "tsx": "^4.0.0",
+    "@cloudflare/next-on-pages": "^1.13.0",
+    "@types/node": "^20.11.24",
+    "@types/react": "^18.3.0",
+    "@types/react-dom": "^18.3.0",
+    "@types/lz-string": "^1.5.0",
+    "autoprefixer": "^10.4.20",
+    "postcss": "^8.4.49",
+    "tailwindcss": "^3.4.0",
+    "typescript": "^5.5.4",
+    "wrangler": "^3.0.0"
+  }
+}

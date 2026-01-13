@@ -1,0 +1,241 @@
+---
+title: ExchangeRate
+description: Currency conversion with base/quote semantics
+---
+
+`ExchangeRate` represents the conversion rate between two currencies with base/quote semantics, timestamps, and source tracking. Use it for rates from external services like exchanges and APIs.
+
+## Creating Exchange Rates
+
+### Basic Construction
+
+```typescript
+import { ExchangeRate, USD, EUR, BTC, JPY } from "@thesis-co/cent"
+
+// 1 USD = 1.08 EUR
+const usdEur = new ExchangeRate(USD, EUR, "1.08")
+console.log(usdEur.toString()) // "1.08 €/$"
+```
+
+### With Timestamp and Source
+
+```typescript
+const btcUsd = new ExchangeRate(
+  BTC,
+  USD,
+  "50000",
+  "1640995200", // Unix timestamp
+  { name: "Coinbase", priority: 1, reliability: 0.95 }
+)
+
+// Or using an object
+const eurJpy = new ExchangeRate({
+  baseCurrency: EUR,
+  quoteCurrency: JPY,
+  rate: "162.50",
+  timestamp: "1640995200",
+  source: { name: "ECB", priority: 1, reliability: 0.99 },
+})
+```
+
+### Understanding Base and Quote
+
+```typescript
+const rate = new ExchangeRate(USD, EUR, "1.08")
+
+console.log(rate.baseCurrency.code) // "USD" (1 USD costs...)
+console.log(rate.quoteCurrency.code) // "EUR" (...1.08 EUR)
+```
+
+## Currency Conversion
+
+### Basic Conversion
+
+```typescript
+import { Money, ExchangeRate, USD, EUR } from "@thesis-co/cent"
+
+const rate = new ExchangeRate(USD, EUR, "1.08")
+
+const dollars = Money("$100.00")
+const euros = rate.convert(dollars)
+console.log(euros.toString()) // "€108.00"
+```
+
+### Automatic Direction Detection
+
+The same rate works for both directions:
+
+```typescript
+const rate = new ExchangeRate(USD, EUR, "1.08") // 1 USD = 1.08 EUR
+
+// USD → EUR
+const usd100 = Money("$100")
+const eur108 = rate.convert(usd100)
+console.log(eur108.toString()) // "€108.00"
+
+// EUR → USD (automatic)
+const convertBack = rate.convert(eur108)
+console.log(convertBack.toString()) // "$100.00"
+
+// Works with any amount
+const moreEuros = Money("€540")
+const convertedDollars = rate.convert(moreEuros) // €540 ÷ 1.08 = $500
+console.log(convertedDollars.toString()) // "$500.00"
+```
+
+## Rate Operations
+
+### Inversion
+
+Swap base and quote currencies:
+
+```typescript
+const usdEur = new ExchangeRate(USD, EUR, "1.08") // 1 USD = 1.08 EUR
+const eurUsd = usdEur.invert() // 1 EUR = 0.925925... USD
+
+console.log(eurUsd.toString()) // "0.925925925925925926 $/€"
+```
+
+### Cross-Currency Calculation
+
+Multiply rates to derive cross-rates:
+
+```typescript
+// EUR/USD × USD/JPY = EUR/JPY (USD cancels out)
+const eurUsdRate = new ExchangeRate(EUR, USD, "1.0842")
+const usdJpyRate = new ExchangeRate(USD, JPY, "149.85")
+const eurJpyCalculated = eurUsdRate.multiply(usdJpyRate)
+
+console.log(eurJpyCalculated.baseCurrency.code) // "EUR"
+console.log(eurJpyCalculated.quoteCurrency.code) // "JPY"
+console.log(eurJpyCalculated.rate.toString()) // "162.4673" (1.0842 × 149.85)
+```
+
+### Averaging Multiple Rates
+
+Combine rates from multiple sources:
+
+```typescript
+const rate1 = new ExchangeRate(USD, EUR, "1.07")
+const rate2 = new ExchangeRate(USD, EUR, "1.09")
+
+const averaged = new ExchangeRate(ExchangeRate.average([rate1, rate2]))
+console.log(averaged.rate.toString()) // "1.080"
+```
+
+### Bid/Ask Spreads
+
+Create bid and ask rates for trading:
+
+```typescript
+const rate = new ExchangeRate(USD, EUR, "1.2000")
+
+// Apply 2% spread
+const { bid, ask, mid } = rate.spread("0.02") // "2%" also works
+
+console.log(bid.rate.toString()) // "1.1880" (mid - 1%)
+console.log(ask.rate.toString()) // "1.2120" (mid + 1%)
+console.log(mid.rate.toString()) // "1.2000"
+```
+
+## Time-Based Operations
+
+### Staleness Check
+
+```typescript
+const currentRate = new ExchangeRate(USD, EUR, "1.08")
+
+// Check if rate is older than 5 minutes (300000ms)
+console.log(currentRate.isStale(300000)) // false (just created)
+
+// Useful for caching and refresh logic
+if (cachedRate.isStale(60000)) {
+  // Refresh rate if older than 1 minute
+}
+```
+
+## Formatting
+
+### Format Options
+
+```typescript
+const rate = new ExchangeRate(USD, EUR, "1.08")
+
+// Symbol format (default)
+console.log(rate.toString()) // "1.08 €/$"
+
+// Code format
+console.log(rate.toString({ format: "code" })) // "1.08 EUR/USD"
+
+// Ratio format
+console.log(rate.toString({ format: "ratio" })) // "1 USD = 1.08 EUR"
+```
+
+## Serialization
+
+### JSON Support
+
+```typescript
+const rate = new ExchangeRate(USD, EUR, "1.08")
+
+// Serialize (BigInt becomes string)
+const json = rate.toJSON()
+console.log(JSON.stringify(json))
+
+// Deserialize
+const restored = ExchangeRate.fromJSON(json)
+console.log(restored.equals(rate)) // true
+```
+
+## API Reference
+
+### Constructor
+
+```typescript
+new ExchangeRate(data: ExchangeRateData)
+new ExchangeRate(
+  baseCurrency: Currency,
+  quoteCurrency: Currency,
+  rate: string,
+  timestamp?: string,
+  source?: { name: string; priority: number; reliability: number }
+)
+```
+
+### Methods
+
+| Method | Description |
+|--------|-------------|
+| `convert(money)` | Convert Money between currencies (auto direction) |
+| `multiply(scalar \| ExchangeRate)` | Scalar or cross-rate multiplication |
+| `divide(scalar \| ExchangeRate)` | Scalar or rate division |
+| `invert()` | Swap base and quote (1/rate) |
+| `spread(percent)` | Create bid/ask/mid rates |
+| `isStale(thresholdMs)` | Check if rate is older than threshold |
+| `equals(other)` | Check equality |
+| `toString(options?)` | Format as string |
+| `toJSON()` | Serialize to JSON |
+
+### Static Methods
+
+| Method | Description |
+|--------|-------------|
+| `ExchangeRate.fromJSON(json)` | Deserialize from JSON |
+| `ExchangeRate.average(rates[])` | Average multiple rates |
+| `ExchangeRate.fromPrice(price, options)` | Create from Price object |
+
+### Properties
+
+| Property | Description |
+|----------|-------------|
+| `baseCurrency` | The base currency (1 unit of this...) |
+| `quoteCurrency` | The quote currency (...equals N units of this) |
+| `rate` | The rate as a FixedPointNumber |
+| `timestamp` | When the rate was recorded |
+| `source` | Optional source metadata |
+
+## Next Steps
+
+- [Price](/docs/api/price) — Arbitrary price ratios
+- [Money API Reference](/docs/api/money) — Currency values
+- [Crypto Precision](/docs/guides/crypto-precision) — BTC/ETH conversion examples

@@ -1,0 +1,161 @@
+---
+title: Splitting Bills
+description: Divide amounts fairly using allocate and distribute
+---
+
+# Splitting Bills
+
+cent provides two methods for dividing money: `distribute` for equal splits and `allocate` for proportional splits.
+
+## Equal Splits with distribute
+
+Split an amount evenly among N recipients:
+
+```typescript
+import { Money } from '@thesis-co/cent';
+
+const bill = Money("$100.00");
+const [alice, bob, charlie] = bill.distribute(3);
+
+console.log(alice.toString());    // "$33.34"
+console.log(bob.toString());      // "$33.33"
+console.log(charlie.toString());  // "$33.33"
+```
+
+The remainder always goes to the first recipient, ensuring the total equals the original amount.
+
+## Proportional Splits with allocate
+
+Split by ratios for proportional distribution:
+
+```typescript
+const budget = Money("$1000.00");
+
+// Split 2:5:3 ratio
+const [marketing, development, operations] = budget.allocate([2, 5, 3]);
+
+console.log(marketing.toString());    // "$200.00"
+console.log(development.toString());  // "$500.00"
+console.log(operations.toString());   // "$300.00"
+```
+
+## Restaurant Bill Example
+
+```typescript
+interface Diner {
+  name: string;
+  items: string[];
+  subtotal: string;
+}
+
+function splitBill(
+  diners: Diner[],
+  tip: string,
+  taxRate: string
+) {
+  // Calculate each person's portion before tip/tax
+  const subtotals = diners.map(d => Money(d.subtotal));
+  const totalFood = subtotals.reduce((sum, s) => sum.add(s), Money.zero("USD"));
+
+  // Calculate shared costs
+  const taxAmount = totalFood.multiply(taxRate);
+  const tipAmount = totalFood.multiply(tip);
+  const sharedCosts = taxAmount.add(tipAmount);
+
+  // Allocate shared costs proportionally
+  const ratios = subtotals.map(s => Number(s.toString().replace(/[$,]/g, '')));
+  const sharedSplits = sharedCosts.allocate(ratios);
+
+  // Final amounts
+  return diners.map((diner, i) => ({
+    name: diner.name,
+    food: subtotals[i].toString(),
+    share: sharedSplits[i].toString(),
+    total: subtotals[i].add(sharedSplits[i]).toString(),
+  }));
+}
+
+const result = splitBill(
+  [
+    { name: "Alice", items: ["Pasta"], subtotal: "$18.00" },
+    { name: "Bob", items: ["Steak", "Wine"], subtotal: "$45.00" },
+    { name: "Charlie", items: ["Salad"], subtotal: "$12.00" },
+  ],
+  "20%",
+  "8%"
+);
+
+console.log(result);
+// [
+//   { name: "Alice", food: "$18.00", share: "$5.04", total: "$23.04" },
+//   { name: "Bob", food: "$45.00", share: "$12.60", total: "$57.60" },
+//   { name: "Charlie", food: "$12.00", share: "$3.36", total: "$15.36" },
+// ]
+```
+
+## Handling Remainders
+
+When splitting doesn't divide evenly, cent ensures no money is lost:
+
+```typescript
+const amount = Money("$100.01");
+const parts = amount.distribute(3);
+
+console.log(parts.map(p => p.toString()));
+// ["$33.34", "$33.34", "$33.33"]
+
+// Verify nothing is lost
+const sum = parts.reduce((a, b) => a.add(b));
+console.log(sum.equals(amount));  // true
+```
+
+## Fractional Units
+
+For high-precision amounts, you can separate sub-unit remainders:
+
+```typescript
+const precise = Money("$100.00015");
+
+// With fractional unit separation
+const parts = precise.distribute(3, { distributeFractionalUnits: false });
+
+console.log(parts.map(p => p.toString()));
+// ["$33.33", "$33.33", "$33.34", "$0.00015"]
+// Main splits clean, fractional amount separated
+```
+
+## Investment Allocation
+
+```typescript
+const portfolio = Money("$10000.00");
+
+// 60/40 stocks/bonds split
+const [stocks, bonds] = portfolio.allocate([60, 40]);
+console.log(`Stocks: ${stocks.toString()}`);  // "$6,000.00"
+console.log(`Bonds: ${bonds.toString()}`);    // "$4,000.00"
+
+// Further split stocks by sector
+const [tech, healthcare, finance] = stocks.allocate([40, 35, 25]);
+console.log(`Tech: ${tech.toString()}`);          // "$2,400.00"
+console.log(`Healthcare: ${healthcare.toString()}`); // "$2,100.00"
+console.log(`Finance: ${finance.toString()}`);    // "$1,500.00"
+```
+
+## Concretize for Accounting
+
+Separate "change" from whole currency units:
+
+```typescript
+const amount = Money("$100.00123");
+const [main, change] = amount.concretize();
+
+console.log(main.toString());    // "$100.00"
+console.log(change.toString());  // "$0.00123"
+```
+
+This is useful for ledger entries where sub-cent precision needs separate tracking.
+
+## Next Steps
+
+- [Tax Calculations Guide](/docs/guides/tax-calculations) — Calculate taxes and discounts
+- [Currency Conversion Guide](/docs/guides/currency-conversion) — Multi-currency support

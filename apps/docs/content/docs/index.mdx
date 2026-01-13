@@ -1,0 +1,50 @@
+---
+title: Introduction
+description: Precise financial calculations for TypeScript
+---
+
+Cent is an arbitrary-precision financial calculation library for TypeScript. It provides:
+
+- **Arbitrary precision** — BigInt under the hood, no floating point errors
+- **Multi-asset support** — USD, EUR, BTC, ETH, and 180+ currencies
+- **Type safety** — Can't accidentally add USD to EUR
+- **Zero dependencies** — 8KB gzipped, tree-shakable
+
+## Quick Start
+
+```bash
+npm install @thesis-co/cent
+```
+
+```typescript
+import { Money } from "@thesis-co/cent"
+
+// Create money values
+const price = Money("$100.00")
+const tax = price.multiply("0.08")
+const total = price.add(tax)
+
+console.log(total.toString()) // $108.00
+```
+
+## Why Cent?
+
+JavaScript's floating point math is famously broken for financial calculations:
+
+```typescript
+0.1 + 0.2 // 0.30000000000000004
+19.99 * 3 // 59.96999999999999
+```
+
+Cent solves this with arbitrary-precision arithmetic:
+
+```typescript
+Money("$0.10").add("$0.20").toString() // $0.30
+Money("$19.99").multiply(3).toString() // $59.97
+```
+
+## Next Steps
+
+- [Getting Started](/docs/getting-started) — Installation and basic usage
+- [Core Concepts](/docs/core-concepts) — Understanding Money, precision, and immutability
+- [API Reference](/docs/api/money) — Complete API documentation

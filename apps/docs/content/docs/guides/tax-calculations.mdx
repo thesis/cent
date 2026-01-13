@@ -1,0 +1,213 @@
+---
+title: Tax Calculations
+description: Calculate taxes, discounts, and percentages with precision
+---
+
+cent makes percentage-based calculations straightforward and precise.
+
+## Basic Tax Calculation
+
+```typescript
+import { Money, Round } from "@thesis-co/cent"
+
+const subtotal = Money("$156.78")
+const taxRate = "7.5%"
+
+// Calculate tax
+const tax = subtotal.multiply(taxRate)
+const total = subtotal.add(tax)
+
+console.log(tax.toString()) // "$11.76"
+console.log(total.toString()) // "$168.54"
+```
+
+## Percentage Operations
+
+The `multiply` method accepts percentage strings:
+
+```typescript
+const price = Money("$100.00")
+
+// Add percentage
+const withTax = price.multiply("1.08") // $108.00
+const alsoWithTax = price.add(price.multiply("8%")) // $108.00
+
+// Subtract percentage (discount)
+const discounted = price.multiply("0.90") // $90.00 (10% off)
+```
+
+## Complex Tax Scenarios
+
+### Multiple Tax Rates
+
+```typescript
+const subtotal = Money("$500.00")
+const stateTax = "6%"
+const localTax = "2.5%"
+
+// Calculate each tax
+const stateAmount = subtotal.multiply(stateTax)
+const localAmount = subtotal.multiply(localTax)
+
+// Total
+const total = subtotal.add(stateAmount).add(localAmount)
+
+console.log(`Subtotal: ${subtotal.toString()}`) // $500.00
+console.log(`State Tax: ${stateAmount.toString()}`) // $30.00
+console.log(`Local Tax: ${localAmount.toString()}`) // $12.50
+console.log(`Total: ${total.toString()}`) // $542.50
+```
+
+### Tax-Inclusive Pricing
+
+Calculate the tax amount from a tax-inclusive price:
+
+```typescript
+const taxInclusivePrice = Money("$108.00")
+const taxRate = "8%"
+
+// Price = Subtotal x (1 + taxRate)
+// Subtotal = Price / (1 + taxRate)
+const subtotal = taxInclusivePrice.divide("1.08", Round.HALF_UP)
+const taxAmount = taxInclusivePrice.subtract(subtotal)
+
+console.log(`Subtotal: ${subtotal.toString()}`) // $100.00
+console.log(`Tax: ${taxAmount.toString()}`) // $8.00
+```
+
+## Discounts
+
+### Percentage Discount
+
+```typescript
+const originalPrice = Money("$200.00")
+const discountPercent = "20%"
+
+const discountAmount = originalPrice.multiply(discountPercent)
+const salePrice = originalPrice.subtract(discountAmount)
+
+console.log(`Discount: ${discountAmount.toString()}`) // $40.00
+console.log(`Sale Price: ${salePrice.toString()}`) // $160.00
+```
+
+### Combined Discount and Tax
+
+```typescript
+const subtotal = Money("$200.00")
+
+// Apply 20% discount first
+const discounted = subtotal.multiply("0.80") // $160.00
+
+// Then calculate 8% tax
+const tax = discounted.multiply("8%") // $12.80
+const total = discounted.add(tax) // $172.80
+
+console.log(`After Discount: ${discounted.toString()}`)
+console.log(`Tax: ${tax.toString()}`)
+console.log(`Total: ${total.toString()}`)
+```
+
+## Rounding Considerations
+
+Tax calculations often need explicit rounding:
+
+```typescript
+const price = Money("$33.33")
+const taxRate = "7.5%"
+
+// Without rounding specification
+const tax = price.multiply(taxRate) // $2.49975
+
+// Round to currency precision
+const roundedTax = tax.roundTo(2, Round.HALF_UP) // $2.50
+
+// Or use round() which uses currency's default precision
+const alsoRounded = tax.round(Round.HALF_UP) // $2.50
+```
+
+### Banker's Rounding
+
+For financial applications that require unbiased rounding:
+
+```typescript
+const amounts = [
+  Money("$10.005"),
+  Money("$10.015"),
+  Money("$10.025"),
+  Money("$10.035"),
+]
+
+// HALF_EVEN rounds ties to the nearest even number
+const bankersRounded = amounts.map((a) => a.round(Round.HALF_EVEN))
+// [$10.00, $10.02, $10.02, $10.04]
+
+// Compare with HALF_UP
+const standardRounded = amounts.map((a) => a.round(Round.HALF_UP))
+// [$10.01, $10.02, $10.03, $10.04]
+```
+
+## Invoice Example
+
+```typescript
+interface LineItem {
+  description: string
+  price: string
+  quantity: number
+}
+
+function calculateInvoice(
+  items: LineItem[],
+  discountPercent: number,
+  taxPercent: number
+) {
+  // Calculate line totals
+  const lineAmounts = items.map((item) =>
+    Money(item.price).multiply(item.quantity)
+  )
+
+  // Sum to subtotal
+  const subtotal = lineAmounts.reduce(
+    (sum, amount) => sum.add(amount),
+    Money.zero("USD")
+  )
+
+  // Apply discount
+  const discountAmount = subtotal.multiply(`${discountPercent}%`)
+  const afterDiscount = subtotal.subtract(discountAmount)
+
+  // Calculate tax
+  const taxAmount = afterDiscount.multiply(`${taxPercent}%`)
+  const total = afterDiscount.add(taxAmount)
+
+  return {
+    subtotal: subtotal.toString(),
+    discount: discountAmount.toString(),
+    afterDiscount: afterDiscount.toString(),
+    tax: taxAmount.toString(),
+    total: total.toString(),
+  }
+}
+
+const invoice = calculateInvoice(
+  [
+    { description: "Widget", price: "$29.99", quantity: 2 },
+    { description: "Gadget", price: "$49.99", quantity: 1 },
+  ],
+  10, // 10% discount
+  8.25 // 8.25% tax
+)
+
+console.log(invoice)
+// {
+//   subtotal: "$109.97",
+//   discount: "$11.00",
+//   afterDiscount: "$98.97",
+//   tax: "$8.17",
+//   total: "$107.14"
+// }
+```
+
+## Next Steps
+
+- [Bill Splitting Guide](/docs/guides/splitting-bills) — Divide amounts fairly
+- [Currency Conversion Guide](/docs/guides/currency-conversion) — Multi-currency support

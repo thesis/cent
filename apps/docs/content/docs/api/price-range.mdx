@@ -1,0 +1,325 @@
+---
+title: PriceRange
+description: Represent and manipulate price ranges with precision
+---
+
+`PriceRange` represents a min-max price range for e-commerce filters, pricing strategies, and financial analysis.
+
+## Creating Price Ranges
+
+### From Strings
+
+```typescript
+import { PriceRange, Money } from "@thesis-co/cent"
+
+const range1 = PriceRange("$50 - $100")
+const range2 = PriceRange("$50-100") // Compact format
+const range3 = PriceRange("€25 - €75")
+```
+
+### From Money Instances
+
+```typescript
+const range = PriceRange(Money("$50"), Money("$100"))
+
+// Mixed creation
+const mixed = PriceRange("$50", Money("$100"))
+```
+
+## Properties
+
+```typescript
+const range = PriceRange("$50 - $100")
+
+range.min.toString() // "$50.00"
+range.max.toString() // "$100.00"
+range.span.toString() // "$50.00" (max - min)
+range.midpoint.toString() // "$75.00"
+range.isEmpty // false (true if min === max)
+range.currency // Currency object
+```
+
+## Range Queries
+
+### Contains
+
+```typescript
+const range = PriceRange("$50 - $100")
+
+range.contains(Money("$75")) // true
+range.contains("$25") // false
+range.contains("$50") // true (inclusive)
+range.contains("$100") // true (inclusive)
+```
+
+### Position Checks
+
+```typescript
+const range = PriceRange("$50 - $100")
+
+range.isAbove(Money("$40")) // true (entire range above $40)
+range.isAbove(Money("$60")) // false
+
+range.isBelow(Money("$120")) // true (entire range below $120)
+range.isBelow(Money("$80")) // false
+```
+
+## Range Operations
+
+### Overlap Detection
+
+```typescript
+const range1 = PriceRange("$50 - $100")
+const range2 = PriceRange("$80 - $150")
+
+range1.overlaps(range2) // true
+```
+
+### Intersection
+
+```typescript
+const range1 = PriceRange("$50 - $100")
+const range2 = PriceRange("$80 - $150")
+
+const intersection = range1.intersect(range2)
+console.log(intersection?.toString()) // "$80.00 - $100.00"
+
+// Returns null if no overlap
+const noOverlap = range1.intersect(PriceRange("$200 - $300"))
+console.log(noOverlap) // null
+```
+
+### Union
+
+```typescript
+const range1 = PriceRange("$50 - $100")
+const range2 = PriceRange("$80 - $150")
+
+const union = range1.union(range2)
+console.log(union.toString()) // "$50.00 - $150.00"
+```
+
+### Split
+
+Divide a range into equal parts:
+
+```typescript
+const range = PriceRange("$50 - $100")
+const parts = range.split(3)
+
+console.log(parts[0].toString()) // "$50.00 - $66.67"
+console.log(parts[1].toString()) // "$66.67 - $83.33"
+console.log(parts[2].toString()) // "$83.33 - $100.00"
+```
+
+## Static Factory Methods
+
+### Under
+
+Create a range from zero to max:
+
+```typescript
+const under100 = PriceRange.under(Money("$100"))
+console.log(under100.toString()) // "$0.00 - $100.00"
+```
+
+### Over
+
+Create a range from min to max:
+
+```typescript
+const range = PriceRange.over(Money("$50"), Money("$500"))
+console.log(range.toString()) // "$50.00 - $500.00"
+```
+
+### Around
+
+Create a range around a center point:
+
+```typescript
+const range = PriceRange.around(Money("$100"), "10%")
+console.log(range.toString()) // "$90.00 - $110.00"
+```
+
+### Create Buckets
+
+Generate N equal price buckets:
+
+```typescript
+const buckets = PriceRange.createBuckets(Money("$0"), Money("$500"), 5)
+
+buckets.forEach((bucket, i) => {
+  console.log(`Bucket ${i + 1}: ${bucket.toString()}`)
+})
+// Bucket 1: $0.00 - $100.00
+// Bucket 2: $100.00 - $200.00
+// Bucket 3: $200.00 - $300.00
+// Bucket 4: $300.00 - $400.00
+// Bucket 5: $400.00 - $500.00
+```
+
+## Formatting
+
+### Format Styles
+
+```typescript
+const range = PriceRange("$50 - $100")
+
+range.toString() // "$50.00 - $100.00" (default)
+range.toString({ format: "compact" }) // "$50-100"
+range.toString({ format: "from" }) // "From $50.00"
+range.toString({ format: "upTo" }) // "Up to $100.00"
+range.toString({ format: "range" }) // "$50.00 to $100.00"
+range.toString({ format: "between" }) // "Between $50.00 and $100.00"
+```
+
+### Localization
+
+```typescript
+const eurRange = PriceRange("€50 - €100")
+console.log(eurRange.toString({ locale: "de-DE" })) // "50,00 € - 100,00 €"
+```
+
+### Compact Notation
+
+```typescript
+const largeRange = PriceRange("$1000000 - $5000000")
+console.log(largeRange.toString({ compact: true })) // "$1M - $5M"
+```
+
+### Crypto Units
+
+```typescript
+const btcRange = PriceRange("₿0.001 - ₿0.01")
+
+console.log(btcRange.contains(Money("₿0.005"))) // true
+console.log(btcRange.toString({ preferredUnit: "sat" })) // "100,000 sats - 1,000,000 sats"
+```
+
+## Currency Conversion
+
+```typescript
+import { ExchangeRate, USD, EUR } from "@thesis-co/cent"
+
+const range = PriceRange("$50 - $100")
+const exchangeRate = new ExchangeRate(USD, EUR, "0.85")
+
+const convertedRange = range.convert(exchangeRate)
+console.log(convertedRange.toString()) // "€42.50 - €85.00"
+```
+
+## Serialization
+
+```typescript
+const range = PriceRange("$50 - $100")
+
+// Serialize
+const json = range.toJSON()
+console.log(JSON.stringify(json))
+
+// Deserialize
+const restored = PriceRange.fromJSON(json)
+console.log(restored.equals(range)) // true
+```
+
+## Use Cases
+
+### E-Commerce Filtering
+
+```typescript
+const products = [
+  { name: "Budget Widget", price: Money("$45") },
+  { name: "Standard Widget", price: Money("$75") },
+  { name: "Premium Widget", price: Money("$125") },
+  { name: "Deluxe Widget", price: Money("$95") },
+]
+
+const priceFilter = PriceRange("$50 - $100")
+const affordableProducts = products.filter((product) =>
+  priceFilter.contains(product.price)
+)
+
+console.log(affordableProducts.map((p) => p.name))
+// ["Standard Widget", "Deluxe Widget"]
+```
+
+### Price Tier Display
+
+```typescript
+const tiers = PriceRange.createBuckets(Money("$0"), Money("$200"), 4)
+
+const tierLabels = tiers.map((tier, i) => ({
+  label: ["Budget", "Value", "Standard", "Premium"][i],
+  range: tier.toString({ format: "range" }),
+}))
+
+// [
+//   { label: "Budget", range: "$0.00 to $50.00" },
+//   { label: "Value", range: "$50.00 to $100.00" },
+//   { label: "Standard", range: "$100.00 to $150.00" },
+//   { label: "Premium", range: "$150.00 to $200.00" },
+// ]
+```
+
+### Discount Range Display
+
+```typescript
+const originalPrice = Money("$100")
+const discountRange = PriceRange.around(originalPrice, "20%")
+
+console.log(`Prices may vary: ${discountRange.toString()}`)
+// "Prices may vary: $80.00 - $120.00"
+```
+
+## API Reference
+
+### Constructor
+
+```typescript
+PriceRange(str: string): PriceRange // Parse "$50 - $100"
+PriceRange(min: Money | string, max: Money | string): PriceRange
+```
+
+### Properties
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `min` | `Money` | Minimum price |
+| `max` | `Money` | Maximum price |
+| `span` | `Money` | Difference (max - min) |
+| `midpoint` | `Money` | Center point |
+| `isEmpty` | `boolean` | True if min === max |
+| `currency` | `Currency` | Currency of the range |
+
+### Methods
+
+| Method | Description |
+|--------|-------------|
+| `contains(price)` | Check if price is within range |
+| `isAbove(price)` | Check if entire range is above price |
+| `isBelow(price)` | Check if entire range is below price |
+| `overlaps(other)` | Check if ranges overlap |
+| `intersect(other)` | Get intersection (or null) |
+| `union(other)` | Get union range |
+| `split(parts)` | Split into N equal parts |
+| `convert(exchangeRate)` | Convert to different currency |
+| `equals(other)` | Check equality |
+| `toString(options?)` | Format for display |
+| `toJSON()` | Serialize to JSON |
+
+### Static Methods
+
+| Method | Description |
+|--------|-------------|
+| `PriceRange.under(max)` | Range from zero to max |
+| `PriceRange.over(min, max)` | Range from min to max |
+| `PriceRange.between(min, max)` | Alias for constructor |
+| `PriceRange.around(base, percent)` | Range around base ± percent |
+| `PriceRange.createBuckets(min, max, count)` | Create N equal buckets |
+| `PriceRange.fromJSON(json)` | Deserialize from JSON |
+
+## Next Steps
+
+- [Money API Reference](/docs/api/money) — Currency values
+- [ExchangeRate](/docs/api/exchange-rate) — Currency conversion
+- [Splitting Bills](/docs/guides/splitting-bills) — Distribution examples

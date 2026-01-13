@@ -1,0 +1,123 @@
+---
+title: Schema Reference
+description: API reference for all Zod schemas in cent-zod
+---
+
+# Schema Reference
+
+Complete API reference for all schemas in `@thesis-co/cent-zod`.
+
+## zMoney / zMoneyString
+
+Parse and validate Money values.
+
+```typescript
+import { zMoney, zMoneyString } from "@thesis-co/cent-zod"
+
+// Basic parsing
+zMoneyString.parse("$100.50") // Money
+
+// With constraints
+zMoney({
+  currency: "USD",        // Require specific currency
+  min: "$0.50",           // Minimum value
+  max: "$10000",          // Maximum value
+  positive: true,         // Must be positive
+})
+```
+
+| Option | Type | Description |
+|--------|------|-------------|
+| `currency` | `string` | Required currency code |
+| `min` | `string \| Money` | Minimum allowed value |
+| `max` | `string \| Money` | Maximum allowed value |
+| `positive` | `boolean` | Require positive values |
+
+## zPrice
+
+Parse price pairs (numerator/denominator).
+
+```typescript
+import { zPrice } from "@thesis-co/cent-zod"
+
+// Object format
+zPrice().parse({ numerator: "$50,000", denominator: "1 BTC" })
+
+// Tuple format
+zPrice().parse(["$50,000", "1 BTC"])
+
+// With currency constraints
+zPrice("USD", "BTC")
+```
+
+## zExchangeRate
+
+Parse and validate exchange rates.
+
+```typescript
+import { zExchangeRate } from "@thesis-co/cent-zod"
+
+// Basic parsing
+zExchangeRate("USD", "EUR").parse({
+  base: "USD",
+  quote: "EUR",
+  rate: "0.92"
+})
+
+// With staleness check
+zExchangeRate({
+  base: "BTC",
+  quote: "USD",
+  maxAge: 60000  // Reject if older than 60 seconds
+})
+```
+
+| Option | Type | Description |
+|--------|------|-------------|
+| `base` | `string` | Base currency code |
+| `quote` | `string` | Quote currency code |
+| `maxAge` | `number` | Maximum age in milliseconds |
+
+## zPriceRange
+
+Parse price ranges.
+
+```typescript
+import { zPriceRange } from "@thesis-co/cent-zod"
+
+// String format
+zPriceRange().parse("$50 - $100")
+
+// Object format
+zPriceRange().parse({ min: "$50", max: "$100" })
+
+// With constraints
+zPriceRange({
+  currency: "USD",
+  bounds: { min: "$0", max: "$10000" },
+  minSpan: "$10",  // Minimum difference between min and max
+})
+```
+
+## zCurrency
+
+Parse and validate currency codes.
+
+```typescript
+import { zCurrency } from "@thesis-co/cent-zod"
+
+// Basic parsing
+zCurrency().parse("USD") // Returns Currency object
+
+// Restrict to specific currencies
+zCurrency({ allowed: ["USD", "EUR", "GBP"] })
+
+// Restrict by type
+zCurrency({ type: "crypto" })  // Only crypto currencies
+zCurrency({ type: "fiat" })    // Only fiat currencies
+```
+
+| Option | Type | Description |
+|--------|------|-------------|
+| `allowed` | `string[]` | Allowed currency codes |
+| `type` | `"crypto" \| "fiat"` | Restrict to currency type |
