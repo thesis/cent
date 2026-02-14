@@ -136,10 +136,32 @@ describe("Clamp and Bounds Methods", () => {
         )
       })
 
+      it("currency mismatch with min has correct expected/actual fields", () => {
+        try {
+          Money("$50").clamp("€0", "$100")
+          expect(true).toBe(false)
+        } catch (e) {
+          const err = e as CurrencyMismatchError
+          expect(err.expected).toBe("USD")
+          expect(err.actual).toBe("EUR")
+        }
+      })
+
       it("throws on currency mismatch with max", () => {
         expect(() => Money("$50").clamp("$0", "€100")).toThrow(
           CurrencyMismatchError
         )
+      })
+
+      it("currency mismatch with max has correct expected/actual fields", () => {
+        try {
+          Money("$50").clamp("$0", "€100")
+          expect(true).toBe(false)
+        } catch (e) {
+          const err = e as CurrencyMismatchError
+          expect(err.expected).toBe("USD")
+          expect(err.actual).toBe("EUR")
+        }
       })
     })
 
@@ -217,6 +239,17 @@ describe("Clamp and Bounds Methods", () => {
       it("throws on currency mismatch", () => {
         expect(() => Money("$50").atLeast("€0")).toThrow(CurrencyMismatchError)
       })
+
+      it("currency mismatch has correct expected/actual fields", () => {
+        try {
+          Money("$50").atLeast("€0")
+          expect(true).toBe(false)
+        } catch (e) {
+          const err = e as CurrencyMismatchError
+          expect(err.expected).toBe("USD")
+          expect(err.actual).toBe("EUR")
+        }
+      })
     })
 
     describe("practical uses", () => {
@@ -287,6 +320,17 @@ describe("Clamp and Bounds Methods", () => {
     describe("error handling", () => {
       it("throws on currency mismatch", () => {
         expect(() => Money("$50").atMost("€100")).toThrow(CurrencyMismatchError)
+      })
+
+      it("currency mismatch has correct expected/actual fields", () => {
+        try {
+          Money("$50").atMost("€100")
+          expect(true).toBe(false)
+        } catch (e) {
+          const err = e as CurrencyMismatchError
+          expect(err.expected).toBe("USD")
+          expect(err.actual).toBe("EUR")
+        }
       })
     })
 

@@ -2398,16 +2398,16 @@ export class Money {
     // Validate currencies match
     if (minMoney.currency.code !== this.currency.code) {
       throw new CurrencyMismatchError(
-        "clamp",
         this.currency.code,
-        minMoney.currency.code
+        minMoney.currency.code,
+        "clamp"
       )
     }
     if (maxMoney.currency.code !== this.currency.code) {
       throw new CurrencyMismatchError(
-        "clamp",
         this.currency.code,
-        maxMoney.currency.code
+        maxMoney.currency.code,
+        "clamp"
       )
     }
 
@@ -2457,9 +2457,9 @@ export class Money {
     // Validate currency matches
     if (minMoney.currency.code !== this.currency.code) {
       throw new CurrencyMismatchError(
-        "atLeast",
         this.currency.code,
-        minMoney.currency.code
+        minMoney.currency.code,
+        "atLeast"
       )
     }
 
@@ -2496,9 +2496,9 @@ export class Money {
     // Validate currency matches
     if (maxMoney.currency.code !== this.currency.code) {
       throw new CurrencyMismatchError(
-        "atMost",
         this.currency.code,
-        maxMoney.currency.code
+        maxMoney.currency.code,
+        "atMost"
       )
     }
 
