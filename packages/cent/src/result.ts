@@ -49,6 +49,19 @@ export class Ok<T> {
   }
 
   /**
+   * Transform the error value (no-op for Ok).
+   *
+   * @param _fn - Function to transform the error (unused)
+   * @returns This Ok unchanged
+   *
+   * @example
+   * Ok(42).mapErr(e => new Error(e))  // Ok(42)
+   */
+  mapErr<F>(_fn: (error: never) => F): Result<T, F> {
+    return this as unknown as Result<T, F>
+  }
+
+  /**
    * Transform the success value using a function that returns a Result.
    * Flattens nested Results.
    *
@@ -152,6 +165,19 @@ export class Err<E> {
    */
   map<U>(_fn: (value: never) => U): Result<U, E> {
     return this as unknown as Result<U, E>
+  }
+
+  /**
+   * Transform the error value using a function.
+   *
+   * @param fn - Function to transform the error
+   * @returns A new Err with the transformed error
+   *
+   * @example
+   * Err("oops").mapErr(e => new Error(e))  // Err(Error("oops"))
+   */
+  mapErr<F>(fn: (error: E) => F): Result<never, F> {
+    return new Err(fn(this.error))
   }
 
   /**

@@ -59,6 +59,14 @@ describe("Result Type", () => {
       expect(result).toBe("Success: 42")
     })
 
+    it("mapErr is a no-op, preserves value", () => {
+      const result = new Ok(42).mapErr((e) => `transformed: ${e}`)
+      expect(result.ok).toBe(true)
+      if (result.ok) {
+        expect(result.value).toBe(42)
+      }
+    })
+
     it("isOk returns true", () => {
       expect(new Ok(42).isOk()).toBe(true)
     })
@@ -115,6 +123,30 @@ describe("Result Type", () => {
         err: (e) => `Error: ${e}`,
       })
       expect(result).toBe("Error: oops")
+    })
+
+    it("mapErr transforms the error", () => {
+      const result = new Err("oops").mapErr((e) => `wrapped: ${e}`)
+      expect(result.ok).toBe(false)
+      if (!result.ok) {
+        expect(result.error).toBe("wrapped: oops")
+      }
+    })
+
+    it("chaining map then mapErr works correctly", () => {
+      const okResult: Result<number, string> = ok(10)
+      const mapped = okResult.map((x) => x * 2).mapErr((e) => `err: ${e}`)
+      expect(mapped.ok).toBe(true)
+      if (mapped.ok) {
+        expect(mapped.value).toBe(20)
+      }
+
+      const errResult: Result<number, string> = err("fail")
+      const mapped2 = errResult.map((x) => x * 2).mapErr((e) => `err: ${e}`)
+      expect(mapped2.ok).toBe(false)
+      if (!mapped2.ok) {
+        expect(mapped2.error).toBe("err: fail")
+      }
     })
 
     it("isOk returns false", () => {
