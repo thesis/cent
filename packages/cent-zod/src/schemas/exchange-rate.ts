@@ -160,16 +160,12 @@ export function zExchangeRate(
     }
 
     // Validate timestamp age
-    if (options.maxAge && rate.timestamp) {
-      const timestampMs = Number(rate.timestamp) * 1000
-      const age = Date.now() - timestampMs
-      if (age > options.maxAge) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          error: `Exchange rate is stale: ${age}ms old (max: ${options.maxAge}ms)`,
-        })
-        return z.NEVER
-      }
+    if (options.maxAge && rate.isStale(options.maxAge)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        error: `Exchange rate is stale: ${rate.getAge()}ms old (max: ${options.maxAge}ms)`,
+      })
+      return z.NEVER
     }
 
     return rate

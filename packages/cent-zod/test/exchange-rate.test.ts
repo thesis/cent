@@ -112,4 +112,40 @@ describe("zExchangeRate", () => {
       expect(result.baseCurrency.code).toBe("BTC")
     })
   })
+
+  describe("with maxAge constraint", () => {
+    it("accepts a fresh rate with current timestamp", () => {
+      const schema = zExchangeRate({ maxAge: 60000 })
+      const result = schema.parse({
+        base: "USD",
+        quote: "EUR",
+        rate: "0.92",
+        timestamp: String(Date.now()),
+      })
+      expect(result).toBeInstanceOf(ExchangeRate)
+    })
+
+    it("accepts a rate without a timestamp", () => {
+      const schema = zExchangeRate({ maxAge: 60000 })
+      const result = schema.parse({
+        base: "USD",
+        quote: "EUR",
+        rate: "0.92",
+      })
+      expect(result).toBeInstanceOf(ExchangeRate)
+    })
+
+    it("rejects a stale rate", () => {
+      const schema = zExchangeRate({ maxAge: 60000 })
+      const staleTimestamp = String(Date.now() - 120000) // 2 minutes ago
+      expect(() =>
+        schema.parse({
+          base: "USD",
+          quote: "EUR",
+          rate: "0.92",
+          timestamp: staleTimestamp,
+        }),
+      ).toThrow(/Exchange rate is stale/)
+    })
+  })
 })
