@@ -121,20 +121,17 @@ export function zMoney(currencyOrOptions?: string | ZMoneyOptions) {
   return z
     .union([zMoneyString, zMoneyJSON, z.instanceof(MoneyClass)])
     .transform((money, ctx) => {
-      // Handle passthrough of Money instances
-      const result = money instanceof MoneyClass ? money : money
-
       // Currency validation
-      if (expectedCurrency && result.currency.code !== expectedCurrency.code) {
+      if (expectedCurrency && money.currency.code !== expectedCurrency.code) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
-          error: `Expected currency ${expectedCurrency.code}, got ${result.currency.code}`,
+          error: `Expected currency ${expectedCurrency.code}, got ${money.currency.code}`,
         })
         return z.NEVER
       }
 
       // Min validation
-      if (minMoney && result.compare(minMoney) < 0) {
+      if (minMoney && money.compare(minMoney) < 0) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
           error: `Amount must be at least ${minMoney.toString()}`,
@@ -143,7 +140,7 @@ export function zMoney(currencyOrOptions?: string | ZMoneyOptions) {
       }
 
       // Max validation
-      if (maxMoney && result.compare(maxMoney) > 0) {
+      if (maxMoney && money.compare(maxMoney) > 0) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
           error: `Amount must be at most ${maxMoney.toString()}`,
@@ -152,7 +149,7 @@ export function zMoney(currencyOrOptions?: string | ZMoneyOptions) {
       }
 
       // Positive validation
-      if (options.positive && !result.isPositive()) {
+      if (options.positive && !money.isPositive()) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
           error: "Amount must be positive",
@@ -161,7 +158,7 @@ export function zMoney(currencyOrOptions?: string | ZMoneyOptions) {
       }
 
       // Non-negative validation
-      if (options.nonNegative && result.isNegative()) {
+      if (options.nonNegative && money.isNegative()) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
           error: "Amount must be non-negative",
@@ -170,7 +167,7 @@ export function zMoney(currencyOrOptions?: string | ZMoneyOptions) {
       }
 
       // Non-zero validation
-      if (options.nonZero && result.isZero()) {
+      if (options.nonZero && money.isZero()) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
           error: "Amount must not be zero",
@@ -178,6 +175,6 @@ export function zMoney(currencyOrOptions?: string | ZMoneyOptions) {
         return z.NEVER
       }
 
-      return result
+      return money
     })
 }
