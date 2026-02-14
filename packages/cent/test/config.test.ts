@@ -7,6 +7,13 @@ import {
   withConfig,
 } from "../src/config"
 import { HALF_EXPAND } from "../src/types"
+import {
+  Money,
+  MoneyClass,
+  Round,
+  DivisionError,
+  PrecisionLossError,
+} from "../src"
 
 describe("Configuration System", () => {
   beforeEach(() => {
@@ -174,6 +181,62 @@ describe("Configuration System", () => {
         expect(config.numberInputMode).toBe("error")
         expect(config.defaultCurrency).toBe("EUR")
       })
+    })
+  })
+
+  describe("defaultRoundingMode integration", () => {
+    it("divide works without explicit mode when defaultRoundingMode is set", () => {
+      configure({ defaultRoundingMode: "halfExpand" })
+      const result = Money("$100").divide(3)
+      expect(result.toString()).toBe("$33.33")
+    })
+
+    it("divide still throws when defaultRoundingMode is none", () => {
+      configure({ defaultRoundingMode: "none" })
+      expect(() => Money("$100").divide(3)).toThrow(DivisionError)
+    })
+  })
+
+  describe("defaultCurrency integration", () => {
+    it("Money(number) uses defaultCurrency when no currency specified", () => {
+      configure({ defaultCurrency: "EUR" })
+      const result = Money(100, undefined as unknown as string)
+      expect(result.currency.code).toBe("EUR")
+    })
+
+    it("Money.zero() with no args uses defaultCurrency", () => {
+      configure({ defaultCurrency: "EUR" })
+      const result = MoneyClass.zero()
+      expect(result.currency.code).toBe("EUR")
+      expect(result.toString()).toBe("€0.00")
+    })
+  })
+
+  describe("defaultLocale integration", () => {
+    it("toString uses configured defaultLocale", () => {
+      configure({ defaultLocale: "de-DE" })
+      const money = Money("€1234.56")
+      const str = money.toString()
+      // German locale uses period as thousands separator and comma as decimal
+      expect(str).toContain("1.234,56")
+    })
+  })
+
+  describe("strictPrecision integration", () => {
+    it("throws on number input even with numberInputMode: silent", () => {
+      configure({ strictPrecision: true, numberInputMode: "silent" })
+      expect(() => Money(0.1, "USD")).toThrow(PrecisionLossError)
+    })
+
+    it("divide throws even when defaultRoundingMode is set", () => {
+      configure({ strictPrecision: true, defaultRoundingMode: "halfExpand" })
+      expect(() => Money("$100").divide(3)).toThrow(DivisionError)
+    })
+
+    it("divide with explicit rounding mode still works", () => {
+      configure({ strictPrecision: true, defaultRoundingMode: "halfExpand" })
+      const result = Money("$100").divide(3, Round.HALF_UP)
+      expect(result.toString()).toBe("$33.33")
     })
   })
 

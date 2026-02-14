@@ -33,9 +33,10 @@ describe("Number Input", () => {
       expect(money.toString()).toBe("-$50.25")
     })
 
-    it("throws without currency", () => {
+    it("uses defaultCurrency when currency is not specified", () => {
       // @ts-expect-error - testing runtime behavior
-      expect(() => Money(100)).toThrow(/Currency is required/)
+      const money = Money(100)
+      expect(money.currency.code).toBe("USD")
     })
 
     it("throws for NaN", () => {
@@ -72,9 +73,11 @@ describe("Number Input", () => {
       expect(money.toString()).toBe("-$50.25")
     })
 
-    it("throws without currency", () => {
+    it("uses defaultCurrency when currency is not specified", () => {
       // @ts-expect-error - testing runtime behavior
-      expect(() => Money(10050n)).toThrow(/Currency is required/)
+      const money = Money(10050n)
+      expect(money.currency.code).toBe("USD")
+      expect(money.toString()).toBe("$100.50")
     })
 
     it("handles large amounts precisely", () => {

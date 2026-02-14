@@ -619,18 +619,41 @@ export class Money {
     const needsRounding = !isOnlyFactorsOf2And5(divisorBigInt)
 
     if (needsRounding && round === undefined) {
-      const divisorStr = typeof divisor === "object"
-        ? new FixedPointNumber(divisor.amount, divisor.decimals).toString()
-        : String(divisor)
-      throw new DivisionError(
-        divisorStr,
-        `Division by ${divisorStr} requires a rounding mode because ${divisorStr} contains factors other than 2 and 5.`,
-        {
-          code: ErrorCode.DIVISION_REQUIRES_ROUNDING,
-          suggestion: `Use: amount.divide(${divisorStr}, Round.HALF_UP) or another rounding mode.`,
-          example: `import { Round } from '@thesis-co/cent';\namount.divide(${divisorStr}, Round.HALF_UP);`,
-        },
-      )
+      const config = getConfig()
+
+      // strictPrecision forces explicit per-call rounding
+      if (config.strictPrecision) {
+        const divisorStr = typeof divisor === "object"
+          ? new FixedPointNumber(divisor.amount, divisor.decimals).toString()
+          : String(divisor)
+        throw new DivisionError(
+          divisorStr,
+          `Division by ${divisorStr} requires a rounding mode because ${divisorStr} contains factors other than 2 and 5.`,
+          {
+            code: ErrorCode.DIVISION_REQUIRES_ROUNDING,
+            suggestion: `Use: amount.divide(${divisorStr}, Round.HALF_UP) or another rounding mode.`,
+            example: `import { Round } from '@thesis-co/cent';\namount.divide(${divisorStr}, Round.HALF_UP);`,
+          },
+        )
+      }
+
+      // Fall back to defaultRoundingMode if configured
+      if (config.defaultRoundingMode !== "none") {
+        round = config.defaultRoundingMode
+      } else {
+        const divisorStr = typeof divisor === "object"
+          ? new FixedPointNumber(divisor.amount, divisor.decimals).toString()
+          : String(divisor)
+        throw new DivisionError(
+          divisorStr,
+          `Division by ${divisorStr} requires a rounding mode because ${divisorStr} contains factors other than 2 and 5.`,
+          {
+            code: ErrorCode.DIVISION_REQUIRES_ROUNDING,
+            suggestion: `Use: amount.divide(${divisorStr}, Round.HALF_UP) or another rounding mode.`,
+            example: `import { Round } from '@thesis-co/cent';\namount.divide(${divisorStr}, Round.HALF_UP);`,
+          },
+        )
+      }
     }
 
     // Get the amount as FixedPointNumber
@@ -783,8 +806,9 @@ export class Money {
     const scaleDiff = thisFixedPoint.decimals - targetDecimals
     const divisor = 10n ** scaleDiff
 
-    // Default to HALF_EXPAND (HALF_UP) if no mode specified
-    const roundingMode = mode ?? ("halfExpand" as RoundingMode)
+    // Default to config defaultRoundingMode if set, otherwise HALF_EXPAND
+    const configDefault = getConfig().defaultRoundingMode
+    const roundingMode = mode ?? (configDefault !== "none" ? configDefault : "halfExpand" as RoundingMode)
 
     // Apply rounding
     const quotient = thisFixedPoint.amount / divisor
@@ -1716,12 +1740,13 @@ export class Money {
    * Money.zero("BTC")           // 0 BTC
    * Money.zero("EUR")           // €0.00
    */
-  static zero(currency: string | Currency): Money {
+  static zero(currency?: string | Currency): Money {
+    const resolved = currency ?? getConfig().defaultCurrency
     const curr =
-      typeof currency === "string" ? getCurrencyFromCode(currency) : currency
+      typeof resolved === "string" ? getCurrencyFromCode(resolved) : resolved
 
     if (!curr) {
-      throw new InvalidInputError(`Unknown currency: "${currency}"`, {
+      throw new InvalidInputError(`Unknown currency: "${resolved}"`, {
         code: ErrorCode.UNKNOWN_CURRENCY,
         suggestion: "Use a valid currency code like 'USD', 'EUR', or 'BTC'.",
       })
@@ -1990,7 +2015,8 @@ export class Money {
     try {
       let money: Money
       if (typeof input === "number" || typeof input === "bigint") {
-        if (!currency) {
+        const resolvedCurrency = currency ?? getConfig().defaultCurrency
+        if (!resolvedCurrency) {
           return err(
             new InvalidInputError(
               "Currency is required for number or bigint input",
@@ -2002,7 +2028,7 @@ export class Money {
             )
           )
         }
-        money = MoneyFactory(input as number, currency)
+        money = MoneyFactory(input as number, resolvedCurrency)
       } else if (typeof input === "string") {
         money = MoneyFactory(input)
       } else {
@@ -2455,7 +2481,7 @@ export class Money {
    */
   toString(options: MoneyToStringOptions = {}): string {
     const {
-      locale = "en-US",
+      locale = getConfig().defaultLocale,
       compact = false,
       maxDecimals,
       minDecimals,
@@ -2666,16 +2692,27 @@ function validateNumberInput(value: number, currencyCode: string): void {
     )
   }
 
-  // If 'silent' mode, allow everything
-  if (config.numberInputMode === "silent") {
-    return
-  }
-
   // Check for potential precision loss
   const hasPrecisionIssue =
     !Number.isSafeInteger(value) ||
     (value.toString().includes(".") &&
       value.toString().split(".")[1].length > config.precisionWarningThreshold)
+
+  // strictPrecision overrides numberInputMode for precision issues
+  if (config.strictPrecision && hasPrecisionIssue) {
+    const message =
+      `Number ${value} may lose precision. ` +
+      `Use a string for exact values: Money("${value} ${currencyCode}")`
+    throw new PrecisionLossError(message, {
+      suggestion: `Use a string instead: Money("${value} ${currencyCode}")`,
+      example: `Money("${value} ${currencyCode}")`,
+    })
+  }
+
+  // If 'silent' mode, allow everything
+  if (config.numberInputMode === "silent") {
+    return
+  }
 
   if (hasPrecisionIssue) {
     const message =
@@ -2737,7 +2774,8 @@ export function MoneyFactory(
 ): Money {
   // Number input mode
   if (typeof inputOrBalanceOrJson === "number") {
-    if (currency === undefined) {
+    const resolvedCurrency = currency ?? getConfig().defaultCurrency
+    if (resolvedCurrency === undefined) {
       throw new InvalidInputError(
         "Currency is required when using number input",
         {
@@ -2747,9 +2785,9 @@ export function MoneyFactory(
       )
     }
 
-    const currencyObj = typeof currency === "string"
-      ? getCurrencyFromCode(currency)
-      : currency
+    const currencyObj = typeof resolvedCurrency === "string"
+      ? getCurrencyFromCode(resolvedCurrency)
+      : resolvedCurrency
 
     validateNumberInput(inputOrBalanceOrJson, currencyObj.code || currencyObj.name)
 
@@ -2768,7 +2806,8 @@ export function MoneyFactory(
 
   // Bigint input mode (minor units)
   if (typeof inputOrBalanceOrJson === "bigint") {
-    if (currency === undefined) {
+    const resolvedCurrency = currency ?? getConfig().defaultCurrency
+    if (resolvedCurrency === undefined) {
       throw new InvalidInputError(
         "Currency is required when using bigint input",
         {
@@ -2778,9 +2817,9 @@ export function MoneyFactory(
       )
     }
 
-    const currencyObj = typeof currency === "string"
-      ? getCurrencyFromCode(currency)
-      : currency
+    const currencyObj = typeof resolvedCurrency === "string"
+      ? getCurrencyFromCode(resolvedCurrency)
+      : resolvedCurrency
 
     // Bigint is interpreted as minor units (e.g., cents for USD, satoshis for BTC)
     return new Money({

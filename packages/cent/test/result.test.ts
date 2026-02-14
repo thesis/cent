@@ -324,11 +324,11 @@ describe("Money.tryFrom()", () => {
       }
     })
 
-    it("returns Err when currency missing for number", () => {
+    it("uses defaultCurrency when currency missing for number", () => {
       const result = MoneyClass.tryFrom(100)
-      expect(result.ok).toBe(false)
-      if (!result.ok) {
-        expect(result.error.message).toContain("Currency is required")
+      expect(result.ok).toBe(true)
+      if (result.ok) {
+        expect(result.value.currency.code).toBe("USD")
       }
     })
   })
@@ -342,11 +342,12 @@ describe("Money.tryFrom()", () => {
       }
     })
 
-    it("returns Err when currency missing for bigint", () => {
+    it("uses defaultCurrency when currency missing for bigint", () => {
       const result = MoneyClass.tryFrom(10050n)
-      expect(result.ok).toBe(false)
-      if (!result.ok) {
-        expect(result.error.message).toContain("Currency is required")
+      expect(result.ok).toBe(true)
+      if (result.ok) {
+        expect(result.value.currency.code).toBe("USD")
+        expect(result.value.toString()).toBe("$100.50")
       }
     })
   })
@@ -368,7 +369,7 @@ describe("Money.tryFrom()", () => {
 
   describe("error types", () => {
     it("returns CentError for known error types", () => {
-      const result = MoneyClass.tryFrom(100)
+      const result = MoneyClass.tryFrom("not money")
       expect(result.ok).toBe(false)
       if (!result.ok) {
         expect(result.error).toBeInstanceOf(CentError)
@@ -376,7 +377,7 @@ describe("Money.tryFrom()", () => {
     })
 
     it("error has suggestion", () => {
-      const result = MoneyClass.tryFrom(100)
+      const result = MoneyClass.tryFrom("not money")
       if (!result.ok) {
         expect(result.error.suggestion).toBeDefined()
       }
