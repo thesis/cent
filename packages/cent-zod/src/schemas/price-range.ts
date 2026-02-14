@@ -5,6 +5,7 @@ import {
   PriceRangeFactory,
 } from "@thesis-co/cent"
 import { z } from "zod"
+import { zMoneyJSON } from "./money"
 
 /**
  * Schema for PriceRange from string (e.g., "$50 - $100")
@@ -48,12 +49,12 @@ export const zPriceRangeObject = z
  */
 export const zPriceRangeJSON = z
   .object({
-    min: z.unknown(),
-    max: z.unknown(),
+    min: zMoneyJSON,
+    max: zMoneyJSON,
   })
   .transform((data, ctx) => {
     try {
-      return PriceRangeClass.fromJSON(data)
+      return new PriceRangeClass(data.min, data.max)
     } catch (error) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
