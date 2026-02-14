@@ -3,6 +3,7 @@ import {
   Money,
   CurrencyMismatchError,
   InvalidInputError,
+  ParseError,
 } from "../src"
 
 describe("Clamp and Bounds Methods", () => {
@@ -184,6 +185,33 @@ describe("Clamp and Bounds Methods", () => {
       it("works with cryptocurrencies", () => {
         const result = Money("0.5 BTC").clamp("0.1 BTC", "1 BTC")
         expect(result.currency.code).toBe("BTC")
+      })
+    })
+
+    describe("parseComparable precision", () => {
+      it("clamp with high-precision string preserves digits via FixedPointNumber", () => {
+        // Use USD (2 decimals) with a high-precision bare string
+        // "0.123456789012345678" should be stored with all 18 decimals
+        const money = Money("$0.01")
+        const clamped = money.clamp("0.123456789012345678", "$100")
+        // money < min, so result should be the min
+        // The internal representation should have 18 decimals of precision
+        expect(clamped.balance.amount.decimals).toBe(18n)
+        expect(clamped.balance.amount.amount).toBe(123456789012345678n)
+      })
+
+      it("atLeast with bare numeric string works correctly", () => {
+        const result = Money("$25").atLeast("50")
+        expect(result.toString()).toBe("$50.00")
+      })
+
+      it("atMost with bare numeric string works correctly", () => {
+        const result = Money("$150").atMost("100")
+        expect(result.toString()).toBe("$100.00")
+      })
+
+      it("non-numeric string throws ParseError", () => {
+        expect(() => Money("$50").clamp("abc", "$100")).toThrow(ParseError)
       })
     })
   })

@@ -2356,11 +2356,15 @@ export class Money {
     try {
       return MoneyFactory(value)
     } catch {
-      // If parsing fails, try as raw number string with same currency
-      return MoneyFactory(
-        parseFloat(value),
-        this.currency
-      )
+      try {
+        const fp = FixedPointNumber.fromDecimalString(value)
+        return new Money({
+          asset: this.currency,
+          amount: { amount: fp.amount, decimals: fp.decimals },
+        })
+      } catch {
+        throw new ParseError(value, `Cannot parse "${value}" as a monetary value`)
+      }
     }
   }
 
