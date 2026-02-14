@@ -109,6 +109,72 @@ import type { MoneyJSON } from "./schemas"
 // Import schemas for internal use
 import { MoneyJSONSchema } from "./schemas"
 
+/**
+ * Apply a rounding mode to a quotient given remainder and denominator.
+ * Used by divide() and roundTo() to avoid duplicating the rounding switch.
+ * @internal
+ */
+function applyRounding(
+  quotient: bigint,
+  remainder: bigint,
+  denominator: bigint,
+  mode: RoundingMode,
+  isNegative: boolean,
+): bigint {
+  if (remainder === 0n) {
+    return quotient
+  }
+
+  const absRemainder = remainder < 0n ? -remainder : remainder
+  const absDenominator = denominator < 0n ? -denominator : denominator
+  const doubleRemainder = absRemainder * 2n
+
+  switch (mode) {
+    case "ceil":
+      return isNegative ? quotient : quotient + 1n
+    case "floor":
+      return isNegative ? quotient - 1n : quotient
+    case "expand":
+      return quotient + (isNegative ? -1n : 1n)
+    case "trunc":
+      return quotient
+    case "halfCeil":
+      if (doubleRemainder > absDenominator) {
+        return quotient + (isNegative ? -1n : 1n)
+      } else if (doubleRemainder === absDenominator) {
+        return isNegative ? quotient : quotient + 1n
+      }
+      return quotient
+    case "halfFloor":
+      if (doubleRemainder > absDenominator) {
+        return quotient + (isNegative ? -1n : 1n)
+      } else if (doubleRemainder === absDenominator) {
+        return isNegative ? quotient - 1n : quotient
+      }
+      return quotient
+    case "halfExpand":
+      if (doubleRemainder >= absDenominator) {
+        return quotient + (isNegative ? -1n : 1n)
+      }
+      return quotient
+    case "halfTrunc":
+      if (doubleRemainder > absDenominator) {
+        return quotient + (isNegative ? -1n : 1n)
+      }
+      return quotient
+    case "halfEven":
+    default: {
+      if (doubleRemainder > absDenominator) {
+        return quotient + (isNegative ? -1n : 1n)
+      } else if (doubleRemainder === absDenominator) {
+        const adjustedQuotient = quotient + (isNegative ? -1n : 1n)
+        return adjustedQuotient % 2n === 0n ? adjustedQuotient : quotient
+      }
+      return quotient
+    }
+  }
+}
+
 export class Money {
   readonly currency: Currency
 
@@ -608,74 +674,9 @@ export class Money {
       // Apply rounding to the division
       const quotient = scaledNumerator / denominator
       const remainder = scaledNumerator % denominator
+      const isNegative = scaledNumerator < 0n !== denominator < 0n
 
-      let roundedAmount: bigint
-      if (remainder === 0n) {
-        roundedAmount = quotient
-      } else {
-        const isNegative = scaledNumerator < 0n !== denominator < 0n
-        const absRemainder = remainder < 0n ? -remainder : remainder
-        const absDenominator = denominator < 0n ? -denominator : denominator
-        const doubleRemainder = absRemainder * 2n
-
-        switch (round) {
-          case "ceil":
-            roundedAmount = isNegative ? quotient : quotient + 1n
-            break
-          case "floor":
-            roundedAmount = isNegative ? quotient - 1n : quotient
-            break
-          case "expand":
-            roundedAmount = quotient + (isNegative ? -1n : 1n)
-            break
-          case "trunc":
-            roundedAmount = quotient
-            break
-          case "halfCeil":
-            if (doubleRemainder > absDenominator) {
-              roundedAmount = quotient + (isNegative ? -1n : 1n)
-            } else if (doubleRemainder === absDenominator) {
-              roundedAmount = isNegative ? quotient : quotient + 1n
-            } else {
-              roundedAmount = quotient
-            }
-            break
-          case "halfFloor":
-            if (doubleRemainder > absDenominator) {
-              roundedAmount = quotient + (isNegative ? -1n : 1n)
-            } else if (doubleRemainder === absDenominator) {
-              roundedAmount = isNegative ? quotient - 1n : quotient
-            } else {
-              roundedAmount = quotient
-            }
-            break
-          case "halfExpand":
-            if (doubleRemainder >= absDenominator) {
-              roundedAmount = quotient + (isNegative ? -1n : 1n)
-            } else {
-              roundedAmount = quotient
-            }
-            break
-          case "halfTrunc":
-            if (doubleRemainder > absDenominator) {
-              roundedAmount = quotient + (isNegative ? -1n : 1n)
-            } else {
-              roundedAmount = quotient
-            }
-            break
-          case "halfEven":
-          default:
-            if (doubleRemainder > absDenominator) {
-              roundedAmount = quotient + (isNegative ? -1n : 1n)
-            } else if (doubleRemainder === absDenominator) {
-              const adjustedQuotient = quotient + (isNegative ? -1n : 1n)
-              roundedAmount = adjustedQuotient % 2n === 0n ? adjustedQuotient : quotient
-            } else {
-              roundedAmount = quotient
-            }
-            break
-        }
-      }
+      const roundedAmount = applyRounding(quotient, remainder, denominator, round, isNegative)
 
       return new Money(
         this.currency,
@@ -788,75 +789,9 @@ export class Money {
     // Apply rounding
     const quotient = thisFixedPoint.amount / divisor
     const remainder = thisFixedPoint.amount % divisor
+    const isNegative = thisFixedPoint.amount < 0n
 
-    let roundedAmount: bigint
-
-    if (remainder === 0n) {
-      roundedAmount = quotient
-    } else {
-      const isNegative = thisFixedPoint.amount < 0n
-      const absRemainder = remainder < 0n ? -remainder : remainder
-      const doubleRemainder = absRemainder * 2n
-      const absDivisor = divisor
-
-      switch (roundingMode) {
-        case "ceil":
-          roundedAmount = isNegative ? quotient : quotient + 1n
-          break
-        case "floor":
-          roundedAmount = isNegative ? quotient - 1n : quotient
-          break
-        case "expand":
-          roundedAmount = quotient + (isNegative ? -1n : 1n)
-          break
-        case "trunc":
-          roundedAmount = quotient
-          break
-        case "halfCeil":
-          if (doubleRemainder > absDivisor) {
-            roundedAmount = quotient + (isNegative ? -1n : 1n)
-          } else if (doubleRemainder === absDivisor) {
-            roundedAmount = isNegative ? quotient : quotient + 1n
-          } else {
-            roundedAmount = quotient
-          }
-          break
-        case "halfFloor":
-          if (doubleRemainder > absDivisor) {
-            roundedAmount = quotient + (isNegative ? -1n : 1n)
-          } else if (doubleRemainder === absDivisor) {
-            roundedAmount = isNegative ? quotient - 1n : quotient
-          } else {
-            roundedAmount = quotient
-          }
-          break
-        case "halfExpand":
-          if (doubleRemainder >= absDivisor) {
-            roundedAmount = quotient + (isNegative ? -1n : 1n)
-          } else {
-            roundedAmount = quotient
-          }
-          break
-        case "halfTrunc":
-          if (doubleRemainder > absDivisor) {
-            roundedAmount = quotient + (isNegative ? -1n : 1n)
-          } else {
-            roundedAmount = quotient
-          }
-          break
-        case "halfEven":
-        default:
-          if (doubleRemainder > absDivisor) {
-            roundedAmount = quotient + (isNegative ? -1n : 1n)
-          } else if (doubleRemainder === absDivisor) {
-            const adjustedQuotient = quotient + (isNegative ? -1n : 1n)
-            roundedAmount = adjustedQuotient % 2n === 0n ? adjustedQuotient : quotient
-          } else {
-            roundedAmount = quotient
-          }
-          break
-      }
-    }
+    const roundedAmount = applyRounding(quotient, remainder, divisor, roundingMode, isNegative)
 
     return new Money(
       this.currency,
