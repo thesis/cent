@@ -77,6 +77,18 @@ const DEFAULT_CONFIG: CentConfig = {
  */
 let currentConfig: CentConfig = { ...DEFAULT_CONFIG }
 
+// Conditionally load AsyncLocalStorage for async-safe withConfig in Node.js
+// In browsers, falls back to synchronous save/restore
+type AsyncLocalStorageType = import("node:async_hooks").AsyncLocalStorage<CentConfig>
+let asyncLocalStorage: AsyncLocalStorageType | undefined
+try {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { AsyncLocalStorage } = require("node:async_hooks") as typeof import("node:async_hooks")
+  asyncLocalStorage = new AsyncLocalStorage()
+} catch {
+  // Browser or environment without async_hooks — fall back to save/restore
+}
+
 /**
  * Configure global defaults for the cent library.
  *
@@ -120,7 +132,8 @@ export function configure(options: Partial<CentConfig>): void {
  * console.log(config.defaultCurrency); // 'USD'
  */
 export function getConfig(): CentConfig {
-  return { ...currentConfig }
+  const store = asyncLocalStorage?.getStore()
+  return { ...(store ?? currentConfig) }
 }
 
 /**
@@ -139,7 +152,8 @@ export function resetConfig(): void {
  * Execute a function with temporary configuration overrides.
  *
  * The configuration is restored after the function completes,
- * even if an error is thrown.
+ * even if an error is thrown. When AsyncLocalStorage is available (Node.js),
+ * concurrent async scopes are isolated from each other.
  *
  * @param options - Temporary configuration options
  * @param fn - Function to execute with the temporary configuration
@@ -158,12 +172,17 @@ export function resetConfig(): void {
  * });
  */
 export function withConfig<T>(options: Partial<CentConfig>, fn: () => T): T {
-  const previousConfig = { ...currentConfig }
+  const merged = { ...getConfig(), ...options }
+  if (asyncLocalStorage) {
+    return asyncLocalStorage.run(merged, fn)
+  }
+  // Browser fallback: sync-safe save/restore
+  const prev = { ...currentConfig }
   try {
-    currentConfig = { ...currentConfig, ...options }
+    currentConfig = merged
     return fn()
   } finally {
-    currentConfig = previousConfig
+    currentConfig = prev
   }
 }
 

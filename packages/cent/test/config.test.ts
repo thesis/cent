@@ -269,4 +269,57 @@ describe("Configuration System", () => {
       expect(config.strictPrecision).toBe(false)
     })
   })
+
+  describe("withConfig async safety", () => {
+    it("two concurrent async scopes don't interfere", async () => {
+      const delay = (ms: number) =>
+        new Promise((resolve) => setTimeout(resolve, ms))
+
+      const results = await Promise.all([
+        withConfig({ defaultCurrency: "EUR" }, async () => {
+          await delay(10)
+          return getConfig().defaultCurrency
+        }),
+        withConfig({ defaultCurrency: "GBP" }, async () => {
+          await delay(5)
+          return getConfig().defaultCurrency
+        }),
+      ])
+
+      expect(results[0]).toBe("EUR")
+      expect(results[1]).toBe("GBP")
+    })
+
+    it("nested withConfig calls compose correctly", () => {
+      const result = withConfig({ defaultCurrency: "EUR" }, () => {
+        const outer = getConfig().defaultCurrency
+        const inner = withConfig({ defaultLocale: "fr-FR" }, () => {
+          const config = getConfig()
+          return { currency: config.defaultCurrency, locale: config.defaultLocale }
+        })
+        return { outer, inner, afterInner: getConfig().defaultLocale }
+      })
+
+      expect(result.outer).toBe("EUR")
+      expect(result.inner.currency).toBe("EUR")
+      expect(result.inner.locale).toBe("fr-FR")
+      // After inner withConfig, locale should be restored
+      expect(result.afterInner).toBe("en-US")
+    })
+
+    it("withConfig with async callback preserves config through await", async () => {
+      const result = await withConfig(
+        { defaultCurrency: "JPY" },
+        async () => {
+          const before = getConfig().defaultCurrency
+          await new Promise((resolve) => setTimeout(resolve, 10))
+          const after = getConfig().defaultCurrency
+          return { before, after }
+        }
+      )
+
+      expect(result.before).toBe("JPY")
+      expect(result.after).toBe("JPY")
+    })
+  })
 })
