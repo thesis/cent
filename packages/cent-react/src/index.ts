@@ -3,7 +3,7 @@ export { MoneyDisplay } from './components/MoneyDisplay'
 export type { MoneyDisplayProps, MoneyParts } from './components/MoneyDisplay'
 
 export { MoneyInput } from './components/MoneyInput'
-export type { MoneyInputProps, MoneyInputChangeEvent } from './components/MoneyInput'
+export type { MoneyInputProps, MoneyInputChangeEvent, MoneyInputBlurEvent } from './components/MoneyInput'
 
 export { MoneyDiff } from './components/MoneyDiff'
 export type { MoneyDiffProps, MoneyDiffRenderProps } from './components/MoneyDiff'
@@ -19,4 +19,4 @@ export { useMoneyConfig } from './hooks/useMoneyConfig'
 
 // Context
 export { MoneyProvider } from './context/MoneyProvider'
-export type { MoneyProviderProps, MoneyContextValue } from './context/MoneyProvider'
+export type { MoneyProviderProps, MoneyContextValue, ExchangeRateResolver } from './context/MoneyProvider'
