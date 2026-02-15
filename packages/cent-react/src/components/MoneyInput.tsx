@@ -235,8 +235,10 @@ export const MoneyInput = forwardRef<HTMLInputElement, MoneyInputProps>(function
       // Show raw value for editing (without formatting)
       if (value) {
         const rawValue = value.toString({ excludeCurrency: true })
-        // Remove thousand separators for easier editing
-        setDisplayValue(rawValue.replace(/,/g, ''))
+        // Remove thousand separators for easier editing (locale-aware)
+        const groupSeparator = new Intl.NumberFormat(locale).formatToParts(1000)
+          .find(p => p.type === 'group')?.value ?? ','
+        setDisplayValue(rawValue.split(groupSeparator).join(''))
       }
 
       if (selectOnFocus) {
@@ -246,7 +248,7 @@ export const MoneyInput = forwardRef<HTMLInputElement, MoneyInputProps>(function
         }, 0)
       }
     },
-    [value, selectOnFocus]
+    [value, selectOnFocus, locale]
   )
 
   const handleBlur = useCallback(
