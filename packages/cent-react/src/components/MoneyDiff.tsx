@@ -69,11 +69,15 @@ export interface MoneyDiffProps {
 }
 
 /**
- * Coerce a value to Money
+ * Coerce a value to Money, returning null on parse failure
  */
-function toMoney(value: MoneyInstance | string): MoneyInstance {
+function toMoney(value: MoneyInstance | string): MoneyInstance | null {
   if (typeof value === 'string') {
-    return Money(value) as MoneyInstance
+    try {
+      return Money(value) as MoneyInstance
+    } catch {
+      return null
+    }
   }
   return value
 }
@@ -182,46 +186,54 @@ export function MoneyDiff({
   children,
   ...rest
 }: MoneyDiffProps & React.HTMLAttributes<HTMLElement>): ReactNode {
-  const renderProps = useMemo<MoneyDiffRenderProps>(() => {
-    const current = toMoney(value)
-    const compare = toMoney(compareTo)
-    const difference = current.subtract(compare)
+  const renderProps = useMemo<MoneyDiffRenderProps | null>(() => {
+    try {
+      const current = toMoney(value)
+      const compare = toMoney(compareTo)
+      if (!current || !compare) return null
 
-    const percentageChange = calculatePercentageChange(current, compare, percentageDecimals)
+      const difference = current.subtract(compare)
 
-    let direction: 'increase' | 'decrease' | 'unchanged'
-    if (difference.isPositive()) {
-      direction = 'increase'
-    } else if (difference.isNegative()) {
-      direction = 'decrease'
-    } else {
-      direction = 'unchanged'
-    }
+      const percentageChange = calculatePercentageChange(current, compare, percentageDecimals)
 
-    // Format the difference with sign
-    const absDiff = difference.absolute()
-    const diffFormatted = absDiff.toString(formatOptions)
-    const signedDiff =
-      direction === 'increase'
-        ? `+${diffFormatted}`
-        : direction === 'decrease'
-          ? `-${diffFormatted}`
-          : diffFormatted
+      let direction: 'increase' | 'decrease' | 'unchanged'
+      if (difference.isPositive()) {
+        direction = 'increase'
+      } else if (difference.isNegative()) {
+        direction = 'decrease'
+      } else {
+        direction = 'unchanged'
+      }
 
-    return {
-      current,
-      compareTo: compare,
-      difference,
-      percentageChange,
-      direction,
-      formatted: {
-        current: current.toString(formatOptions),
-        compareTo: compare.toString(formatOptions),
-        difference: signedDiff,
-        percentage: formatPercentage(percentageChange),
-      },
+      // Format the difference with sign
+      const absDiff = difference.absolute()
+      const diffFormatted = absDiff.toString(formatOptions)
+      const signedDiff =
+        direction === 'increase'
+          ? `+${diffFormatted}`
+          : direction === 'decrease'
+            ? `-${diffFormatted}`
+            : diffFormatted
+
+      return {
+        current,
+        compareTo: compare,
+        difference,
+        percentageChange,
+        direction,
+        formatted: {
+          current: current.toString(formatOptions),
+          compareTo: compare.toString(formatOptions),
+          difference: signedDiff,
+          percentage: formatPercentage(percentageChange),
+        },
+      }
+    } catch {
+      return null
     }
   }, [value, compareTo, formatOptions, percentageDecimals])
+
+  if (!renderProps) return null
 
   // Custom render
   if (children) {
