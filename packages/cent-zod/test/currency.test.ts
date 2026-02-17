@@ -1,6 +1,16 @@
 import { describe, expect, it } from "@jest/globals"
 import { getValidCurrencyCodes, zCurrency, zCurrencyCode } from "../src"
 
+describe("issue.message correctness", () => {
+  it("zCurrencyCode sets issue.message on unknown code", () => {
+    const result = zCurrencyCode.safeParse("XXX")
+    expect(result.success).toBe(false)
+    if (!result.success) {
+      expect(result.error.issues[0].message).toMatch(/Unknown currency code/)
+    }
+  })
+})
+
 describe("zCurrencyCode", () => {
   it("transforms valid currency code to Currency object", () => {
     const result = zCurrencyCode.parse("USD")

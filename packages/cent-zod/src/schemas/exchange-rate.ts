@@ -55,7 +55,7 @@ export const zExchangeRateJSON = z
     } catch (error) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        error: `Invalid exchange rate: ${error instanceof Error ? error.message : "Unknown error"}`,
+        message: `Invalid exchange rate: ${error instanceof Error ? error.message : "Unknown error"}`,
       })
       return z.NEVER
     }
@@ -87,7 +87,7 @@ export const zExchangeRateCompact = z
     } catch (error) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        error: `Invalid exchange rate: ${error instanceof Error ? error.message : "Unknown error"}`,
+        message: `Invalid exchange rate: ${error instanceof Error ? error.message : "Unknown error"}`,
       })
       return z.NEVER
     }
@@ -145,7 +145,7 @@ export function zExchangeRate(
     if (options.base && rate.baseCurrency.code !== options.base) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        error: `Expected base currency ${options.base}, got ${rate.baseCurrency.code}`,
+        message: `Expected base currency ${options.base}, got ${rate.baseCurrency.code}`,
       })
       return z.NEVER
     }
@@ -154,7 +154,7 @@ export function zExchangeRate(
     if (options.quote && rate.quoteCurrency.code !== options.quote) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        error: `Expected quote currency ${options.quote}, got ${rate.quoteCurrency.code}`,
+        message: `Expected quote currency ${options.quote}, got ${rate.quoteCurrency.code}`,
       })
       return z.NEVER
     }
@@ -163,7 +163,7 @@ export function zExchangeRate(
     if (options.maxAge && rate.isStale(options.maxAge)) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        error: `Exchange rate is stale: ${rate.getAge()}ms old (max: ${options.maxAge}ms)`,
+        message: `Exchange rate is stale: ${rate.getAge()}ms old (max: ${options.maxAge}ms)`,
       })
       return z.NEVER
     }

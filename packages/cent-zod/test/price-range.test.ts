@@ -2,6 +2,19 @@ import { describe, expect, it } from "@jest/globals"
 import { PriceRangeClass } from "@thesis-co/cent"
 import { zPriceRange, zPriceRangeObject, zPriceRangeString } from "../src"
 
+describe("issue.message correctness", () => {
+  it("zPriceRange sets issue.message on currency mismatch", () => {
+    const schema = zPriceRange("USD")
+    const result = schema.safeParse("€50 - €100")
+    expect(result.success).toBe(false)
+    if (!result.success) {
+      expect(result.error.issues[0].message).toMatch(
+        /Expected currency USD, got EUR/,
+      )
+    }
+  })
+})
+
 describe("zPriceRangeString", () => {
   it("parses price range string with dash separator", () => {
     const result = zPriceRangeString.parse("$50 - $100")

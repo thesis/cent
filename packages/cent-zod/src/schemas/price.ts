@@ -24,7 +24,7 @@ export const zPriceFromObject = z
     } catch (error) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        error: `Invalid price: ${error instanceof Error ? error.message : "Unknown error"}`,
+        message: `Invalid price: ${error instanceof Error ? error.message : "Unknown error"}`,
       })
       return z.NEVER
     }
@@ -45,7 +45,7 @@ export const zPriceFromTuple = z
     } catch (error) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        error: `Invalid price: ${error instanceof Error ? error.message : "Unknown error"}`,
+        message: `Invalid price: ${error instanceof Error ? error.message : "Unknown error"}`,
       })
       return z.NEVER
     }
@@ -96,7 +96,7 @@ export function zPrice(
     ) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        error: `Expected numerator currency ${numeratorCurrency}, got ${numCurrency.code}`,
+        message: `Expected numerator currency ${numeratorCurrency}, got ${numCurrency.code}`,
       })
       return z.NEVER
     }
@@ -108,7 +108,7 @@ export function zPrice(
     ) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        error: `Expected denominator currency ${denominatorCurrency}, got ${denomCurrency.code}`,
+        message: `Expected denominator currency ${denominatorCurrency}, got ${denomCurrency.code}`,
       })
       return z.NEVER
     }

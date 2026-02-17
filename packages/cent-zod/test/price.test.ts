@@ -2,6 +2,19 @@ import { describe, expect, it } from "@jest/globals"
 import { Price } from "@thesis-co/cent"
 import { zPrice, zPriceFromObject, zPriceFromTuple } from "../src"
 
+describe("issue.message correctness", () => {
+  it("zPrice sets issue.message on numerator currency mismatch", () => {
+    const schema = zPrice("USD", "BTC")
+    const result = schema.safeParse(["€50000", "1 BTC"])
+    expect(result.success).toBe(false)
+    if (!result.success) {
+      expect(result.error.issues[0].message).toMatch(
+        /Expected numerator currency USD/,
+      )
+    }
+  })
+})
+
 describe("zPriceFromTuple", () => {
   it("parses tuple of money strings", () => {
     const result = zPriceFromTuple.parse(["$50000", "1 BTC"])

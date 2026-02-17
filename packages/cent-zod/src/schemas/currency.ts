@@ -11,7 +11,7 @@ export const zCurrencyCode = z.string().transform((code, ctx) => {
   } catch {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
-      error: `Unknown currency code: ${code}`,
+      message: `Unknown currency code: ${code}`,
     })
     return z.NEVER
   }
@@ -71,7 +71,7 @@ export function zCurrency(options?: ZCurrencyOptions) {
     if (options?.allowed && !options.allowed.includes(upperCode)) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        error: `Currency ${upperCode} is not in allowed list: ${options.allowed.join(", ")}`,
+        message: `Currency ${upperCode} is not in allowed list: ${options.allowed.join(", ")}`,
       })
       return z.NEVER
     }
@@ -80,7 +80,7 @@ export function zCurrency(options?: ZCurrencyOptions) {
     if (options?.denied?.includes(upperCode)) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        error: `Currency ${upperCode} is not allowed`,
+        message: `Currency ${upperCode} is not allowed`,
       })
       return z.NEVER
     }
@@ -92,7 +92,7 @@ export function zCurrency(options?: ZCurrencyOptions) {
     } catch {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        error: `Unknown currency code: ${code}`,
+        message: `Unknown currency code: ${code}`,
       })
       return z.NEVER
     }
@@ -103,14 +103,14 @@ export function zCurrency(options?: ZCurrencyOptions) {
       if (options.type === "fiat" && !isFiat) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
-          error: `Currency ${upperCode} is not a fiat currency`,
+          message: `Currency ${upperCode} is not a fiat currency`,
         })
         return z.NEVER
       }
       if (options.type === "crypto" && isFiat) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
-          error: `Currency ${upperCode} is not a cryptocurrency`,
+          message: `Currency ${upperCode} is not a cryptocurrency`,
         })
         return z.NEVER
       }

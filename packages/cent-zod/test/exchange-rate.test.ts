@@ -2,6 +2,23 @@ import { describe, expect, it } from "@jest/globals"
 import { ExchangeRate } from "@thesis-co/cent"
 import { zExchangeRate, zExchangeRateCompact, zExchangeRateJSON } from "../src"
 
+describe("issue.message correctness", () => {
+  it("zExchangeRate sets issue.message on base currency mismatch", () => {
+    const schema = zExchangeRate("USD", "EUR")
+    const result = schema.safeParse({
+      base: "GBP",
+      quote: "EUR",
+      rate: "0.92",
+    })
+    expect(result.success).toBe(false)
+    if (!result.success) {
+      expect(result.error.issues[0].message).toMatch(
+        /Expected base currency USD/,
+      )
+    }
+  })
+})
+
 describe("zExchangeRateCompact", () => {
   it("parses compact exchange rate format", () => {
     const result = zExchangeRateCompact.parse({

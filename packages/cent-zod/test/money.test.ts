@@ -2,6 +2,27 @@ import { describe, expect, it } from "@jest/globals"
 import { MoneyClass } from "@thesis-co/cent"
 import { zMoney, zMoneyJSON, zMoneyString } from "../src"
 
+describe("issue.message correctness", () => {
+  it("zMoneyString sets issue.message on parse failure", () => {
+    const result = zMoneyString.safeParse("not-a-money-string")
+    expect(result.success).toBe(false)
+    if (!result.success) {
+      expect(result.error.issues[0].message).toMatch(/Invalid money string/)
+    }
+  })
+
+  it("zMoney sets issue.message on currency mismatch", () => {
+    const schema = zMoney("USD")
+    const result = schema.safeParse("€100.00")
+    expect(result.success).toBe(false)
+    if (!result.success) {
+      expect(result.error.issues[0].message).toMatch(
+        /Expected currency USD, got EUR/,
+      )
+    }
+  })
+})
+
 describe("zMoneyString", () => {
   it("parses money string with symbol prefix", () => {
     const result = zMoneyString.parse("$100.50")

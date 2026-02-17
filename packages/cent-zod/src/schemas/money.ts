@@ -38,7 +38,7 @@ export const zMoneyString = z.string().transform((val, ctx) => {
   } catch (error) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
-      error: `Invalid money string: ${error instanceof Error ? error.message : "Unknown error"}`,
+      message: `Invalid money string: ${error instanceof Error ? error.message : "Unknown error"}`,
       params: { centError: "PARSE_ERROR" },
     })
     return z.NEVER
@@ -125,7 +125,7 @@ export function zMoney(currencyOrOptions?: string | ZMoneyOptions) {
       if (expectedCurrency && money.currency.code !== expectedCurrency.code) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
-          error: `Expected currency ${expectedCurrency.code}, got ${money.currency.code}`,
+          message: `Expected currency ${expectedCurrency.code}, got ${money.currency.code}`,
         })
         return z.NEVER
       }
@@ -134,7 +134,7 @@ export function zMoney(currencyOrOptions?: string | ZMoneyOptions) {
       if (minMoney && money.compare(minMoney) < 0) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
-          error: `Amount must be at least ${minMoney.toString()}`,
+          message: `Amount must be at least ${minMoney.toString()}`,
         })
         return z.NEVER
       }
@@ -143,7 +143,7 @@ export function zMoney(currencyOrOptions?: string | ZMoneyOptions) {
       if (maxMoney && money.compare(maxMoney) > 0) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
-          error: `Amount must be at most ${maxMoney.toString()}`,
+          message: `Amount must be at most ${maxMoney.toString()}`,
         })
         return z.NEVER
       }
@@ -152,7 +152,7 @@ export function zMoney(currencyOrOptions?: string | ZMoneyOptions) {
       if (options.positive && !money.isPositive()) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
-          error: "Amount must be positive",
+          message: "Amount must be positive",
         })
         return z.NEVER
       }
@@ -161,7 +161,7 @@ export function zMoney(currencyOrOptions?: string | ZMoneyOptions) {
       if (options.nonNegative && money.isNegative()) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
-          error: "Amount must be non-negative",
+          message: "Amount must be non-negative",
         })
         return z.NEVER
       }

@@ -16,7 +16,7 @@ export const zPriceRangeString = z.string().transform((val, ctx) => {
   } catch (error) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
-      error: `Invalid price range string: ${error instanceof Error ? error.message : "Unknown error"}`,
+      message: `Invalid price range string: ${error instanceof Error ? error.message : "Unknown error"}`,
     })
     return z.NEVER
   }
@@ -38,7 +38,7 @@ export const zPriceRangeObject = z
     } catch (error) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        error: `Invalid price range: ${error instanceof Error ? error.message : "Unknown error"}`,
+        message: `Invalid price range: ${error instanceof Error ? error.message : "Unknown error"}`,
       })
       return z.NEVER
     }
@@ -58,7 +58,7 @@ export const zPriceRangeJSON = z
     } catch (error) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        error: `Invalid price range JSON: ${error instanceof Error ? error.message : "Unknown error"}`,
+        message: `Invalid price range JSON: ${error instanceof Error ? error.message : "Unknown error"}`,
       })
       return z.NEVER
     }
@@ -148,7 +148,7 @@ export function zPriceRange(currencyOrOptions?: string | ZPriceRangeOptions) {
     if (options.currency && range.currency.code !== options.currency) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        error: `Expected currency ${options.currency}, got ${range.currency.code}`,
+        message: `Expected currency ${options.currency}, got ${range.currency.code}`,
       })
       return z.NEVER
     }
@@ -157,7 +157,7 @@ export function zPriceRange(currencyOrOptions?: string | ZPriceRangeOptions) {
     if (minSpanMoney && range.span.compare(minSpanMoney) < 0) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        error: `Range span must be at least ${minSpanMoney.toString()}`,
+        message: `Range span must be at least ${minSpanMoney.toString()}`,
       })
       return z.NEVER
     }
@@ -166,7 +166,7 @@ export function zPriceRange(currencyOrOptions?: string | ZPriceRangeOptions) {
     if (maxSpanMoney && range.span.compare(maxSpanMoney) > 0) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        error: `Range span must be at most ${maxSpanMoney.toString()}`,
+        message: `Range span must be at most ${maxSpanMoney.toString()}`,
       })
       return z.NEVER
     }
@@ -175,7 +175,7 @@ export function zPriceRange(currencyOrOptions?: string | ZPriceRangeOptions) {
     if (boundsMin && range.min.compare(boundsMin) < 0) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        error: `Range minimum must be at least ${boundsMin.toString()}`,
+        message: `Range minimum must be at least ${boundsMin.toString()}`,
       })
       return z.NEVER
     }
@@ -184,7 +184,7 @@ export function zPriceRange(currencyOrOptions?: string | ZPriceRangeOptions) {
     if (boundsMax && range.max.compare(boundsMax) > 0) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        error: `Range maximum must be at most ${boundsMax.toString()}`,
+        message: `Range maximum must be at most ${boundsMax.toString()}`,
       })
       return z.NEVER
     }
