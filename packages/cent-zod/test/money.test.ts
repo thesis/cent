@@ -78,6 +78,17 @@ describe("zMoneyJSON", () => {
     })
     expect(result).toBeInstanceOf(MoneyClass)
   })
+
+  it("rejects structurally valid JSON with unknown currency via safeParse", () => {
+    const result = zMoneyJSON.safeParse({
+      currency: "XYZ",
+      amount: "100.00",
+    })
+    expect(result.success).toBe(false)
+    if (!result.success) {
+      expect(result.error.issues[0].message).toMatch(/Invalid money JSON/)
+    }
+  })
 })
 
 describe("zMoney", () => {

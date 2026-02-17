@@ -24,8 +24,16 @@ export const zMoneyJSON = z
     currency: z.union([zCurrencyObject, z.string()]),
     amount: zMoneyAmountJSON,
   })
-  .transform((data) => {
-    return MoneyClass.fromJSON(data)
+  .transform((data, ctx) => {
+    try {
+      return MoneyClass.fromJSON(data)
+    } catch (error) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: `Invalid money JSON: ${error instanceof Error ? error.message : "Unknown error"}`,
+      })
+      return z.NEVER
+    }
   })
 
 /**
@@ -170,7 +178,7 @@ export function zMoney(currencyOrOptions?: string | ZMoneyOptions) {
       if (options.nonZero && money.isZero()) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
-          error: "Amount must not be zero",
+          message: "Amount must not be zero",
         })
         return z.NEVER
       }
