@@ -29,10 +29,15 @@ export const zFixedPointJSON = z.object({
  * Schema for RationalNumber JSON representation
  * Validates { p: string, q: string } (no transform - Money.fromJSON handles conversion)
  */
-export const zRationalNumberJSON = z.object({
-  p: z.string().regex(/^-?\d+$/, "Must be a valid integer string"),
-  q: z.string().regex(/^-?\d+$/, "Must be a valid integer string"),
-})
+export const zRationalNumberJSON = z
+  .object({
+    p: z.string().regex(/^-?\d+$/, "Must be a valid integer string"),
+    q: z.string().regex(/^-?\d+$/, "Must be a valid integer string"),
+  })
+  .refine((data) => data.q !== "0", {
+    message: "Denominator must not be zero",
+    path: ["q"],
+  })
 
 /**
  * Schema for decimal string input (e.g., "123.45")
