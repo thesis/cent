@@ -17,7 +17,8 @@ import type { Result } from "../result"
 import { FixedPointNumber } from "../fixed-point"
 import { isOnlyFactorsOf2And5 } from "../math-utils"
 import { RationalNumber } from "../rationals"
-import type { AssetAmount, Currency, FixedPoint, RoundingMode } from "../types"
+import { RoundingMode } from "../types"
+import type { AssetAmount, Currency, FixedPoint } from "../types"
 import { parseMoneyString } from "./parsing"
 import type { MoneyAmount } from "./types"
 import {
@@ -808,7 +809,7 @@ export class Money {
 
     // Default to config defaultRoundingMode if set, otherwise HALF_EXPAND
     const configDefault = getConfig().defaultRoundingMode
-    const roundingMode = mode ?? (configDefault !== "none" ? configDefault : "halfExpand" as RoundingMode)
+    const roundingMode = mode ?? (configDefault !== "none" ? configDefault : RoundingMode.HALF_EXPAND)
 
     // Apply rounding
     const quotient = thisFixedPoint.amount / divisor
@@ -849,23 +850,7 @@ export class Money {
    */
   extractPercent(percent: string | number, round?: RoundingMode): Money {
     // Parse the percentage value
-    let percentDecimal: FixedPointNumber
-    if (typeof percent === "string") {
-      const parsed = parsePercentage(percent)
-      if (parsed !== null) {
-        percentDecimal = parsed
-      } else {
-        // Try parsing as a plain number string (e.g., "21" for 21%)
-        const valueFixed = FixedPointNumber.fromDecimalString(percent)
-        const hundred = new FixedPointNumber(100n, 0n)
-        percentDecimal = valueFixed.divide(hundred)
-      }
-    } else {
-      // Number input - treat as percentage value (21 means 21%)
-      const valueFixed = FixedPointNumber.fromDecimalString(percent.toString())
-      const hundred = new FixedPointNumber(100n, 0n)
-      percentDecimal = valueFixed.divide(hundred)
-    }
+    const percentDecimal = parsePercentLike(percent)
 
     // Formula: total - (total / (1 + percent/100))
     // = total - baseAmount
@@ -903,23 +888,7 @@ export class Money {
    */
   removePercent(percent: string | number, round?: RoundingMode): Money {
     // Parse the percentage value
-    let percentDecimal: FixedPointNumber
-    if (typeof percent === "string") {
-      const parsed = parsePercentage(percent)
-      if (parsed !== null) {
-        percentDecimal = parsed
-      } else {
-        // Try parsing as a plain number string (e.g., "21" for 21%)
-        const valueFixed = FixedPointNumber.fromDecimalString(percent)
-        const hundred = new FixedPointNumber(100n, 0n)
-        percentDecimal = valueFixed.divide(hundred)
-      }
-    } else {
-      // Number input - treat as percentage value (21 means 21%)
-      const valueFixed = FixedPointNumber.fromDecimalString(percent.toString())
-      const hundred = new FixedPointNumber(100n, 0n)
-      percentDecimal = valueFixed.divide(hundred)
-    }
+    const percentDecimal = parsePercentLike(percent)
 
     // Formula: total / (1 + percent/100)
     const one = new FixedPointNumber(1n, 0n)
@@ -2363,15 +2332,15 @@ export class Money {
     // Validate currencies match
     if (minMoney.currency.code !== this.currency.code) {
       throw new CurrencyMismatchError(
-        this.currency.code,
-        minMoney.currency.code,
+        this.currency.code || this.currency.name,
+        minMoney.currency.code || minMoney.currency.name,
         "clamp"
       )
     }
     if (maxMoney.currency.code !== this.currency.code) {
       throw new CurrencyMismatchError(
-        this.currency.code,
-        maxMoney.currency.code,
+        this.currency.code || this.currency.name,
+        maxMoney.currency.code || maxMoney.currency.name,
         "clamp"
       )
     }
@@ -2422,8 +2391,8 @@ export class Money {
     // Validate currency matches
     if (minMoney.currency.code !== this.currency.code) {
       throw new CurrencyMismatchError(
-        this.currency.code,
-        minMoney.currency.code,
+        this.currency.code || this.currency.name,
+        minMoney.currency.code || minMoney.currency.name,
         "atLeast"
       )
     }
@@ -2461,8 +2430,8 @@ export class Money {
     // Validate currency matches
     if (maxMoney.currency.code !== this.currency.code) {
       throw new CurrencyMismatchError(
-        this.currency.code,
-        maxMoney.currency.code,
+        this.currency.code || this.currency.name,
+        maxMoney.currency.code || maxMoney.currency.name,
         "atMost"
       )
     }
@@ -2655,11 +2624,20 @@ function parsePercentage(input: string): FixedPointNumber | null {
 }
 
 /**
- * Check if a string is a percentage string.
+ * Parse a percentage-like input, accepting either an explicit percentage
+ * string (e.g. "8.25%") or a bare numeric value (string or number) which
+ * is treated as a percentage (21 means 21%).
  * @internal
  */
-function isPercentageString(input: string): boolean {
-  return parsePercentage(input) !== null
+function parsePercentLike(percent: string | number): FixedPointNumber {
+  if (typeof percent === "string") {
+    const parsed = parsePercentage(percent)
+    if (parsed !== null) return parsed
+  }
+  const str = typeof percent === "string" ? percent : percent.toString()
+  const valueFixed = FixedPointNumber.fromDecimalString(str)
+  const hundred = new FixedPointNumber(100n, 0n)
+  return valueFixed.divide(hundred)
 }
 
 /**
