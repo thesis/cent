@@ -1,10 +1,12 @@
-import { describe, expect, it, beforeEach } from "@jest/globals"
+import { describe, expect, it, beforeEach, jest } from "@jest/globals"
 import {
   configure,
   getConfig,
   getDefaultConfig,
   resetConfig,
   withConfig,
+  runWithConfigFallback,
+  __resetBrowserAsyncWarning,
 } from "../src/config"
 import { HALF_EXPAND } from "../src/types"
 import {
@@ -320,6 +322,68 @@ describe("Configuration System", () => {
 
       expect(result.before).toBe("JPY")
       expect(result.after).toBe("JPY")
+    })
+  })
+
+  describe("browser fallback async warning", () => {
+    beforeEach(() => {
+      __resetBrowserAsyncWarning()
+    })
+
+    it("warns once when an async function is passed in the browser fallback path", async () => {
+      const warnSpy = jest
+        .spyOn(console, "warn")
+        .mockImplementation(() => {})
+      try {
+        const merged = { ...getDefaultConfig() }
+        const promise = runWithConfigFallback(merged, async () => {
+          return "ok"
+        })
+        // Returned value is a Promise — caller still awaits as normal
+        expect(promise).toBeInstanceOf(Promise)
+        await promise
+
+        expect(warnSpy).toHaveBeenCalledTimes(1)
+        const message = warnSpy.mock.calls[0][0] as string
+        expect(message).toContain("[cent]")
+        expect(message).toContain("withConfig")
+        expect(message).toContain("AsyncLocalStorage")
+
+        // Second call must NOT warn again
+        await runWithConfigFallback(merged, async () => "ok2")
+        expect(warnSpy).toHaveBeenCalledTimes(1)
+      } finally {
+        warnSpy.mockRestore()
+      }
+    })
+
+    it("does not warn for synchronous callbacks", () => {
+      const warnSpy = jest
+        .spyOn(console, "warn")
+        .mockImplementation(() => {})
+      try {
+        const merged = { ...getDefaultConfig() }
+        const result = runWithConfigFallback(merged, () => 42)
+        expect(result).toBe(42)
+        expect(warnSpy).not.toHaveBeenCalled()
+      } finally {
+        warnSpy.mockRestore()
+      }
+    })
+
+    it("still returns the Promise to the caller (behavior unchanged)", async () => {
+      const warnSpy = jest
+        .spyOn(console, "warn")
+        .mockImplementation(() => {})
+      try {
+        const merged = { ...getDefaultConfig(), defaultCurrency: "EUR" }
+        const result = await runWithConfigFallback(merged, async () => {
+          return "value"
+        })
+        expect(result).toBe("value")
+      } finally {
+        warnSpy.mockRestore()
+      }
     })
   })
 })

@@ -90,6 +90,25 @@ try {
 }
 
 /**
+ * Tracks whether we've already warned about async withConfig in a non-Node
+ * environment. Used to dedup the warning so we only fire it once per process.
+ *
+ * @internal
+ */
+let warnedAboutBrowserAsync = false
+
+/**
+ * Reset the browser-async-warning dedup flag.
+ *
+ * Exposed for testing only.
+ *
+ * @internal
+ */
+export function __resetBrowserAsyncWarning(): void {
+  warnedAboutBrowserAsync = false
+}
+
+/**
  * Configure global defaults for the cent library.
  *
  * Call this once at application startup to set library-wide behavior.
@@ -176,11 +195,41 @@ export function withConfig<T>(options: Partial<CentConfig>, fn: () => T): T {
   if (asyncLocalStorage) {
     return asyncLocalStorage.run(merged, fn)
   }
-  // Browser fallback: sync-safe save/restore
+  return runWithConfigFallback(merged, fn)
+}
+
+/**
+ * Browser fallback for `withConfig` when AsyncLocalStorage isn't available.
+ *
+ * Uses synchronous save/restore. If the callback returns a Promise, emits a
+ * one-time warning that concurrent async scopes will race on the global
+ * config — the `finally` block runs when the Promise is *returned*, not when
+ * it resolves.
+ *
+ * @internal
+ */
+export function runWithConfigFallback<T>(
+  merged: CentConfig,
+  fn: () => T,
+): T {
   const prev = { ...currentConfig }
   try {
     currentConfig = merged
-    return fn()
+    const result = fn()
+    if (
+      result !== null &&
+      typeof result === "object" &&
+      typeof (result as { then?: unknown }).then === "function"
+    ) {
+      if (!warnedAboutBrowserAsync) {
+        warnedAboutBrowserAsync = true
+        // eslint-disable-next-line no-console
+        console.warn(
+          "[cent] withConfig() received an async function in a non-Node environment without AsyncLocalStorage. Concurrent async withConfig() calls will race on global config. See https://github.com/thesis/cent for details.",
+        )
+      }
+    }
+    return result
   } finally {
     currentConfig = prev
   }
