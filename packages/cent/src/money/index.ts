@@ -1654,6 +1654,42 @@ export class Money {
   }
 
   /**
+   * Create a Money instance from a minor-unit amount in the currency's
+   * canonical smallest unit.
+   *
+   * This is an explicit, discoverable alias for `Money(amount, currency)` when
+   * passing a `bigint`. The bigint is interpreted in the currency's minor
+   * units (e.g., cents for USD, satoshis for BTC, wei for ETH).
+   *
+   * For sub-units that don't correspond to the currency's canonical decimals
+   * (e.g., msat, gwei), use `Money.fromSubUnits()` instead.
+   *
+   * @param amount - The amount in minor units (as bigint)
+   * @param currency - The currency code or Currency object
+   * @returns A new Money instance
+   *
+   * @example
+   * // Fiat: USD has 2 decimals, so cents are minor units
+   * Money.fromMinorUnits(10050n, "USD")    // $100.50
+   * Money.fromMinorUnits(0n, "USD")        // $0.00
+   *
+   * @example
+   * // Crypto: BTC has 8 decimals, so satoshis are minor units
+   * Money.fromMinorUnits(100000000n, "BTC")  // 1 BTC
+   * Money.fromMinorUnits(50000000n, "BTC")   // 0.5 BTC
+   *
+   * @example
+   * // Crypto: ETH has 18 decimals, so wei are minor units
+   * Money.fromMinorUnits(1000000000000000000n, "ETH")  // 1 ETH
+   *
+   * @see {@link MoneyFactory} - this method is equivalent to `Money(amount, currency)`
+   *   for the bigint+currency overload.
+   */
+  static fromMinorUnits(amount: bigint, currency: string | Currency): Money {
+    return MoneyFactory(amount, currency)
+  }
+
+  /**
    * Create a Money instance from a sub-unit amount.
    *
    * This method allows creating Money from sub-units like satoshis, gwei, wei,
@@ -2312,6 +2348,15 @@ export class Money {
    * @throws InvalidInputError if min > max
    * @throws CurrencyMismatchError if currencies don't match
    *
+   * @remarks
+   * When `min` or `max` is a bare numeric string (not a `Money` instance and
+   * not a currency-prefixed string like `"$10"`), the value is interpreted
+   * in this Money's currency at the **full precision of the input string**,
+   * NOT clamped to the currency's canonical decimals. For example,
+   * `Money("$1").clamp("0", "0.123456789012345678")` preserves all 18
+   * decimals of the upper bound. To clamp to currency-canonical precision,
+   * pass a `Money` instance instead.
+   *
    * @example
    * import { Money } from '@thesis-co/cent';
    *
@@ -2373,6 +2418,13 @@ export class Money {
    * @returns This value if >= min, otherwise min
    * @throws CurrencyMismatchError if currencies don't match
    *
+   * @remarks
+   * When `min` is a bare numeric string (not a `Money` instance and not a
+   * currency-prefixed string like `"$10"`), the value is interpreted in this
+   * Money's currency at the **full precision of the input string**, NOT
+   * clamped to the currency's canonical decimals. To enforce
+   * currency-canonical precision, pass a `Money` instance instead.
+   *
    * @example
    * import { Money } from '@thesis-co/cent';
    *
@@ -2411,6 +2463,13 @@ export class Money {
    * @param max - The maximum bound (Money, string, or number)
    * @returns This value if <= max, otherwise max
    * @throws CurrencyMismatchError if currencies don't match
+   *
+   * @remarks
+   * When `max` is a bare numeric string (not a `Money` instance and not a
+   * currency-prefixed string like `"$10"`), the value is interpreted in this
+   * Money's currency at the **full precision of the input string**, NOT
+   * clamped to the currency's canonical decimals. To enforce
+   * currency-canonical precision, pass a `Money` instance instead.
    *
    * @example
    * import { Money } from '@thesis-co/cent';
