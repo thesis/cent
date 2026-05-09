@@ -213,12 +213,12 @@ describe("FixedPointNumber", () => {
       it("should divide by FixedPoint with factors of 2 and 5 only", () => {
         const fp1 = new FixedPointNumber(100n, 1n) // 10.0
         const fp2 = new FixedPointNumber(25n, 1n) // 2.5
-        const result = fp1.divide(fp2) // 10.0 / 2.5 = 4.000
+        const result = fp1.divide(fp2) // 10.0 / 2.5 = 4.0
 
-        // 10.0 / 2.5: (100*10) / 25 * 10^2 = 1000 / 25 * 100 = 40 * 100 = 4000
-        // Decimals: 1 + 1 + 2 = 4 (for 25 = 5^2)
-        expect(result.amount).toBe(4000n) // 4.0000 as 4000 with 4 decimals
-        expect(result.decimals).toBe(4n) // 1 + 1 + 2 for 25=5^2
+        // 10.0 / 2.5 = 4.0
+        // Decimals: this.decimals + neededFactors = 1 + 2 = 3 (for 25 = 5^2)
+        expect(result.amount).toBe(4000n) // 4.000 as 4000 with 3 decimals
+        expect(result.decimals).toBe(3n)
       })
 
       it("should handle division resulting in decimal expansion", () => {
@@ -1687,9 +1687,11 @@ describe("FixedPoint factory function", () => {
     describe("divide", () => {
       it("should divide by string decimal numbers (factors of 2 and 5)", () => {
         const result = fp100.divide("2.5")
-        expect(result.amount).toBe(400000n) // 40.00000 (higher precision)
-        expect(result.decimals).toBe(5n)
-        expect(result.toString()).toBe("4.00000")
+        // 100.00 / 2.5 = 40.0
+        // Decimals: this.decimals + neededFactors = 2 + 2 = 4 (for 25 = 5^2)
+        expect(result.amount).toBe(400000n) // 40.0000
+        expect(result.decimals).toBe(4n)
+        expect(result.toString()).toBe("40.0000")
       })
 
       it("should divide by string integers", () => {

@@ -121,7 +121,7 @@ describe("Money", () => {
       const eurMoney = new Money(eurAmount)
 
       expect(() => usdMoney.add(eurMoney)).toThrow(
-        "Cannot add Money with different asset types",
+        /different currencies/,
       )
     })
 
@@ -129,7 +129,7 @@ describe("Money", () => {
       const usdMoney = new Money(usdAmount)
 
       expect(() => usdMoney.add(eurAmount)).toThrow(
-        "Cannot add Money with different asset types",
+        /different currencies/,
       )
     })
   })
@@ -198,7 +198,7 @@ describe("Money", () => {
       const eurMoney = new Money(eurAmount)
 
       expect(() => usdMoney.subtract(eurMoney)).toThrow(
-        "Cannot subtract Money with different asset types",
+        /different currencies/,
       )
     })
 
@@ -206,7 +206,7 @@ describe("Money", () => {
       const usdMoney = new Money(usdAmount)
 
       expect(() => usdMoney.subtract(eurAmount)).toThrow(
-        "Cannot subtract Money with different asset types",
+        /different currencies/,
       )
     })
   })
@@ -410,7 +410,7 @@ describe("Money", () => {
       const eurMoney = new Money(eurAmount)
 
       expect(() => usdMoney.lessThan(eurMoney)).toThrow(
-        "Cannot compare Money with different asset types",
+        /different currencies/,
       )
     })
   })
@@ -454,7 +454,7 @@ describe("Money", () => {
       const eurMoney = new Money(eurAmount)
 
       expect(() => usdMoney.lessThanOrEqual(eurMoney)).toThrow(
-        "Cannot compare Money with different asset types",
+        /different currencies/,
       )
     })
   })
@@ -506,7 +506,7 @@ describe("Money", () => {
       const eurMoney = new Money(eurAmount)
 
       expect(() => usdMoney.greaterThan(eurMoney)).toThrow(
-        "Cannot compare Money with different asset types",
+        /different currencies/,
       )
     })
   })
@@ -550,7 +550,7 @@ describe("Money", () => {
       const eurMoney = new Money(eurAmount)
 
       expect(() => usdMoney.greaterThanOrEqual(eurMoney)).toThrow(
-        "Cannot compare Money with different asset types",
+        /different currencies/,
       )
     })
   })
@@ -1331,7 +1331,7 @@ describe("Money", () => {
       const eurMoney = new Money(eurAmount)
 
       expect(() => usdMoney.max(eurMoney)).toThrow(
-        "Cannot compare Money with different asset types",
+        /different currencies/,
       )
     })
 
@@ -1344,7 +1344,7 @@ describe("Money", () => {
       const eurMoney = new Money(eurAmount)
 
       expect(() => usdMoney1.max([usdMoney2, eurMoney])).toThrow(
-        "Cannot compare Money with different asset types",
+        /different currencies/,
       )
     })
   })
@@ -1402,7 +1402,7 @@ describe("Money", () => {
       const eurMoney = new Money(eurAmount)
 
       expect(() => usdMoney.min(eurMoney)).toThrow(
-        "Cannot compare Money with different asset types",
+        /different currencies/,
       )
     })
 
@@ -1415,7 +1415,7 @@ describe("Money", () => {
       const eurMoney = new Money(eurAmount)
 
       expect(() => usdMoney1.min([usdMoney2, eurMoney])).toThrow(
-        "Cannot compare Money with different asset types",
+        /different currencies/,
       )
     })
   })
@@ -1835,7 +1835,7 @@ describe("Money", () => {
       const eurMoney = new Money(eurAmount)
 
       expect(() => usdMoney.compare(eurMoney)).toThrow(
-        "Cannot compare Money with different asset types",
+        /different currencies/,
       )
     })
 
@@ -2788,7 +2788,7 @@ describe("Money", () => {
       })
 
       it("should throw on currency mismatch", () => {
-        expect(() => usd100.add("€25.00")).toThrow("Currency mismatch")
+        expect(() => usd100.add("€25.00")).toThrow(/different currencies/)
       })
 
       it("should handle negative string amounts", () => {
@@ -2830,7 +2830,7 @@ describe("Money", () => {
       })
 
       it("should throw on currency mismatch", () => {
-        expect(() => usd100.subtract("€25.00")).toThrow("Currency mismatch")
+        expect(() => usd100.subtract("€25.00")).toThrow(/different currencies/)
       })
     })
 
@@ -2851,7 +2851,7 @@ describe("Money", () => {
       })
 
       it("should throw on currency mismatch", () => {
-        expect(() => usd100.equals("€100.00")).toThrow("Currency mismatch")
+        expect(() => usd100.equals("€100.00")).toThrow(/different currencies/)
       })
     })
 
@@ -2863,7 +2863,7 @@ describe("Money", () => {
       })
 
       it("should throw on currency mismatch", () => {
-        expect(() => usd100.lessThan("€100.00")).toThrow("Currency mismatch")
+        expect(() => usd100.lessThan("€100.00")).toThrow(/different currencies/)
       })
     })
 
@@ -2876,7 +2876,7 @@ describe("Money", () => {
 
       it("should throw on currency mismatch", () => {
         expect(() => usd100.lessThanOrEqual("€100.00")).toThrow(
-          "Currency mismatch",
+          /different currencies/,
         )
       })
     })
@@ -2889,7 +2889,7 @@ describe("Money", () => {
       })
 
       it("should throw on currency mismatch", () => {
-        expect(() => usd100.greaterThan("€25.00")).toThrow("Currency mismatch")
+        expect(() => usd100.greaterThan("€25.00")).toThrow(/different currencies/)
       })
     })
 
@@ -2902,7 +2902,7 @@ describe("Money", () => {
 
       it("should throw on currency mismatch", () => {
         expect(() => usd100.greaterThanOrEqual("€25.00")).toThrow(
-          "Currency mismatch",
+          /different currencies/,
         )
       })
     })
@@ -2924,7 +2924,7 @@ describe("Money", () => {
       })
 
       it("should throw on currency mismatch", () => {
-        expect(() => usd100.max("€100.00")).toThrow("Currency mismatch")
+        expect(() => usd100.max("€100.00")).toThrow(/different currencies/)
       })
     })
 
@@ -2945,7 +2945,7 @@ describe("Money", () => {
       })
 
       it("should throw on currency mismatch", () => {
-        expect(() => usd100.min("€25.00")).toThrow("Currency mismatch")
+        expect(() => usd100.min("€25.00")).toThrow(/different currencies/)
       })
     })
 
