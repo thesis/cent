@@ -731,6 +731,42 @@ describe("Money Factory Function", () => {
         ).toBe(true)
       })
     })
+
+    describe("Fractional Sub-Units", () => {
+      it("should read sub-unit amounts in US format", () => {
+        const sats = Money("1.000 sats")
+        expect(sats.amount.amount).toBe(1000n)
+        expect(sats.amount.decimals).toBe(11n)
+        expect(sats.equals(Money("1 sat"))).toBe(true)
+        expect(Money("1,000 sats").equals(Money("1000 sat"))).toBe(true)
+        expect(() => Money("1.000,5 sats")).toThrow("Invalid number format")
+        expect(() => Money("1,5 sats")).toThrow("Invalid comma usage")
+      })
+
+      it("should keep decimals when a sub-unit amount is fractional", () => {
+        const sats = Money("1.5 sats")
+        expect(sats.amount.amount).toBe(15n)
+        expect(sats.amount.decimals).toBe(9n)
+        expect(sats.equals(Money("BTC 0.000000015"))).toBe(true)
+
+        expect(Money("1,000.5 sat").equals(Money("BTC 0.000010005"))).toBe(true)
+        expect(Money("0.5 bits").equals(Money("5 sat"))).toBe(true)
+        expect(Money("1.5 msat").equals(Money("BTC 0.0000000000015"))).toBe(
+          true,
+        )
+        expect(Money("1.5 gwei").equals(Money("1500000000 wei"))).toBe(true)
+        expect(Money("0.001 kwei").equals(Money("1 wei"))).toBe(true)
+        expect(
+          Money("0.5 wei").equals(Money("ETH 0.0000000000000000005")),
+        ).toBe(true)
+      })
+
+      it("should parse DECIMAL(33,18) sats strings as whole sats", () => {
+        expect(
+          Money("1500.000000000000000000 sat").equals(Money("1500 sat")),
+        ).toBe(true)
+      })
+    })
   })
 
   describe("Symbol Disambiguation", () => {

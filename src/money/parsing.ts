@@ -16,6 +16,29 @@ export interface MoneyParseResult {
   amount: FixedPointNumber
 }
 
+const MAX_SCIENTIFIC_EXPONENT = 100
+
+// Mantissa as "\d+|\d*\.\d+": adjacent digit quantifiers backtrack quadratically
+const SCIENTIFIC_NUMBER = String.raw`(?:\d+|\d*\.\d+)[eE][+-]?\d+`
+const SCIENTIFIC_NUMBER_REGEX = new RegExp(`^-?${SCIENTIFIC_NUMBER}$`)
+
+// An optional minus (spaces allowed after it), then a plain amount ("1,234.56")
+// or one scientific-notation number ("3.5e-7"). No other whitespace: it must
+// not overlap the \s+ separator or matching goes quadratic.
+const AMOUNT_PATTERN = String.raw`(?:-\s*)?(?:[0-9,.]+|${SCIENTIFIC_NUMBER})`
+const CRYPTO_SUB_UNIT_REGEX = new RegExp(
+  String.raw`^(${AMOUNT_PATTERN})\s+([a-zA-Z]+)s?$`,
+  "i",
+)
+const CODE_FIRST_REGEX = new RegExp(
+  String.raw`^([A-Z]{3,4})\s+(${AMOUNT_PATTERN})$`,
+  "i",
+)
+const CODE_LAST_REGEX = new RegExp(
+  String.raw`^(${AMOUNT_PATTERN})\s+([A-Z]{3,4})$`,
+  "i",
+)
+
 /**
  * Validate US comma grouping (thousands separators every 3 digits)
  */
@@ -81,7 +104,7 @@ function parseNumber(
   // Handle scientific notation (e.g., "1.06521485582e-7", "5e8", "1.23E+5")
   if (/[eE]/.test(cleaned)) {
     // Validate scientific notation format more strictly
-    if (!/^-?\d*\.?\d+[eE][+-]?\d+$/.test(cleaned)) {
+    if (!SCIENTIFIC_NUMBER_REGEX.test(cleaned)) {
       throw new Error(`Invalid number format: "${amountStr}"`)
     }
 
@@ -91,6 +114,11 @@ function parseNumber(
 
     if (Number.isNaN(exponent)) {
       throw new Error(`Invalid number format: "${amountStr}"`)
+    }
+
+    // 10n ** exponent is unbounded work: "$1e100000000" takes seconds and GBs
+    if (Math.abs(exponent) > MAX_SCIENTIFIC_EXPONENT) {
+      throw new Error(`Exponent out of range: "${amountStr}"`)
     }
 
     // Parse the mantissa (e.g., "1.23" from "1.23e-5")
@@ -260,27 +288,36 @@ function createFixedPointFromParsed(
  */
 function tryParseCryptoSubUnit(input: string): MoneyParseResult | null {
   // Pattern: number + space + unit
-  const match = input.match(/^([0-9,. -]+)\s+([a-zA-Z]+)s?$/i)
+  const match = input.match(CRYPTO_SUB_UNIT_REGEX)
   if (!match) return null
 
   const [, amountStr, unit] = match
   const unitLower = unit.toLowerCase()
 
+  // Scale by the unit, keeping input decimals: "1.5 sat" is 0.000000015 BTC
+  const toFixedPoint = (
+    multiplier: bigint,
+    unitDecimals: bigint,
+  ): FixedPointNumber => {
+    const parsed = parseNumber(amountStr, "US")
+    return new FixedPointNumber(
+      parsed.amount * multiplier,
+      unitDecimals + BigInt(parsed.decimals),
+    )
+  }
+
   // Bitcoin sub-units
   if (["sat", "sats", "satoshi", "satoshis"].includes(unitLower)) {
-    const parsed = parseNumber(amountStr, "US") // Satoshis are always integers
     return {
       currency: currencies.BTC,
-      amount: new FixedPointNumber(parsed.amount, 8n), // satoshis are at 8 decimal places
+      amount: toFixedPoint(1n, 8n), // satoshis are at 8 decimal places
     }
   }
 
   if (["bit", "bits"].includes(unitLower)) {
-    const parsed = parseNumber(amountStr, "US")
-    const { amount } = parsed
     return {
       currency: currencies.BTC,
-      amount: new FixedPointNumber(amount * 10n, 8n), // 1 bit = 10 satoshis
+      amount: toFixedPoint(10n, 8n), // 1 bit = 10 satoshis
     }
   }
 
@@ -294,39 +331,31 @@ function tryParseCryptoSubUnit(input: string): MoneyParseResult | null {
       "millisatoshis",
     ].includes(unitLower)
   ) {
-    const parsed = parseNumber(amountStr, "US")
-    const { amount } = parsed
     return {
       currency: currencies.BTC,
-      amount: new FixedPointNumber(amount, 12n), // millisatoshis are at 12 decimal places
+      amount: toFixedPoint(1n, 12n), // millisatoshis are at 12 decimal places
     }
   }
 
   // Ethereum sub-units
   if (["wei"].includes(unitLower)) {
-    const parsed = parseNumber(amountStr, "US")
-    const { amount } = parsed
     return {
       currency: currencies.ETH,
-      amount: new FixedPointNumber(amount, 18n), // wei are at 18 decimal places
+      amount: toFixedPoint(1n, 18n), // wei are at 18 decimal places
     }
   }
 
   if (["gwei", "shannon"].includes(unitLower)) {
-    const parsed = parseNumber(amountStr, "US")
-    const { amount } = parsed
     return {
       currency: currencies.ETH,
-      amount: new FixedPointNumber(amount * 10n ** 9n, 18n), // 1 gwei = 10^9 wei
+      amount: toFixedPoint(10n ** 9n, 18n), // 1 gwei = 10^9 wei
     }
   }
 
   if (["kwei", "babbage"].includes(unitLower)) {
-    const parsed = parseNumber(amountStr, "US")
-    const { amount } = parsed
     return {
       currency: currencies.ETH,
-      amount: new FixedPointNumber(amount * 10n ** 3n, 18n), // 1 kwei = 10^3 wei
+      amount: toFixedPoint(10n ** 3n, 18n), // 1 kwei = 10^3 wei
     }
   }
 
@@ -362,8 +391,8 @@ function parseCurrencyCodeAmount(
 function tryParseCurrencyCode(input: string): MoneyParseResult | null {
   // Pattern: code + space + number OR number + space + code
   // Support both 3-letter (ISO 4217) and 4-letter (crypto) currency codes
-  const codeFirstMatch = input.match(/^([A-Z]{3,4})\s+([0-9,. -]+)$/i)
-  const codeLastMatch = input.match(/^([0-9,. -]+)\s+([A-Z]{3,4})$/i)
+  const codeFirstMatch = input.match(CODE_FIRST_REGEX)
+  const codeLastMatch = input.match(CODE_LAST_REGEX)
 
   if (codeFirstMatch) {
     const [, code, amountStr] = codeFirstMatch
