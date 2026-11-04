@@ -24,8 +24,8 @@
     "access": "public"
   },
   "scripts": {
-    "lint": "pnpx @biomejs/biome check",
-    "lint:fix": "pnpx @biomejs/biome check --write",
+    "lint": "pnpx @biomejs/biome@2.2.4 check",
+    "lint:fix": "pnpx @biomejs/biome@2.2.4 check --write",
     "build": "tsc",
     "test": "jest",
     "prepublishOnly": "pnpm run build && pnpm run test && pnpm run lint"
