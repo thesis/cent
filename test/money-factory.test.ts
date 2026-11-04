@@ -733,6 +733,16 @@ describe("Money Factory Function", () => {
     })
 
     describe("Fractional Sub-Units", () => {
+      it("should read sub-unit amounts in US format", () => {
+        const sats = Money("1.000 sats")
+        expect(sats.amount.amount).toBe(1000n)
+        expect(sats.amount.decimals).toBe(11n)
+        expect(sats.equals(Money("1 sat"))).toBe(true)
+        expect(Money("1,000 sats").equals(Money("1000 sat"))).toBe(true)
+        expect(() => Money("1.000,5 sats")).toThrow("Invalid number format")
+        expect(() => Money("1,5 sats")).toThrow("Invalid comma usage")
+      })
+
       it("should keep decimals when a sub-unit amount is fractional", () => {
         const sats = Money("1.5 sats")
         expect(sats.amount.amount).toBe(15n)

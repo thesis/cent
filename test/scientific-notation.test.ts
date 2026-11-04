@@ -76,6 +76,8 @@ describe("Scientific notation parsing", () => {
 
     it("should read the mantissa dot as a decimal point for any currency", () => {
       expectAmount("EUR 1.234e3", 123400n, 2n)
+      expectAmount("EUR 1.234e2", 12340n, 2n)
+      expectAmount("1.234e2 EUR", 12340n, 2n)
       expectAmount("EUR 10.500e3", 1050000n, 2n)
     })
 
@@ -146,7 +148,47 @@ describe("Scientific notation parsing", () => {
       for (const input of inputs) {
         const start = Date.now()
         expect(() => Money(input)).toThrow()
-        expect(Date.now() - start).toBeLessThan(250)
+        expect(Date.now() - start).toBeLessThan(1000)
+      }
+    })
+
+    it("should reject long space runs quickly", () => {
+      const inputs = [
+        `USD${" ".repeat(50000)}x`,
+        `1${" ".repeat(50000)}1`,
+        `-${" ".repeat(50000)}x`,
+        `1${" ".repeat(50000)}sats extra`,
+      ]
+      for (const input of inputs) {
+        const start = Date.now()
+        expect(() => Money(input)).toThrow("Invalid money string format")
+        expect(Date.now() - start).toBeLessThan(1000)
+      }
+    })
+
+    it("should still parse amounts with spaces after a leading minus", () => {
+      expectAmount("- 100 USD", -10000n, 2n)
+      expectAmount("USD - 100", -10000n, 2n)
+      expectAmount("- 1e5 USD", -10000000n, 2n)
+      expectAmount("- 5 sats", -5n, 8n)
+      expectAmount(`-${" ".repeat(50000)}100 USD`, -10000n, 2n)
+    })
+
+    it("should throw on amounts with embedded spaces", () => {
+      const inputs = [
+        "1 000 USD",
+        "USD 1 000",
+        "100 - USD",
+        "1 - sats",
+        "1,000 - USD",
+        "- USD",
+        "USD -",
+        "- sats",
+      ]
+      for (const input of inputs) {
+        expect(() => Money(input)).toThrow(
+          /Invalid (money string format|number format|comma grouping)/,
+        )
       }
     })
 

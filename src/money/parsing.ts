@@ -22,9 +22,10 @@ const MAX_SCIENTIFIC_EXPONENT = 100
 const SCIENTIFIC_NUMBER = String.raw`(?:\d+|\d*\.\d+)[eE][+-]?\d+`
 const SCIENTIFIC_NUMBER_REGEX = new RegExp(`^-?${SCIENTIFIC_NUMBER}$`)
 
-// A plain amount ("1,234.56", "- 100"), or one scientific-notation number
-// ("3.5e-7", "- 1E+5"). The second branch only matches what parseNumber accepts.
-const AMOUNT_PATTERN = String.raw`[0-9,. -]+|(?:-\s*)?${SCIENTIFIC_NUMBER}`
+// An optional minus (spaces allowed after it), then a plain amount ("1,234.56")
+// or one scientific-notation number ("3.5e-7"). No other whitespace: it must
+// not overlap the \s+ separator or matching goes quadratic.
+const AMOUNT_PATTERN = String.raw`(?:-\s*)?(?:[0-9,.]+|${SCIENTIFIC_NUMBER})`
 const CRYPTO_SUB_UNIT_REGEX = new RegExp(
   String.raw`^(${AMOUNT_PATTERN})\s+([a-zA-Z]+)s?$`,
   "i",
