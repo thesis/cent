@@ -89,14 +89,10 @@ describe("Scientific notation parsing", () => {
       expectAmount("1.5e1 gwei", 15000000000n, 18n)
     })
 
-    it("should throw on fractional sub-unit amounts in scientific notation", () => {
-      expect(() => Money("1e-1 sat")).toThrow(
-        "Fractional sub-unit amounts are not supported",
-      )
-      expect(() => Money("2.5e1 wei")).not.toThrow()
-      expect(() => Money("2.55e1 wei")).toThrow(
-        "Fractional sub-unit amounts are not supported",
-      )
+    it("should keep fractional sub-unit amounts in scientific notation", () => {
+      expectAmount("1e-1 sat", 1n, 9n)
+      expectAmount("2.55e1 wei", 255n, 19n)
+      expect(Money("1e-1 sat").equals(Money("BTC 0.000000001"))).toBe(true)
     })
 
     it("should parse plain amounts as before", () => {

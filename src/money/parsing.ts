@@ -289,32 +289,30 @@ function tryParseCryptoSubUnit(input: string): MoneyParseResult | null {
   const [, amountStr, unit] = match
   const unitLower = unit.toLowerCase()
 
-  // The branches below drop decimals, so "1.5e-1 sat" would read as 15 sat
-  const parseSubUnits = (): { amount: bigint; decimals: number } => {
+  // Scale by the unit, keeping input decimals: "1.5 sat" is 0.000000015 BTC
+  const toFixedPoint = (
+    multiplier: bigint,
+    unitDecimals: bigint,
+  ): FixedPointNumber => {
     const parsed = parseNumber(amountStr, "US")
-    if (/[eE]/.test(amountStr) && parsed.decimals > 0) {
-      throw new Error(
-        `Fractional sub-unit amounts are not supported: "${amountStr}"`,
-      )
-    }
-    return parsed
+    return new FixedPointNumber(
+      parsed.amount * multiplier,
+      unitDecimals + BigInt(parsed.decimals),
+    )
   }
 
   // Bitcoin sub-units
   if (["sat", "sats", "satoshi", "satoshis"].includes(unitLower)) {
-    const parsed = parseSubUnits() // Satoshis are always integers
     return {
       currency: currencies.BTC,
-      amount: new FixedPointNumber(parsed.amount, 8n), // satoshis are at 8 decimal places
+      amount: toFixedPoint(1n, 8n), // satoshis are at 8 decimal places
     }
   }
 
   if (["bit", "bits"].includes(unitLower)) {
-    const parsed = parseSubUnits()
-    const { amount } = parsed
     return {
       currency: currencies.BTC,
-      amount: new FixedPointNumber(amount * 10n, 8n), // 1 bit = 10 satoshis
+      amount: toFixedPoint(10n, 8n), // 1 bit = 10 satoshis
     }
   }
 
@@ -328,39 +326,31 @@ function tryParseCryptoSubUnit(input: string): MoneyParseResult | null {
       "millisatoshis",
     ].includes(unitLower)
   ) {
-    const parsed = parseSubUnits()
-    const { amount } = parsed
     return {
       currency: currencies.BTC,
-      amount: new FixedPointNumber(amount, 12n), // millisatoshis are at 12 decimal places
+      amount: toFixedPoint(1n, 12n), // millisatoshis are at 12 decimal places
     }
   }
 
   // Ethereum sub-units
   if (["wei"].includes(unitLower)) {
-    const parsed = parseSubUnits()
-    const { amount } = parsed
     return {
       currency: currencies.ETH,
-      amount: new FixedPointNumber(amount, 18n), // wei are at 18 decimal places
+      amount: toFixedPoint(1n, 18n), // wei are at 18 decimal places
     }
   }
 
   if (["gwei", "shannon"].includes(unitLower)) {
-    const parsed = parseSubUnits()
-    const { amount } = parsed
     return {
       currency: currencies.ETH,
-      amount: new FixedPointNumber(amount * 10n ** 9n, 18n), // 1 gwei = 10^9 wei
+      amount: toFixedPoint(10n ** 9n, 18n), // 1 gwei = 10^9 wei
     }
   }
 
   if (["kwei", "babbage"].includes(unitLower)) {
-    const parsed = parseSubUnits()
-    const { amount } = parsed
     return {
       currency: currencies.ETH,
-      amount: new FixedPointNumber(amount * 10n ** 3n, 18n), // 1 kwei = 10^3 wei
+      amount: toFixedPoint(10n ** 3n, 18n), // 1 kwei = 10^3 wei
     }
   }
 
