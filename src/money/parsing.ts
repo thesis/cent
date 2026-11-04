@@ -16,6 +16,24 @@ export interface MoneyParseResult {
   amount: FixedPointNumber
 }
 
+const MAX_SCIENTIFIC_EXPONENT = 100
+
+// A plain amount ("1,234.56", "- 100"), or one scientific-notation number
+// ("3.5e-7", "1E+5"). The second branch only matches what parseNumber accepts.
+const AMOUNT_PATTERN = String.raw`[0-9,. -]+|-?\d*\.?\d+[eE][+-]?\d+`
+const CRYPTO_SUB_UNIT_REGEX = new RegExp(
+  String.raw`^(${AMOUNT_PATTERN})\s+([a-zA-Z]+)s?$`,
+  "i",
+)
+const CODE_FIRST_REGEX = new RegExp(
+  String.raw`^([A-Z]{3,4})\s+(${AMOUNT_PATTERN})$`,
+  "i",
+)
+const CODE_LAST_REGEX = new RegExp(
+  String.raw`^(${AMOUNT_PATTERN})\s+([A-Z]{3,4})$`,
+  "i",
+)
+
 /**
  * Validate US comma grouping (thousands separators every 3 digits)
  */
@@ -91,6 +109,11 @@ function parseNumber(
 
     if (Number.isNaN(exponent)) {
       throw new Error(`Invalid number format: "${amountStr}"`)
+    }
+
+    // 10n ** exponent is unbounded work: "$1e100000000" takes seconds and GBs
+    if (Math.abs(exponent) > MAX_SCIENTIFIC_EXPONENT) {
+      throw new Error(`Exponent out of range: "${amountStr}"`)
     }
 
     // Parse the mantissa (e.g., "1.23" from "1.23e-5")
@@ -260,15 +283,26 @@ function createFixedPointFromParsed(
  */
 function tryParseCryptoSubUnit(input: string): MoneyParseResult | null {
   // Pattern: number + space + unit
-  const match = input.match(/^([0-9,. -]+)\s+([a-zA-Z]+)s?$/i)
+  const match = input.match(CRYPTO_SUB_UNIT_REGEX)
   if (!match) return null
 
   const [, amountStr, unit] = match
   const unitLower = unit.toLowerCase()
 
+  // The branches below drop decimals, so "1.5e-1 sat" would read as 15 sat
+  const parseSubUnits = (): { amount: bigint; decimals: number } => {
+    const parsed = parseNumber(amountStr, "US")
+    if (/[eE]/.test(amountStr) && parsed.decimals > 0) {
+      throw new Error(
+        `Fractional sub-unit amounts are not supported: "${amountStr}"`,
+      )
+    }
+    return parsed
+  }
+
   // Bitcoin sub-units
   if (["sat", "sats", "satoshi", "satoshis"].includes(unitLower)) {
-    const parsed = parseNumber(amountStr, "US") // Satoshis are always integers
+    const parsed = parseSubUnits() // Satoshis are always integers
     return {
       currency: currencies.BTC,
       amount: new FixedPointNumber(parsed.amount, 8n), // satoshis are at 8 decimal places
@@ -276,7 +310,7 @@ function tryParseCryptoSubUnit(input: string): MoneyParseResult | null {
   }
 
   if (["bit", "bits"].includes(unitLower)) {
-    const parsed = parseNumber(amountStr, "US")
+    const parsed = parseSubUnits()
     const { amount } = parsed
     return {
       currency: currencies.BTC,
@@ -294,7 +328,7 @@ function tryParseCryptoSubUnit(input: string): MoneyParseResult | null {
       "millisatoshis",
     ].includes(unitLower)
   ) {
-    const parsed = parseNumber(amountStr, "US")
+    const parsed = parseSubUnits()
     const { amount } = parsed
     return {
       currency: currencies.BTC,
@@ -304,7 +338,7 @@ function tryParseCryptoSubUnit(input: string): MoneyParseResult | null {
 
   // Ethereum sub-units
   if (["wei"].includes(unitLower)) {
-    const parsed = parseNumber(amountStr, "US")
+    const parsed = parseSubUnits()
     const { amount } = parsed
     return {
       currency: currencies.ETH,
@@ -313,7 +347,7 @@ function tryParseCryptoSubUnit(input: string): MoneyParseResult | null {
   }
 
   if (["gwei", "shannon"].includes(unitLower)) {
-    const parsed = parseNumber(amountStr, "US")
+    const parsed = parseSubUnits()
     const { amount } = parsed
     return {
       currency: currencies.ETH,
@@ -322,7 +356,7 @@ function tryParseCryptoSubUnit(input: string): MoneyParseResult | null {
   }
 
   if (["kwei", "babbage"].includes(unitLower)) {
-    const parsed = parseNumber(amountStr, "US")
+    const parsed = parseSubUnits()
     const { amount } = parsed
     return {
       currency: currencies.ETH,
@@ -362,8 +396,8 @@ function parseCurrencyCodeAmount(
 function tryParseCurrencyCode(input: string): MoneyParseResult | null {
   // Pattern: code + space + number OR number + space + code
   // Support both 3-letter (ISO 4217) and 4-letter (crypto) currency codes
-  const codeFirstMatch = input.match(/^([A-Z]{3,4})\s+([0-9,. -]+)$/i)
-  const codeLastMatch = input.match(/^([0-9,. -]+)\s+([A-Z]{3,4})$/i)
+  const codeFirstMatch = input.match(CODE_FIRST_REGEX)
+  const codeLastMatch = input.match(CODE_LAST_REGEX)
 
   if (codeFirstMatch) {
     const [, code, amountStr] = codeFirstMatch

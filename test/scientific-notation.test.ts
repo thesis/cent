@@ -39,12 +39,156 @@ describe("Scientific notation parsing", () => {
   })
 
   describe("Currency codes with scientific notation", () => {
-    it("should not parse currency code amounts in scientific notation", () => {
-      // currency code with scientific notation is not supported
-      expect(() => Money("USD 1.23E+5")).toThrow("Invalid money string format")
-      expect(() => Money("1.06521485582e-7 BTC")).toThrow(
-        "Invalid money string format",
+    const expectAmount = (input: string, amount: bigint, decimals: bigint) => {
+      const money = Money(input)
+      expect(money.amount.amount).toBe(amount)
+      expect(money.amount.decimals).toBe(decimals)
+    }
+
+    it("should parse code-first amounts in scientific notation", () => {
+      expectAmount("BTC 3.5e-7", 35n, 8n)
+      expectAmount("btc 3.5e-7", 35n, 8n)
+      expect(Money("BTC 3.5e-7").equals(Money("BTC 0.00000035"))).toBe(true)
+    })
+
+    it("should parse code-last amounts in scientific notation", () => {
+      expectAmount("3.5e-7 BTC", 35n, 8n)
+      expectAmount("1e-8 BTC", 1n, 8n)
+      expectAmount("1.06521485582e-7 BTC", 106521485582n, 18n)
+    })
+
+    it("should parse an uppercase E", () => {
+      expectAmount("5.1E-7 BTC", 51n, 8n)
+      expectAmount("BTC 5.1E-7", 51n, 8n)
+    })
+
+    it("should parse positive exponents", () => {
+      expectAmount("USD 1.23E+5", 12300000n, 2n)
+      expectAmount("1.5e3 BTC", 150000000000n, 8n)
+      expectAmount("2e+0 USD", 200n, 2n)
+    })
+
+    it("should parse negative amounts in scientific notation", () => {
+      expectAmount("-3.5e-7 BTC", -35n, 8n)
+      expectAmount("BTC -3.5e-7", -35n, 8n)
+    })
+
+    it("should keep digits beyond float precision", () => {
+      expect(
+        Money("1.234567890123456789e-1 ETH").equals(
+          Money("0.1234567890123456789 ETH"),
+        ),
+      ).toBe(true)
+    })
+
+    it("should parse whole sub-unit amounts in scientific notation", () => {
+      expectAmount("1e3 sats", 1000n, 8n)
+      expectAmount("2.5E+2 sat", 250n, 8n)
+      expectAmount("1e2 msats", 100n, 12n)
+      expectAmount("1e9 wei", 1000000000n, 18n)
+      expectAmount("1.5e1 gwei", 15000000000n, 18n)
+    })
+
+    it("should throw on fractional sub-unit amounts in scientific notation", () => {
+      expect(() => Money("1e-1 sat")).toThrow(
+        "Fractional sub-unit amounts are not supported",
       )
+      expect(() => Money("2.5e1 wei")).not.toThrow()
+      expect(() => Money("2.55e1 wei")).toThrow(
+        "Fractional sub-unit amounts are not supported",
+      )
+    })
+
+    it("should parse plain amounts as before", () => {
+      expectAmount("BTC 0.00000035", 35n, 8n)
+      expectAmount("1,234.56 USD", 123456n, 2n)
+      expectAmount("EUR 1.234,56", 123456n, 2n)
+      expectAmount("- 100 USD", -10000n, 2n)
+      expectAmount("100 sat", 100n, 8n)
+      expectAmount("1,000 sats", 1000n, 8n)
+    })
+
+    it("should still throw on malformed scientific notation", () => {
+      const malformed = [
+        "BTC 1e",
+        "BTC e-7",
+        "BTC e",
+        "e BTC",
+        "BTC 1.23ee+5",
+        "BTC 1e-7.5",
+        "BTC 1e+-5",
+        "BTC 1e5e3",
+        "BTC 1,000e3",
+        "BTC 1e 5",
+        "BTC 1 e5",
+        "BTC +1e5",
+        "BTC 1.e5",
+        "1e5 BTCX",
+        "1e5 XYZ",
+        "1e5 sats extra",
+      ]
+      for (const input of malformed) {
+        expect(() => Money(input)).toThrow()
+      }
+    })
+
+    it("should parse other code and sub-unit forms in scientific notation", () => {
+      expectAmount("1.5E-7 BTC", 15n, 8n)
+      expectAmount("1e+5 USD", 10000000n, 2n)
+      expectAmount("-1e5 USD", -10000000n, 2n)
+      expectAmount("1e5 sats", 100000n, 8n)
+      expectAmount("1E3 EUR", 100000n, 2n)
+      expectAmount("1.000e3 EUR", 100000n, 2n)
+    })
+
+    it("should still parse a lone E as the SZL symbol", () => {
+      const money = Money("5 E")
+      expect(money.currency.code).toBe("SZL")
+      expectAmount("5 E", 500n, 2n)
+    })
+
+    it("should round trip to the exact decimal", () => {
+      expect(Money("3.5e-7 BTC").toJSON({ compact: true }).amount).toBe(
+        "0.00000035",
+      )
+    })
+
+    it("should keep extra decimals like a plain amount does", () => {
+      expectAmount("1e-10 BTC", 1n, 10n)
+      expectAmount("BTC 0.0000000001", 1n, 10n)
+      expectAmount("1e-18 BTC", 1n, 18n)
+    })
+
+    it("should still throw on other malformed amounts", () => {
+      const malformed = [
+        "e USD",
+        "1e USD",
+        "1e+ USD",
+        "1 e USD",
+        "5 e sats",
+        "+5 USD",
+        "5+5 USD",
+        "5e5e5 USD",
+        "1,000e3 USD",
+        "1,5e3 EUR",
+      ]
+      for (const input of malformed) {
+        expect(() => Money(input)).toThrow()
+      }
+    })
+
+    it("should throw when the exponent is out of range", () => {
+      for (const input of [
+        "1e1000000 BTC",
+        "1e-1000000 BTC",
+        "BTC 1e101",
+        "$1e-101",
+        "1e101 sats",
+      ]) {
+        expect(() => Money(input)).toThrow("Exponent out of range")
+      }
+      expectAmount("BTC 1e-100", 1n, 100n)
+      expect(() => Money("BTC 1e100")).not.toThrow()
     })
   })
 
