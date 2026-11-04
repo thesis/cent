@@ -71,6 +71,12 @@ describe("Scientific notation parsing", () => {
     it("should parse negative amounts in scientific notation", () => {
       expectAmount("-3.5e-7 BTC", -35n, 8n)
       expectAmount("BTC -3.5e-7", -35n, 8n)
+      expectAmount("- 1e5 USD", -10000000n, 2n)
+    })
+
+    it("should read the mantissa dot as a decimal point for any currency", () => {
+      expectAmount("EUR 1.234e3", 123400n, 2n)
+      expectAmount("EUR 10.500e3", 1050000n, 2n)
     })
 
     it("should keep digits beyond float precision", () => {
@@ -119,12 +125,28 @@ describe("Scientific notation parsing", () => {
         "BTC 1 e5",
         "BTC +1e5",
         "BTC 1.e5",
-        "1e5 BTCX",
-        "1e5 XYZ",
         "1e5 sats extra",
       ]
       for (const input of malformed) {
+        expect(() => Money(input)).toThrow("Invalid money string format")
+      }
+    })
+
+    it("should throw on unknown codes after a scientific-notation amount", () => {
+      expect(() => Money("1e5 BTCX")).toThrow("Unknown currency code: BTCX")
+      expect(() => Money("1e5 XYZ")).toThrow("Unknown currency code: XYZ")
+    })
+
+    it("should reject long digit runs quickly", () => {
+      const inputs = [
+        "1".repeat(50000),
+        `$${"1".repeat(50000)}e`,
+        `${"1".repeat(50000)} BTC x`,
+      ]
+      for (const input of inputs) {
+        const start = Date.now()
         expect(() => Money(input)).toThrow()
+        expect(Date.now() - start).toBeLessThan(250)
       }
     })
 
@@ -169,7 +191,9 @@ describe("Scientific notation parsing", () => {
         "1,5e3 EUR",
       ]
       for (const input of malformed) {
-        expect(() => Money(input)).toThrow()
+        expect(() => Money(input)).toThrow(
+          /Invalid (money string|number) format/,
+        )
       }
     })
 

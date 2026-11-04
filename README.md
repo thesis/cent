@@ -80,6 +80,10 @@ const ethereum = Money('ETH 10.123456') // Ethereum: 10.123456 ETH
 const satoshis = Money('1000 sat')      // 1000 satoshis = 0.00001000 BTC
 const wei = Money('1000000 wei')        // 1000000 wei = 0.000000000001 ETH
 const gwei = Money('50 gwei')           // 50 gwei = 0.00000005 ETH
+const fractional = Money('1.5 sats')    // sub-units keep decimals: 0.000000015 BTC
+
+// Parse scientific notation (e.g. from JS numbers like 0.00000035)
+const tiny = Money('BTC 3.5e-7')        // 0.00000035 BTC, also "3.5e-7 BTC"
 
 // Parse with fractional unit symbols
 const sats = Money('§10000')            // 10000 satoshis = 0.0001 BTC

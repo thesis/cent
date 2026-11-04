@@ -1689,6 +1689,9 @@ export class Money {
  * - Currency codes: "USD 100", "100 EUR", "JPY 1,000"
  * - Crypto main units: "₿1.5", "BTC 0.001", "ETH 2.5"
  * - Crypto sub-units: "1000 sat", "100000 wei", "50 gwei"
+ * - Sub-unit amounts keep their decimals: "1.5 sats" is 0.000000015 BTC
+ * - Scientific notation: "$1.23E+5", "BTC 3.5e-7", "3.5e-7 BTC", "1e3 sats"
+ *   (exponents up to ±100)
  * - Number formats: US (1,234.56) and EU (1.234,56)
  *
  * Symbol disambiguation uses trading volume priority:

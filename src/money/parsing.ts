@@ -18,9 +18,13 @@ export interface MoneyParseResult {
 
 const MAX_SCIENTIFIC_EXPONENT = 100
 
+// Mantissa as "\d+|\d*\.\d+": adjacent digit quantifiers backtrack quadratically
+const SCIENTIFIC_NUMBER = String.raw`(?:\d+|\d*\.\d+)[eE][+-]?\d+`
+const SCIENTIFIC_NUMBER_REGEX = new RegExp(`^-?${SCIENTIFIC_NUMBER}$`)
+
 // A plain amount ("1,234.56", "- 100"), or one scientific-notation number
-// ("3.5e-7", "1E+5"). The second branch only matches what parseNumber accepts.
-const AMOUNT_PATTERN = String.raw`[0-9,. -]+|-?\d*\.?\d+[eE][+-]?\d+`
+// ("3.5e-7", "- 1E+5"). The second branch only matches what parseNumber accepts.
+const AMOUNT_PATTERN = String.raw`[0-9,. -]+|(?:-\s*)?${SCIENTIFIC_NUMBER}`
 const CRYPTO_SUB_UNIT_REGEX = new RegExp(
   String.raw`^(${AMOUNT_PATTERN})\s+([a-zA-Z]+)s?$`,
   "i",
@@ -99,7 +103,7 @@ function parseNumber(
   // Handle scientific notation (e.g., "1.06521485582e-7", "5e8", "1.23E+5")
   if (/[eE]/.test(cleaned)) {
     // Validate scientific notation format more strictly
-    if (!/^-?\d*\.?\d+[eE][+-]?\d+$/.test(cleaned)) {
+    if (!SCIENTIFIC_NUMBER_REGEX.test(cleaned)) {
       throw new Error(`Invalid number format: "${amountStr}"`)
     }
 
